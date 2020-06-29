@@ -54,7 +54,7 @@ Project Organization
 Setting up
 ------------
 To get started, run:  
-`git clone --recurse-submodules git@github.com:garlicdevs/Fruit-API.git`
+`git clone --recurse-submodules git@github.com:binomial-ai/CORL.git`
 
 Run `make create_environment`. This will create a new python environment for you to run this project. It will do it with conda if you have it installed or virtualenvwrapper otherwise.
 
