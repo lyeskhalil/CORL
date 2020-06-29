@@ -1,53 +1,40 @@
-#!/usr/bin/env python
+import io
+import os
+import re
 
-"""The setup script."""
+from setuptools import find_packages
+from setuptools import setup
 
-from setuptools import setup, find_packages
 
-with open('README.rst') as readme_file:
-    readme = readme_file.read()
+def read(filename):
+    filename = os.path.join(os.path.dirname(__file__), filename)
+    text_type = type(u"")
+    with io.open(filename, mode="r", encoding="utf-8") as fd:
+        return re.sub(text_type(r":[a-z]+:`~?(.*?)`"), text_type(r"``\1``"), fd.read())
 
-with open('HISTORY.rst') as history_file:
-    history = history_file.read()
 
-requirements = ['Click>=7.0', ]
+requirements = [
+    # use environment.yml
+]
 
-setup_requirements = ['pytest-runner', ]
-
-test_requirements = ['pytest>=3', ]
 
 setup(
+    name="corl",
+    version="0.0.1",
+    url="https://github.com/binomial-ai/corl",
     author="Parsa Torabian",
-    author_email='p2torabi@uwaterloo.ca',
-    python_requires='>=3.5',
-    classifiers=[
-        'Development Status :: 2 - Pre-Alpha',
-        'Intended Audience :: Developers',
-        'License :: OSI Approved :: MIT License',
-        'Natural Language :: English',
-        'Programming Language :: Python :: 3',
-        'Programming Language :: Python :: 3.5',
-        'Programming Language :: Python :: 3.6',
-        'Programming Language :: Python :: 3.7',
-        'Programming Language :: Python :: 3.8',
-    ],
-    description="Exploring combinatorial optimization using reinforcement learning",
+    author_email="p2torabi@uwaterloo.ca",
+    description="Exploring Combinatorial Optimization in Reinforcement Learning (CORL)",
+    long_description=read("README.rst"),
+    packages=find_packages(exclude=("tests",)),
     entry_points={
-        'console_scripts': [
-            'corl=corl.cli:main',
-        ],
+        "console_scripts": [
+            "corl=corl.cli:cli"
+        ]
     },
     install_requires=requirements,
-    license="MIT license",
-    long_description=readme + '\n\n' + history,
-    include_package_data=True,
-    keywords='corl',
-    name='corl',
-    packages=find_packages(include=['corl', 'corl.*']),
-    setup_requires=setup_requirements,
-    test_suite='tests',
-    tests_require=test_requirements,
-    url='https://github.com/parsatorb/corl',
-    version='0.1.0',
-    zip_safe=False,
+    classifiers=[
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 3.6",
+    ],
 )
