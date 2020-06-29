@@ -53,12 +53,15 @@ Project Organization
 
 Setting up
 ------------
+To get started, run:  
+`git clone --recurse-submodules git@github.com:garlicdevs/Fruit-API.git`
+
 Run `make create_environment`. This will create a new python environment for you to run this project. It will do it with conda if you have it installed or virtualenvwrapper otherwise.
 
-Now with you new virtual environment, run:
+Now with you new virtual environment, run:  
 `pip install -r requirements.txt`
 
-If you plan on contributing, please run:
+If you plan on contributing, please run:  
 `pre-commit install`
 
 Shout-Outs
