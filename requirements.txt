@@ -2,15 +2,7 @@
 -e .
 
 # external requirements
-click
-Sphinx
-coverage
-pre-commit
-python-dotenv>=0.5.1
-
-
 # backwards compatibility
-pathlib2
 
 #Dev Requirements
 absl-py>=0.9.0
