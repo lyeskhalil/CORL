@@ -31,6 +31,7 @@ class MOQLearner(Learner):
         using_e_greedy=True,
         async_update_steps=1,
         is_voting=False,
+        voting_scheme=None,
     ):
         super().__init__(
             agent=agent,
@@ -49,6 +50,7 @@ class MOQLearner(Learner):
         self.traces_factor = traces_factor
         self.using_e_greedy = using_e_greedy
         self.async_update_steps = async_update_steps
+        self.voting_scheme = voting_scheme
 
         self.num_of_objectives = environment.get_number_of_objectives()
         self.init_q_values = [0.0] * self.num_of_objectives
@@ -82,6 +84,7 @@ class MOQLearner(Learner):
                         environment=environment,
                         init_value=0.0,
                         thresholds=self.thresholds,
+                        voting_scheme=voting_scheme,
                     )
 
         self.table = table

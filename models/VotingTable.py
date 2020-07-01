@@ -3,12 +3,15 @@ from fruit.buffers.table import LookupTable
 
 
 class VotinglookupTable(LookupTable):
-    def __init__(self, environment, init_value=0.0, thresholds=None):
+    def __init__(
+        self, environment, init_value=0.0, thresholds=None, voting_scheme=None
+    ):
         super().__init__(environment=environment, init_value=init_value)
         self.thresholds = thresholds
         self.current_state_values = [
             [0.0 for x in range(self.num_of_objs)] for y in range(self.num_of_actions)
         ]
+        self.voting_scheme = voting_scheme
 
     def get_thresholds(self):
         return self.thresholds
