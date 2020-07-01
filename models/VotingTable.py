@@ -1,5 +1,5 @@
 import numpy as np
-from fruit.fruit.buffers.table import LookupTable
+from fruit.buffers.table import LookupTable
 
 
 class VotinglookupTable(LookupTable):
