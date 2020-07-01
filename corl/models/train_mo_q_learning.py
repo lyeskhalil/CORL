@@ -1,9 +1,11 @@
 from fruit.agents.factory import AgentFactory
+
 from fruit.configs.multi_objectives import MOExDQNConfig, MODQNConfig
 from fruit.envs.games.deep_sea_treasure.engine import DeepSeaTreasure
 from fruit.envs.games.mountain_car.engine import MountainCar
 from fruit.envs.juice import FruitEnvironment
 from mo_q_learning import MOQLearner
+
 from fruit.learners.multi_objectives import MODQNLearner
 from fruit.networks.policy import PolicyNetwork
 from fruit.state.processor import AtariProcessor
@@ -64,7 +66,7 @@ def train_VoQL_agent_deep_sea_treasure(env_size):
     # Put the game engine into fruit wrapper
     environment = FruitEnvironment(game)
 
-    # Create a multi-objective agent using Q-learning
+    # Create a multi-objective voting agent using Q-learning
     agent = AgentFactory.create(
         MOQLearner,
         None,
@@ -72,7 +74,7 @@ def train_VoQL_agent_deep_sea_treasure(env_size):
         num_of_epochs=2,
         steps_per_epoch=100000,
         checkpoint_frequency=5e4,
-        log_dir="../models/deep_sea_treasure/moq_checkpoints",
+        log_dir="../../models/deep_sea_treasure/moq_checkpoints",
         is_voting=True,
         voting_scheme="plurality",
     )
@@ -156,4 +158,4 @@ def train_multi_objective_dqn_agent(is_linear=True, extended_config=True):
 
 
 if __name__ == "__main__":
-    train_multi_objective_dqn_agent()
+    train_VoQL_agent_deep_sea_treasure(10)

@@ -1,5 +1,7 @@
 import numpy as np
 from fruit.buffers.table import LookupTable
+from voting import Vote
+from scipy.stats import rankdata
 
 
 class VotinglookupTable(LookupTable):
@@ -21,7 +23,9 @@ class VotinglookupTable(LookupTable):
 
     def select_greedy_action(self, state):
         self.get_action_values(state)
-        return self.greedy_action(self.current_state_values, self.thresholds)
+        return self.greedy_action(
+            self.current_state_values, self.thresholds, self.voting_scheme
+        )
 
     def get_action_values(self, state):
         for i in range(self.num_of_objs):
@@ -29,7 +33,12 @@ class VotinglookupTable(LookupTable):
                 self.current_state_values[a][i] = self.value_function[i][a][state]
 
     @staticmethod
-    def greedy_action(action_values, thresholds):
+    def greedy_action(action_values, thresholds, voting_scheme):
+        action_values = np.array(action_values).T
+        action_ranks = rankdata(action_values, axis=1, method="dense")
+        votes = Vote(action_ranks)
+        return votes.aggregate(voting_scheme)
+
         # TODO: USE VOTING SCHEMES TO SELECT BEST ACTION
         # linear_values = []
         # for i in range(len(action_values)):
@@ -42,4 +51,5 @@ class VotinglookupTable(LookupTable):
         #         if linear_values[i] > greedy_value:
         #             greedy_action = i
         # return greedy_action
+
         pass
