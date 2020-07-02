@@ -7,6 +7,7 @@ from fruit.envs.juice import FruitEnvironment
 from mo_q_learning import MOQLearner
 
 from fruit.learners.multi_objectives import MODQNLearner
+
 from fruit.networks.policy import PolicyNetwork
 from fruit.state.processor import AtariProcessor
 
@@ -26,7 +27,7 @@ def train_multi_objective_agent_deep_sea_treasure(env_size):
         num_of_epochs=2,
         steps_per_epoch=100000,
         checkpoint_frequency=5e4,
-        log_dir="./train/deep_sea_treasure/moq_checkpoints",
+        log_dir="../../models/deep_sea_treasure/moq_checkpoints",
     )
 
     # Train it
@@ -50,9 +51,35 @@ def train_multi_objective_agent_mountain_car():
         num_of_epochs=30,
         steps_per_epoch=100000,
         checkpoint_frequency=1e5,
-        log_dir="../models/mountain_car/moq_checkpoints",
+        log_dir="../../models/mountain_car/moq_checkpoints",
         is_linear=True,
         thresholds=[0.5, 0.3, 0.2],
+    )
+
+    # Train the agent
+    agent.train()
+
+
+def train_mo_VoQl_agent_mountain_car():
+    # Create a Mountain Car game
+    game = MountainCar(
+        graphical_state=False, frame_skip=1, render=False, speed=1000, is_debug=False
+    )
+
+    # Put game into fruit wrapper and enable multi-objective feature
+    environment = FruitEnvironment(game)
+
+    # Create a multi-objective agent using Q-learning algorithm
+    agent = AgentFactory.create(
+        MOQLearner,
+        None,
+        environment,
+        num_of_epochs=30,
+        steps_per_epoch=100000,
+        checkpoint_frequency=1e5,
+        log_dir="../../models/mountain_car/moq_checkpoints",
+        is_voting=True,
+        voting_scheme="plurality",
     )
 
     # Train the agent
@@ -158,4 +185,4 @@ def train_multi_objective_dqn_agent(is_linear=True, extended_config=True):
 
 
 if __name__ == "__main__":
-    train_VoQL_agent_deep_sea_treasure(10)
+    train_mo_VoQl_agent_mountain_car()

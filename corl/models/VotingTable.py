@@ -34,10 +34,11 @@ class VotinglookupTable(LookupTable):
 
     @staticmethod
     def greedy_action(action_values, thresholds, voting_scheme):
-        action_values = np.array(action_values).T
+        action_values = -np.array(action_values).T
         action_ranks = rankdata(action_values, axis=1, method="dense")
         votes = Vote(action_ranks)
-        return votes.aggregate(voting_scheme)
+        winner = votes.aggregate(voting_scheme)
+        return winner
 
         # TODO: USE VOTING SCHEMES TO SELECT BEST ACTION
         # linear_values = []
@@ -51,5 +52,3 @@ class VotinglookupTable(LookupTable):
         #         if linear_values[i] > greedy_value:
         #             greedy_action = i
         # return greedy_action
-
-        pass
