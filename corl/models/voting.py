@@ -1,6 +1,7 @@
 import numpy as np
 from itertools import combinations, permutations
 
+
 class Vote:
     def __init__(self, votes):
         self.votes = votes
@@ -42,6 +43,17 @@ class Vote:
         """
         pass
 
+    def kemeny(self, ranks):
+        min_dist = np.inf
+        best_rank = None
+        n_voters, n_candidates = ranks.shape
+        for candidate_rank in permutations(range(n_candidates)):
+            dist = np.sum([kendalltau_dist(candidate_rank, rank) for rank in ranks])
+            if dist < min_dist:
+                min_dist = dist
+                best_rank = candidate_rank
+        return best_rank[0]
+
 
 def generate_votes(n, m):
     """
@@ -52,24 +64,13 @@ def generate_votes(n, m):
         votes[i] = np.random.choice(range(1, m + 1), replace=False, size=m)
     return votes
 
+
 def kendalltau_dist(rank_a, rank_b):
     tau = 0
     n_candidates = len(rank_a)
     for i, j in combinations(range(n_candidates), 2):
-        tau += (np.sign(rank_a[i] - rank_a[j]) ==
-                -np.sign(rank_b[i] - rank_b[j]))
+        tau += np.sign(rank_a[i] - rank_a[j]) == -np.sign(rank_b[i] - rank_b[j])
     return tau
-
-def kemeny(ranks):
-    min_dist = np.inf
-    best_rank = None
-    n_voters, n_candidates = ranks.shape
-    for candidate_rank in permutations(range(n_candidates)):
-        dist = np.sum(kendalltau_dist(candidate_rank, rank) for rank in ranks)
-        if dist < min_dist:
-            min_dist = dist
-            best_rank = candidate_rank
-    return best_rank[0]
 
 
 if __name__ == "__main__":
