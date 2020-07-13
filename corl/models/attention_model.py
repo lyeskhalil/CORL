@@ -67,6 +67,8 @@ class AttentionModel(nn.Module):
         self.is_vrp = problem.NAME == "cvrp" or problem.NAME == "sdvrp"
         self.is_orienteering = problem.NAME == "op"
         self.is_pctsp = problem.NAME == "pctsp"
+        self.is_bipartite = problem.NAME == "bipartite"
+        self.is_tsp = problem.NAME == "tsp"
 
         self.tanh_clipping = tanh_clipping
 
@@ -95,13 +97,22 @@ class AttentionModel(nn.Module):
                 self.is_vrp and self.allow_partial
             ):  # Need to include the demand if split delivery allowed
                 self.project_node_step = nn.Linear(1, 3 * embedding_dim, bias=False)
-        else:  # TSP
+        elif self.is_tsp:  # TSP
             assert problem.NAME == "tsp", "Unsupported problem: {}".format(problem.NAME)
             step_context_dim = 2 * embedding_dim  # Embedding of first and last node
             node_dim = 2  # x, y
 
             # Learned input symbols for first action
             self.W_placeholder = nn.Parameter(torch.Tensor(2 * embedding_dim))
+            self.W_placeholder.data.uniform_(
+                -1, 1
+            )  # Placeholder should be in range of activations
+        else:  # online bipartite matching
+            step_context_dim = embedding_dim  # Embedding of edges chosen
+            node_dim = 1  # edge weight
+
+            # Learned input symbols for first action
+            self.W_placeholder = nn.Parameter(torch.Tensor(embedding_dim))
             self.W_placeholder.data.uniform_(
                 -1, 1
             )  # Placeholder should be in range of activations
