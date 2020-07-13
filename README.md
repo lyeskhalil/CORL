@@ -60,7 +60,8 @@ Run `make create_environment`. This will create a new python environment for you
 
 Now with you new virtual environment, run:  
 `pip install -r Fruit-API/requirements.txt`
-`pip install -r requirements.txt`
+`pip install -r requirements.txt`.
+
 You will also have to run `pip install -e .` inside the attention submodule.
 
 If you plan on contributing, please run:  
