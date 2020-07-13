@@ -58,8 +58,7 @@ To get started, run:
 
 Run `make create_environment`. This will create a new python environment for you to run this project. It will do it with conda if you have it installed or virtualenvwrapper otherwise.
 
-Now with you new virtual environment, run:  
-`pip install -r Fruit-API/requirements.txt`
+Now with you new virtual environment, run: 
 `pip install -r requirements.txt`.
 
 You will also have to run `pip install -e .` inside the attention submodule.
