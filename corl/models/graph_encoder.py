@@ -138,26 +138,32 @@ class Normalization(nn.Module):
             return input
 
 
-class MultiHeadAttentionLayer(nn.Sequential):
+class MultiHeadAttentionLayer(nn.Module):
     def __init__(
         self, n_heads, embed_dim, feed_forward_hidden=512, normalization="batch",
     ):
-        super(MultiHeadAttentionLayer, self).__init__(
-            SkipConnection(
-                MultiHeadAttention(n_heads, input_dim=embed_dim, embed_dim=embed_dim)
-            ),
-            Normalization(embed_dim, normalization),
-            SkipConnection(
-                nn.Sequential(
-                    nn.Linear(embed_dim, feed_forward_hidden),
-                    nn.ReLU(),
-                    nn.Linear(feed_forward_hidden, embed_dim),
-                )
-                if feed_forward_hidden > 0
-                else nn.Linear(embed_dim, embed_dim)
-            ),
-            Normalization(embed_dim, normalization),
+        super(MultiHeadAttentionLayer, self).__init__()
+        self.attention = SkipConnection(
+            MultiHeadAttention(n_heads, input_dim=embed_dim, embed_dim=embed_dim)
         )
+        self.norm = Normalization(embed_dim, normalization)
+        self.ff = SkipConnection(
+            nn.Sequential(
+                nn.Linear(embed_dim, feed_forward_hidden),
+                nn.ReLU(),
+                nn.Linear(feed_forward_hidden, embed_dim),
+            )
+            if feed_forward_hidden > 0
+            else nn.Linear(embed_dim, embed_dim)
+        )
+        self.norm2 = Normalization(embed_dim, normalization)
+
+    def forward(self, input, mask):
+        h = self.attention(input, mask=mask)
+        h = self.norm1(h)
+        h = self.ff(h, mask=mask)
+        h = self.norm2(h)
+        return h
 
 
 class GraphAttentionEncoder(nn.Module):
@@ -188,7 +194,7 @@ class GraphAttentionEncoder(nn.Module):
 
     def forward(self, x, mask=None):
 
-        assert mask is None, "TODO mask not yet supported!"
+        # assert mask is None, "TODO mask not yet supported!"
 
         # Batch multiply to get initial embeddings of nodes
         h = (
@@ -197,7 +203,7 @@ class GraphAttentionEncoder(nn.Module):
             else x
         )
 
-        h = self.layers(h)
+        h = self.layers(h, mask)
 
         return (
             h,  # (batch_size, graph_size, embed_dim)

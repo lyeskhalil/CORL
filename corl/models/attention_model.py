@@ -155,10 +155,10 @@ class AttentionModel(nn.Module):
             self.checkpoint_encoder and self.training
         ):  # Only checkpoint if we need gradients
             embeddings, _ = checkpoint(self.embedder, self._init_embed(input))
-        else:
-            embeddings, _ = self.embedder(self._init_embed(input))
+        # else:
+        #     embeddings, _ = self.embedder(self._init_embed(input))
 
-        _log_p, pi = self._inner(input, embeddings)
+        _log_p, pi = self._inner(input)
 
         cost, mask = self.problem.get_costs(input, pi)
         # Log likelyhood is calculated within the model since returning it per action does not work well with
@@ -260,13 +260,13 @@ class AttentionModel(nn.Module):
         # TSP
         return self.init_embed(input)
 
-    def _inner(self, input, embeddings):
+    def _inner(self, input):
 
         outputs = []
         sequences = []
 
-        state = self.problem.make_state(input)
-
+        state, graph = self.problem.make_state(input)
+        embeddings, _ = self.embedder(self._init_embed(input), graph)
         # Compute keys, values for the glimpse and keys for the logits once as they can be reused in every step
         fixed = self._precompute(embeddings)
 
@@ -275,7 +275,8 @@ class AttentionModel(nn.Module):
         # Perform decoding steps
         i = 0
         while not (self.shrink_size is None and state.all_finished()):
-
+            embeddings, _ = self.embedder(self._init_embed(input), graph)
+            fixed = self._precompute(embeddings)
             if self.shrink_size is not None:
                 unfinished = torch.nonzero(state.get_finished() == 0)
                 if len(unfinished) == 0:
@@ -295,7 +296,7 @@ class AttentionModel(nn.Module):
                 log_p.exp()[:, 0, :], mask[:, 0, :]
             )  # Squeeze out steps dimension
 
-            state = state.update(selected)
+            state, input, graph = state.update(selected)
 
             # Now make log_p, selected desired output size by 'unshrinking'
             if self.shrink_size is not None and state.ids.size(0) < batch_size:
