@@ -4,6 +4,7 @@ import os
 import pickle
 from problems.Bipartite.state_Bipartite import StateBipartite
 from utils.beam_search import beam_search
+from .data.generate_data import generate_bipartite_data
 
 
 class Bipartite(object):
@@ -69,12 +70,21 @@ class Bipartite(object):
 
 class BipartiteDataset(Dataset):
     def __init__(
-        self, filename=None, size=50, num_samples=1000000, offset=0, distribution=None
+        self,
+        v_size,
+        u_size,
+        num_edges,
+        weights_range,
+        filename=None,
+        num_samples=1000000,
+        offset=0,
+        distribution=None,
     ):
         super(BipartiteDataset, self).__init__()
 
         self.data_set = []
         if filename is not None:
+            # TODO: TO BE MODIFIED FOR BIPARTITE
             assert os.path.splitext(filename)[1] == ".pkl"
 
             with open(filename, "rb") as f:
@@ -86,9 +96,9 @@ class BipartiteDataset(Dataset):
         else:
             ### TODO: Should use generate function in generate_data.py
             # Sample points randomly in [0, 1] square
-            self.data = [
-                torch.FloatTensor(size, 2).uniform_(0, 1) for i in range(num_samples)
-            ]
+            self.data = generate_bipartite_data(
+                num_samples, v_size, u_size, num_edges, weights_range
+            )
 
         self.size = len(self.data)
 

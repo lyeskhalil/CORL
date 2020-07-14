@@ -69,17 +69,13 @@ class AttentionModel(nn.Module):
         self.is_pctsp = problem.NAME == "pctsp"
         self.is_bipartite = problem.NAME == "bipartite"
         self.is_tsp = problem.NAME == "tsp"
-
         self.tanh_clipping = tanh_clipping
-
         self.mask_inner = mask_inner
         self.mask_logits = mask_logits
-
         self.problem = problem
         self.n_heads = n_heads
         self.checkpoint_encoder = checkpoint_encoder
         self.shrink_size = shrink_size
-
         # Problem specific context parameters (placeholder and step context dimension)
         if self.is_vrp or self.is_orienteering or self.is_pctsp:
             # Embedding of last node + remaining_capacity / remaining length / remaining prize to collect
@@ -89,7 +85,6 @@ class AttentionModel(nn.Module):
                 node_dim = 4  # x, y, expected_prize, penalty
             else:
                 node_dim = 3  # x, y, demand / prize
-
             # Special embedding projection for depot node
             self.init_embed_depot = nn.Linear(2, embedding_dim)
 
@@ -148,6 +143,7 @@ class AttentionModel(nn.Module):
         :param input: (batch_size, graph_size, node_dim) input node features or dictionary with multiple tensors
         :param return_pi: whether to return the output sequences, this is optional as it is not compatible with
         using DataParallel as the results may be of different lengths on different GPUs
+        :param mask: negative adjacency matrix of initial graph
         :return:
         """
 
