@@ -14,7 +14,8 @@ def generate_bipartite_data(dataset_size, v_size, u_size, num_edges, weights_ran
     for i in range(dataset_size):
         g1 = nx.line_graph(nx.bipartite.gnmk_random_graph(v_size, u_size, num_edges))
         w = np.random.randint(weights_range[0], weights_range[1], num_edges)
-        G.append((nx.convert_matrix.to_numpy_matrix(g1), w))
+        # add negative adjacency matrix and edge weights
+        G.append([-(nx.convert_matrix.to_numpy_matrix(g1) - 1), w])
     return G
 
 
