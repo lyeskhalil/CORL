@@ -12,10 +12,12 @@ def generate_tsp_data(dataset_size, tsp_size):
 def generate_bipartite_data(dataset_size, v_size, u_size, num_edges, weights_range):
     G = []
     for i in range(dataset_size):
-        g1 = nx.line_graph(nx.bipartite.gnmk_random_graph(v_size, u_size, num_edges))
+        g1 = nx.bipartite.gnmk_random_graph(v_size, u_size, num_edges)
         w = np.random.randint(weights_range[0], weights_range[1], num_edges)
         # add negative adjacency matrix and edge weights
-        G.append([-(nx.convert_matrix.to_numpy_matrix(g1) - 1), w])
+        G.append(
+            [-(nx.convert_matrix.to_numpy_matrix(g1) - 1), w, np.array(g1.edges)[:, 0]]
+        )
     return G
 
 

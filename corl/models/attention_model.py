@@ -143,7 +143,6 @@ class AttentionModel(nn.Module):
         :param input: (batch_size, graph_size, node_dim) input node features or dictionary with multiple tensors
         :param return_pi: whether to return the output sequences, this is optional as it is not compatible with
         using DataParallel as the results may be of different lengths on different GPUs
-        :param mask: negative adjacency matrix of initial graph
         :return:
         """
 
