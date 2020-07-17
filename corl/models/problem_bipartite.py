@@ -4,7 +4,7 @@ import os
 import pickle
 from problems.Bipartite.state_Bipartite import StateBipartite
 from utils.beam_search import beam_search
-from .data.generate_data import generate_bipartite_data
+from ..data.generate_data import generate_bipartite_data
 
 
 class Bipartite(object):

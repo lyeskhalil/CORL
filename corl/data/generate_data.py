@@ -9,16 +9,20 @@ def generate_tsp_data(dataset_size, tsp_size):
     return np.random.uniform(size=(dataset_size, tsp_size, 2)).tolist()
 
 
-def generate_bipartite_data(dataset_size, v_size, u_size, num_edges, weights_range):
+def generate_bipartite_data(
+    dataset_size, v_size, u_size, num_edges, future_edge_weight, weights_range
+):
     G = []
+    U = []
+    W = []
     for i in range(dataset_size):
         g1 = nx.bipartite.gnmk_random_graph(v_size, u_size, num_edges)
         w = np.random.randint(weights_range[0], weights_range[1], num_edges)
         # add negative adjacency matrix and edge weights
-        G.append(
-            [-(nx.convert_matrix.to_numpy_matrix(g1) - 1), w, np.array(g1.edges)[:, 0]]
-        )
-    return G
+        G.append(-(nx.convert_matrix.to_numpy_array(g1) - 1))
+        W.append(list(np.append(w, future_edge_weight)))
+        U.append(np.array(g1.edges)[:, 0])
+    return G, W, U
 
 
 def generate_vrp_data(dataset_size, vrp_size):
