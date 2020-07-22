@@ -16,12 +16,15 @@ def generate_bipartite_data(
     U = []
     W = []
     for i in range(dataset_size):
-        g1 = nx.bipartite.gnmk_random_graph(v_size, u_size, num_edges)
+        g1 = nx.line_graph(nx.bipartite.gnmk_random_graph(v_size, u_size, num_edges))
         w = np.random.randint(weights_range[0], weights_range[1], num_edges)
         # add negative adjacency matrix and edge weights
-        G.append(-(nx.convert_matrix.to_numpy_array(g1) - 1))
+        order = np.argsort(np.array(g1.nodes)[:, 1], axis=None)
+        m = nx.convert_matrix.to_numpy_array(g1)
+        ordered_m = np.take(np.take(m, order, axis=1), order, axis=0)
+        G.append(-(ordered_m - 1))
         W.append(list(np.append(w, future_edge_weight)))
-        U.append(np.array(g1.edges)[:, 0])
+        U.append(np.array(g1.nodes)[:, 0])
     return G, W, U
 
 

@@ -13,25 +13,24 @@ class StateBipartite(NamedTuple):
     # Fixed input
     graphs: torch.Tensor  # full adjacency matrix of all graphs in a batch
     weights: torch.Tensor  # weights of all edges of each graph in a batch
-    u_nodes: torch.Tensor  # indices of nodes in the U-set of each graph that are connected to edge
+    edges: torch.Tensor  # edges of each graph in a batch
 
     # If this state contains multiple copies (i.e. beam search) for the same instance, then for memory efficiency
     # the loc and dist tensors are not kept multiple times, so we need to use the ids to index the correct rows.
     ids: torch.Tensor  # Keeps track of original fixed data index of rows
 
     # State
-    curr_edge: torch.Tensor  # current edge number
+    # curr_edge: torch.Tensor  # current edge number
     matched_nodes: torch.Tensor  # Keeps track of nodes that have been matched
     picked_edges: torch.Tensor
     size: torch.Tensor  # size of current matching
     i: torch.Tensor  # Keeps track of step
+    # mask: torch.Tensor  # mask for each step
 
     @property
     def visited(self):
         if self.visited_.dtype == torch.uint8:
-            return self.visited_
-        else:
-            return mask_long2bool(self.visited_, n=self.loc.size(-2))
+            return self.matched_nodes
 
     def __getitem__(self, key):
         if torch.is_tensor(key) or isinstance(
@@ -106,17 +105,15 @@ class StateBipartite(NamedTuple):
 
     def update(self, selected):
         # Update the state
-        nodes = self.matched_nodes.scatter_(-1, selected, 1)
-        curr_edge = selected + self.curr_edge
-        total_weights = self.size + torch.index_select(self.weights, curr_edge, dim=1)
-        edges = self.picked_edges.scatter_(-1, curr_edge, 1)
-
+        nodes = self.matched_nodes.scatter_(-1, selected[:, :-1], 1)
+        selected_u = selected.T.expand(self.edges.shape[1], -1)
+        selected_v = (self.i).T.expand(self.edges.shape[1], -1)
+        mask = (selected_u == self.edges[:, 0]) & (selected_v == self.edges[:, 1])
+        total_weights = self.size + torch.sum(self.weights * mask.T.long(), dim=1)
+        edges = self.picked_edges + mask.long()
+        # mask = edges.scatter_(-1, self.edges[:, :, 0] == )
         return self._replace(
-            curr_edge=curr_edge,
-            matched_nodes=nodes,
-            size=total_weights,
-            picked_edges=edges,
-            i=self.i + 1,
+            matched_nodes=nodes, size=total_weights, picked_edges=edges, i=self.i + 1,
         )
 
     def all_finished(self):
@@ -124,11 +121,11 @@ class StateBipartite(NamedTuple):
         return self.i.item() >= self.graphs.size(-2) - self.u_nodes.size(-1)
 
     def get_current_node(self):
-        return self.prev_a
+        return self.i
 
     def get_mask(self):
         return (
-            self.visited > 0
+            self.matched_nodes > 0
         )  # Hacky way to return bool or uint8 depending on pytorch version
 
     def get_nn(self, k=None):
