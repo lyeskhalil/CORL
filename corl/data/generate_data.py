@@ -10,22 +10,31 @@ def generate_tsp_data(dataset_size, tsp_size):
 
 
 def generate_bipartite_data(
-    dataset_size, v_size, u_size, num_edges, future_edge_weight, weights_range
+    dataset_size, u_size, v_size, num_edges, future_edge_weight, weights_range
 ):
     G = []
-    U = []
+    D = []
     W = []
     for i in range(dataset_size):
-        g1 = nx.line_graph(nx.bipartite.gnmk_random_graph(v_size, u_size, num_edges))
-        w = np.random.randint(weights_range[0], weights_range[1], num_edges)
+        g1 = nx.bipartite.gnmk_random_graph(u_size, v_size, num_edges)
+        g1.add_node(-1, bipartite=0)
+        g1.add_edges_from(list(zip([-1] * v_size, range(u_size, u_size + v_size))))
+        d = np.array(sorted(g1.degree))[u_size + 1 :, 1]
+        l1 = nx.line_graph(g1)
+        w = np.random.randint(weights_range[0], weights_range[1], num_edges + v_size)
+        w[
+            np.int_(np.sum(np.triu(np.ones((v_size, v_size))).T * d, axis=1) - 1)
+        ] = future_edge_weight
+        # w = np.insert(w,np.sum(np.triu(np.ones((v_size,v_size))).T * d, axis=1), future_edge_weight)
+
         # add negative adjacency matrix and edge weights
-        order = np.argsort(np.array(g1.nodes)[:, 1], axis=None)
-        m = nx.convert_matrix.to_numpy_array(g1)
+        order = np.argsort(np.array(l1.nodes)[:, 1], axis=None)
+        m = nx.convert_matrix.to_numpy_array(l1)
         ordered_m = np.take(np.take(m, order, axis=1), order, axis=0)
-        G.append(-(ordered_m - 1))
-        W.append(list(np.append(w, future_edge_weight)))
-        U.append(np.array(g1.nodes)[:, 0])
-    return G, W, U
+        G.append(list(-(ordered_m - 1)))
+        W.append(list(w))
+        D.append(list(d))
+    return G, W, D
 
 
 def generate_vrp_data(dataset_size, vrp_size):

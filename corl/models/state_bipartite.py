@@ -14,7 +14,7 @@ class StateBipartite(NamedTuple):
     graphs: torch.Tensor  # full adjacency matrix of all graphs in a batch
     weights: torch.Tensor  # weights of all edges of each graph in a batch
     edges: torch.Tensor  # edges of each graph in a batch
-
+    degree: torch.Tensor  # degree of each node in the V set
     # If this state contains multiple copies (i.e. beam search) for the same instance, then for memory efficiency
     # the loc and dist tensors are not kept multiple times, so we need to use the ids to index the correct rows.
     ids: torch.Tensor  # Keeps track of original fixed data index of rows
@@ -38,13 +38,13 @@ class StateBipartite(NamedTuple):
         ):  # If tensor, idx all tensors by this tensor:
             return self._replace(
                 ids=self.ids[key],
-                curr_edge=self.curr_edge[key],
                 graphs=self.graphs[key],
                 weights=self.weights[key],
-                u_nodes=self.u_nodes[key],
                 matched_nodes=self.matched_nodes[key],
                 picked_edges=self.picked_edges[key],
                 size=self.size[key],
+                edges=self.edges[key],
+                degree=self.degree[key],
             )
         return super(StateBipartite, self).__getitem__(key)
 
@@ -56,10 +56,8 @@ class StateBipartite(NamedTuple):
         return StateBipartite(
             graphs=torch.tensor(graphs[:, 0]),
             weights=torch.tensor(graphs[:, 1]),
-            u_nodes=torch.tensor(graphs[:, 2]),
-            curr_edge=torch.zeros(
-                batch_size, 1, dtype=torch.uint8, device=graphs.device
-            ),
+            edges=torch.tensor(graphs[:, 2]),
+            degree=torch.tensor(graphs[:, 3]),
             ids=torch.arange(batch_size, dtype=torch.int64, device=graphs.device)[
                 :, None
             ],  # Add steps dimension
@@ -77,7 +75,7 @@ class StateBipartite(NamedTuple):
                     device=graphs.device,
                 )  # Ceil
             ),
-            matched_edges=(  # Visited as mask is easier to understand, as long more memory efficient
+            picked_edges=(  # Visited as mask is easier to understand, as long more memory efficient
                 torch.zeros(
                     batch_size, 1, num_edges, dtype=torch.uint8, device=graphs.device
                 )
@@ -118,7 +116,7 @@ class StateBipartite(NamedTuple):
 
     def all_finished(self):
         # Exactly n steps
-        return self.i.item() >= self.graphs.size(-2) - self.u_nodes.size(-1)
+        return self.i.item() >= self.degree.size(-1)
 
     def get_current_node(self):
         return self.i
