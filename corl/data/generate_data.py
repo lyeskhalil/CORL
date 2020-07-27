@@ -3,6 +3,7 @@ import os
 import numpy as np
 from utils.data_utils import check_extension, save_dataset
 import networkx as nx
+from scipy.optimize import linear_sum_assignment
 
 
 def generate_tsp_data(dataset_size, tsp_size):
@@ -12,29 +13,39 @@ def generate_tsp_data(dataset_size, tsp_size):
 def generate_bipartite_data(
     dataset_size, u_size, v_size, num_edges, future_edge_weight, weights_range
 ):
-    G = []
-    D = []
-    W = []
+    G, D, E, W, M = [], [], [], [], []
     for i in range(dataset_size):
         g1 = nx.bipartite.gnmk_random_graph(u_size, v_size, num_edges)
+        d_old = np.array(sorted(g1.degree))[u_size:, 1]
+        c = nx.bipartite.biadjacency_matrix(
+            g1, range(0, u_size), range(u_size, u_size + v_size)
+        ).toarray() * np.random.randint(
+            weights_range[0], weights_range[1], (u_size, v_size)
+        )
         g1.add_node(-1, bipartite=0)
         g1.add_edges_from(list(zip([-1] * v_size, range(u_size, u_size + v_size))))
         d = np.array(sorted(g1.degree))[u_size + 1 :, 1]
         l1 = nx.line_graph(g1)
-        w = np.random.randint(weights_range[0], weights_range[1], num_edges + v_size)
-        w[
-            np.int_(np.sum(np.triu(np.ones((v_size, v_size))).T * d, axis=1) - 1)
-        ] = future_edge_weight
+        # w = np.random.randint(weights_range[0], weights_range[1], num_edges)
+        w = c[c.nonzero()]
+        # w[
+        #     np.int_(np.sum(np.triu(np.ones((v_size, v_size))).T * d, axis=1) - 1)
+        # ] = future_edge_weight
+        w = np.insert(w, np.cumsum(d_old) - d_old, future_edge_weight)
         # w = np.insert(w,np.sum(np.triu(np.ones((v_size,v_size))).T * d, axis=1), future_edge_weight)
-
         # add negative adjacency matrix and edge weights
-        order = np.argsort(np.array(l1.nodes)[:, 1], axis=None)
-        m = nx.convert_matrix.to_numpy_array(l1)
-        ordered_m = np.take(np.take(m, order, axis=1), order, axis=0)
-        G.append(list(-(ordered_m - 1)))
+        # order = np.argsort(np.array(l1.nodes)[:, 1], axis=None)
+        s = sorted(list(l1.nodes), key=lambda a: a[0])
+        s = sorted(s, key=lambda a: a[1])
+        m = nx.convert_matrix.to_numpy_array(l1, s)
+        # ordered_m = np.take(np.take(m, order, axis=1), order, axis=0)
+        G.append(list(-(m - 1)))
         W.append(list(w))
         D.append(list(d))
-    return G, W, D
+        E.append(s)
+        i1, i2 = linear_sum_assignment(c, maximize=True)
+        M.append(c[i1, i2].sum())
+    return G, W, D, E, M
 
 
 def generate_vrp_data(dataset_size, vrp_size):
