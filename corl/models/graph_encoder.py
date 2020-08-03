@@ -9,6 +9,15 @@ class SkipConnection(nn.Module):
         super(SkipConnection, self).__init__()
         self.module = module
 
+    def forward(self, input, mask=None):
+        return input + self.module(input, mask=mask)
+
+
+class SkipConnection1(nn.Module):
+    def __init__(self, module):
+        super(SkipConnection1, self).__init__()
+        self.module = module
+
     def forward(self, input):
         return input + self.module(input)
 
@@ -22,7 +31,7 @@ class MultiHeadAttention(nn.Module):
             val_dim = embed_dim // n_heads
         if key_dim is None:
             key_dim = val_dim
-
+        # print(input_dim)
         self.n_heads = n_heads
         self.input_dim = input_dim
         self.embed_dim = embed_dim
@@ -57,11 +66,12 @@ class MultiHeadAttention(nn.Module):
         """
         if h is None:
             h = q  # compute self-attention
-
+        # print(h.shape)
         # h should be (batch_size, graph_size, input_dim)
         batch_size, graph_size, input_dim = h.size()
         n_query = q.size(1)
         assert q.size(0) == batch_size
+        print(q.size(2), input_dim)
         assert q.size(2) == input_dim
         assert input_dim == self.input_dim, "Wrong embedding dimension of input"
 
@@ -127,7 +137,7 @@ class Normalization(nn.Module):
             stdv = 1.0 / math.sqrt(param.size(-1))
             param.data.uniform_(-stdv, stdv)
 
-    def forward(self, input):
+    def forward(self, input, mask=None):
 
         if isinstance(self.normalizer, nn.BatchNorm1d):
             return self.normalizer(input.view(-1, input.size(-1))).view(*input.size())
@@ -147,7 +157,7 @@ class MultiHeadAttentionLayer(nn.Module):
             MultiHeadAttention(n_heads, input_dim=embed_dim, embed_dim=embed_dim)
         )
         self.norm = Normalization(embed_dim, normalization)
-        self.ff = SkipConnection(
+        self.ff = SkipConnection1(
             nn.Sequential(
                 nn.Linear(embed_dim, feed_forward_hidden),
                 nn.ReLU(),
@@ -158,10 +168,11 @@ class MultiHeadAttentionLayer(nn.Module):
         )
         self.norm2 = Normalization(embed_dim, normalization)
 
-    def forward(self, input, mask):
+    def forward(self, input, mask=None):
+        # print(input)
         h = self.attention(input, mask=mask)
-        h = self.norm1(h)
-        h = self.ff(h, mask=mask)
+        h = self.norm(h)
+        h = self.ff(h)
         h = self.norm2(h)
         return h
 
@@ -182,14 +193,15 @@ class GraphAttentionEncoder(nn.Module):
         self.init_embed = (
             nn.Linear(node_dim, embed_dim) if node_dim is not None else None
         )
-
-        self.layers = nn.Sequential(
-            *(
-                MultiHeadAttentionLayer(
-                    n_heads, embed_dim, feed_forward_hidden, normalization
+        self.layers = nn.ModuleList(
+            [
+                *(
+                    MultiHeadAttentionLayer(
+                        n_heads, embed_dim, feed_forward_hidden, normalization
+                    )
+                    for _ in range(n_layers)
                 )
-                for _ in range(n_layers)
-            )
+            ]
         )
 
     def forward(self, x, mask=None):
@@ -202,8 +214,9 @@ class GraphAttentionEncoder(nn.Module):
             if self.init_embed is not None
             else x
         )
-
-        h = self.layers(h, mask)
+        # print(h.shape)
+        for layer in self.layers:
+            h = layer(h, mask=mask)
 
         return (
             h,  # (batch_size, graph_size, embed_dim)

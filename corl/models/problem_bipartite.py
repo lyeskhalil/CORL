@@ -74,7 +74,6 @@ class BipartiteDataset(Dataset):
         v_size,
         u_size,
         num_edges,
-        weights_range,
         filename=None,
         num_samples=1000000,
         offset=0,
@@ -97,13 +96,22 @@ class BipartiteDataset(Dataset):
             ### TODO: Should use generate function in generate_data.py
             # Sample points randomly in [0, 1] square
             self.data = generate_bipartite_data(
-                num_samples, v_size, u_size, num_edges, weights_range
+                num_samples, u_size, v_size, num_edges, 0, (1, 10)
             )
 
-        self.size = len(self.data)
+        self.size = len(self.data[0])
 
     def __len__(self):
         return self.size
 
     def __getitem__(self, idx):
-        return self.data[idx]
+        return tuple(d[idx] for d in self.data)
+
+
+# train_loader = torch.utils.data.DataLoader(
+#              ConcatDataset(
+#                  datasets.ImageFolder(traindir_A),
+#                  datasets.ImageFolder(traindir_B)
+#              ),
+#              batch_size=args.batch_size, shuffle=True,
+#              num_workers=args.workers, pin_memory=True)

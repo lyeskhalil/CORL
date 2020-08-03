@@ -18,6 +18,7 @@ class StateBipartite(NamedTuple):
     edges: torch.Tensor  # edges of each graph in a batch
     degree: torch.Tensor  # degree of each node in the V set
     u_size: torch.Tensor
+    v_size: torch.Tensor
     batch_size: torch.Tensor
     # If this state contains multiple copies (i.e. beam search) for the same instance, then for memory efficiency
     # the loc and dist tensors are not kept multiple times, so we need to use the ids to index the correct rows.
@@ -50,12 +51,20 @@ class StateBipartite(NamedTuple):
                 edges=self.edges[key],
                 degree=self.degree[key],
                 u_size=self.u_size[key],
+                v_size=self.v_size[key],
             )
         return super(StateBipartite, self).__getitem__(key)
 
     @staticmethod
     def initialize(
-        graphs, weights, edges, degree, u_size, num_edges, visited_dtype=torch.uint8
+        graphs,
+        weights,
+        edges,
+        degree,
+        u_size,
+        v_size,
+        num_edges,
+        visited_dtype=torch.uint8,
     ):
 
         batch_size = len(graphs)
@@ -63,6 +72,7 @@ class StateBipartite(NamedTuple):
         return StateBipartite(
             graphs=torch.tensor(graphs),
             u_size=torch.tensor([u_size]),
+            v_size=torch.tensor([v_size]),
             weights=torch.tensor(weights),
             edges=torch.tensor(edges),
             degree=torch.tensor(degree),
@@ -75,11 +85,27 @@ class StateBipartite(NamedTuple):
                 torch.zeros(
                     batch_size, 1, u_size + 1, dtype=torch.uint8, device=graphs.device
                 )
+                # if visited_dtype == torch.uint8
+                # else torch.zeros(
+                #     batch_size,
+                #     1,
+                #     (n_loc + 63) // 64,
+                #     dtype=torch.int64,
+                #     device=graphs.device,
+                # )  # Ceil
             ),
             picked_edges=(  # Visited as mask is easier to understand, as long more memory efficient
                 torch.zeros(
                     batch_size, 1, num_edges, dtype=torch.uint8, device=graphs.device
                 )
+                # if visited_dtype == torch.uint8
+                # else torch.zeros(
+                #     batch_size,
+                #     1,
+                #     (n_loc + 63) // 64,
+                #     dtype=torch.int64,
+                #     device=graphs.device,
+                # )  # Ceil
             ),
             size=torch.zeros(batch_size, 1, device=graphs.device),
             i=torch.ones(1, dtype=torch.int64, device=graphs.device)
@@ -95,15 +121,17 @@ class StateBipartite(NamedTuple):
 
     def update(self, selected):
         # Update the state
-        nodes = self.matched_nodes.squeeze(1).scatter_(-1, selected, 1)
-        selected_u = (selected - 1).expand(self.batch_size, self.edges.shape[1])
-        # state.edges.shape
-        selected_v = (self.i).T.expand(selected_u.shape)
-        mask = (selected_u == self.edges[:, :, 0]) & (selected_v == self.edges[:, :, 1])
-        total_weights = (
-            self.size + torch.sum(self.weights * mask.long(), dim=1)[:, None]
-        )
-        edges = self.picked_edges.squeeze(1) + mask.long()
+        s = (self.i.item() - self.u_size.item()) * (self.u_size.item() + 1)
+        nodes = self.matched_nodes.squeeze(1).scatter_(-1, selected - s, 1)
+        # selected_u = (selected - s - 1).expand(self.batch_size, self.edges.shape[1])
+        # # state.edges.shape
+        # selected_v = (self.i).T.expand(selected_u.shape)
+        # mask = (selected_u == self.edges[:, :, 0]) & (selected_v == self.edges[:, :, 1])
+        total_weights = self.size + self.weights.gather(1, selected)
+        print(self.size.shape, self.weights[:, selected].shape)
+        # total_weights = self.size + torch.sum(self.weights * mask.long(), dim=1)[:, None]
+        # edges = self.picked_edges.squeeze(1) + mask.long()
+        edges = self.picked_edges.squeeze(1).scatter_(-1, selected, 1)
         # nodes = self.matched_nodes.squeeze(1).scatter_(-1, selected, 1)
         # selected_u = selected.T.expand(self.edges.shape[1], -1)
         # selected_v = (self.i).T.expand(self.edges.shape[1], -1)
