@@ -2,9 +2,9 @@ from torch.utils.data import Dataset
 import torch
 import os
 import pickle
-from problems.Bipartite.state_Bipartite import StateBipartite
-from utils.beam_search import beam_search
-from ..data.generate_data import generate_bipartite_data
+from state_bipartite import StateBipartite
+from beam_search import beam_search
+from corl.data.generate_data import generate_bipartite_data
 
 
 class Bipartite(object):

@@ -1,7 +1,7 @@
 import argparse
 import os
 import numpy as np
-from utils.data_utils import check_extension, save_dataset
+from data_utils import check_extension, save_dataset
 import networkx as nx
 from scipy.optimize import linear_sum_assignment
 import torch
@@ -48,7 +48,7 @@ def generate_bipartite_data(
         adj[t[0]] = temp
         # ordered_m = np.take(np.take(m, order, axis=1), order, axis=0)
         G.append(adj.tolist())
-        W.append(list(w))
+        W.append(w.tolist())
         D.append(list(d))
         E.append(s)
         i1, i2 = linear_sum_assignment(c, maximize=True)

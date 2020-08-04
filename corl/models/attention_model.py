@@ -3,12 +3,14 @@ from torch import nn
 from torch.utils.checkpoint import checkpoint
 import math
 from typing import NamedTuple
-from utils.tensor_functions import compute_in_batches
 
-from nets.graph_encoder import GraphAttentionEncoder
+# from utils.tensor_functions import compute_in_batches
+
+from graph_encoder import GraphAttentionEncoder
 from torch.nn import DataParallel
-from utils.beam_search import CachedLookup
-from utils.functions import sample_many
+from beam_search import CachedLookup
+
+# from utils.functions import sample_many
 
 
 def set_decode_type(model, decode_type):
@@ -38,7 +40,8 @@ class AttentionModelFixed(NamedTuple):
                 glimpse_val=self.glimpse_val[:, key],  # dim 0 are the heads
                 logit_key=self.logit_key[key],
             )
-        return super(AttentionModelFixed, self).__getitem__(key)
+        # return super(AttentionModelFixed, self).__getitem__(key)
+        return self[key]
 
 
 class AttentionModel(nn.Module):
@@ -138,7 +141,7 @@ class AttentionModel(nn.Module):
         if temp is not None:  # Do not change temperature if not provided
             self.temp = temp
 
-    def forward(self, input, return_pi=False):
+    def forward(self, input, opts, return_pi=False):
         """
         :param input: (batch_size, graph_size, node_dim) input node features or dictionary with multiple tensors
         :param return_pi: whether to return the output sequences, this is optional as it is not compatible with
@@ -153,7 +156,7 @@ class AttentionModel(nn.Module):
         # else:
         #     embeddings, _ = self.embedder(self._init_embed(input))
 
-        _log_p, pi, cost = self._inner(input)
+        _log_p, pi, cost = self._inner(input, opts)
 
         # cost, mask = self.problem.get_costs(input, pi)
         # Log likelyhood is calculated within the model since returning it per action does not work well with
@@ -173,43 +176,43 @@ class AttentionModel(nn.Module):
         # the lookup once... this is the case if all elements in the batch have maximum batch size
         return CachedLookup(self._precompute(embeddings))
 
-    def propose_expansions(
-        self, beam, fixed, expand_size=None, normalize=False, max_calc_batch_size=4096
-    ):
-        # First dim = batch_size * cur_beam_size
-        log_p_topk, ind_topk = compute_in_batches(
-            lambda b: self._get_log_p_topk(
-                fixed[b.ids], b.state, k=expand_size, normalize=normalize
-            ),
-            max_calc_batch_size,
-            beam,
-            n=beam.size(),
-        )
+    # def propose_expansions(
+    #     self, beam, fixed, expand_size=None, normalize=False, max_calc_batch_size=4096
+    # ):
+    #     # First dim = batch_size * cur_beam_size
+    #     log_p_topk, ind_topk = compute_in_batches(
+    #         lambda b: self._get_log_p_topk(
+    #             fixed[b.ids], b.state, k=expand_size, normalize=normalize
+    #         ),
+    #         max_calc_batch_size,
+    #         beam,
+    #         n=beam.size(),
+    #     )
 
-        assert log_p_topk.size(1) == 1, "Can only have single step"
-        # This will broadcast, calculate log_p (score) of expansions
-        score_expand = beam.score[:, None] + log_p_topk[:, 0, :]
+    #     assert log_p_topk.size(1) == 1, "Can only have single step"
+    #     # This will broadcast, calculate log_p (score) of expansions
+    #     score_expand = beam.score[:, None] + log_p_topk[:, 0, :]
 
-        # We flatten the action as we need to filter and this cannot be done in 2d
-        flat_action = ind_topk.view(-1)
-        flat_score = score_expand.view(-1)
-        flat_feas = flat_score > -1e10  # != -math.inf triggers
+    #     # We flatten the action as we need to filter and this cannot be done in 2d
+    #     flat_action = ind_topk.view(-1)
+    #     flat_score = score_expand.view(-1)
+    #     flat_feas = flat_score > -1e10  # != -math.inf triggers
 
-        # Parent is row idx of ind_topk, can be found by enumerating elements and dividing by number of columns
-        flat_parent = torch.arange(
-            flat_action.size(-1), out=flat_action.new()
-        ) / ind_topk.size(-1)
+    #     # Parent is row idx of ind_topk, can be found by enumerating elements and dividing by number of columns
+    #     flat_parent = torch.arange(
+    #         flat_action.size(-1), out=flat_action.new()
+    #     ) / ind_topk.size(-1)
 
-        # Filter infeasible
-        feas_ind_2d = torch.nonzero(flat_feas)
+    #     # Filter infeasible
+    #     feas_ind_2d = torch.nonzero(flat_feas)
 
-        if len(feas_ind_2d) == 0:
-            # Too bad, no feasible expansions at all :(
-            return None, None, None
+    #     if len(feas_ind_2d) == 0:
+    #         # Too bad, no feasible expansions at all :(
+    #         return None, None, None
 
-        feas_ind = feas_ind_2d[:, 0]
+    #     feas_ind = feas_ind_2d[:, 0]
 
-        return flat_parent[feas_ind], flat_action[feas_ind], flat_score[feas_ind]
+    #     return flat_parent[feas_ind], flat_action[feas_ind], flat_score[feas_ind]
 
     def _calc_log_likelihood(self, _log_p, a, mask):
 
@@ -255,12 +258,12 @@ class AttentionModel(nn.Module):
         # TSP
         return self.init_embed(input)
 
-    def _inner(self, input):
+    def _inner(self, input, opts):
 
         outputs = []
         sequences = []
 
-        state = self.problem.make_state(input)
+        state = self.problem.make_state(input, opts.u_size, opts.v_size, opts.num_edges)
         embeddings, _ = self.embedder(
             self._init_embed(
                 state.weights[
@@ -331,25 +334,25 @@ class AttentionModel(nn.Module):
         # Collected lists, return Tensor
         return torch.stack(outputs, 1), torch.stack(sequences, 1), state.size
 
-    def sample_many(self, input, batch_rep=1, iter_rep=1):
-        """
-        :param input: (batch_size, graph_size, node_dim) input node features
-        :return:
-        """
-        # Bit ugly but we need to pass the embeddings as well.
-        # Making a tuple will not work with the problem.get_cost function
-        return sample_many(
-            lambda input: self._inner(*input),  # Need to unpack tuple into arguments
-            lambda input, pi: self.problem.get_costs(
-                input[0], pi
-            ),  # Don't need embeddings as input to get_costs
-            (
-                input,
-                self.embedder(self._init_embed(input))[0],
-            ),  # Pack input with embeddings (additional input)
-            batch_rep,
-            iter_rep,
-        )
+    # def sample_many(self, input, batch_rep=1, iter_rep=1):
+    #     """
+    #     :param input: (batch_size, graph_size, node_dim) input node features
+    #     :return:
+    #     """
+    #     # Bit ugly but we need to pass the embeddings as well.
+    #     # Making a tuple will not work with the problem.get_cost function
+    #     return sample_many(
+    #         lambda input: self._inner(*input),  # Need to unpack tuple into arguments
+    #         lambda input, pi: self.problem.get_costs(
+    #             input[0], pi
+    #         ),  # Don't need embeddings as input to get_costs
+    #         (
+    #             input,
+    #             self.embedder(self._init_embed(input))[0],
+    #         ),  # Pack input with embeddings (additional input)
+    #         batch_rep,
+    #         iter_rep,
+    #     )
 
     def _select_node(self, probs, mask):
 

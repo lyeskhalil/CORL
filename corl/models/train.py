@@ -7,9 +7,9 @@ import math
 from torch.utils.data import DataLoader
 from torch.nn import DataParallel
 
-from nets.attention_model import set_decode_type
-from utils.log_utils import log_values
-from utils import move_to
+from attention_model import set_decode_type
+from log_utils import log_values
+from functions import move_to
 
 
 def get_inner_model(model):
@@ -103,7 +103,8 @@ def train_epoch(
         problem.make_dataset(
             u_size=opts.u_size,
             v_size=opts.v_size,
-            num_samples=opts.val_size,
+            num_edges=opts.num_edges,
+            num_samples=opts.epoch_size,
             distribution=opts.data_distribution,
         )
     )
@@ -162,11 +163,12 @@ def train_batch(
     model, optimizer, baseline, epoch, batch_id, step, batch, tb_logger, opts
 ):
     x, bl_val = baseline.unwrap_batch(batch)
+    print(x)
     x = move_to(x, opts.device)
     bl_val = move_to(bl_val, opts.device) if bl_val is not None else None
 
     # Evaluate model, get costs and log probabilities
-    cost, log_likelihood = model(*x)
+    cost, log_likelihood = model(x, opts)
 
     # Evaluate baseline, get baseline loss if any (only for critic)
     bl_val, bl_loss = baseline.eval(x, cost) if bl_val is None else (bl_val, 0)

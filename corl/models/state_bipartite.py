@@ -53,37 +53,31 @@ class StateBipartite(NamedTuple):
                 u_size=self.u_size[key],
                 v_size=self.v_size[key],
             )
-        return super(StateBipartite, self).__getitem__(key)
+        # return super(StateBipartite, self).__getitem__(key)
+        return self[key]
 
     @staticmethod
     def initialize(
-        graphs,
-        weights,
-        edges,
-        degree,
-        u_size,
-        v_size,
-        num_edges,
-        visited_dtype=torch.uint8,
+        input, u_size, v_size, num_edges, visited_dtype=torch.uint8,
     ):
 
-        batch_size = len(graphs)
+        batch_size = len(input[0])
         # size = torch.zeros(batch_size, 1, dtype=torch.long, device=graphs.device)
         return StateBipartite(
-            graphs=torch.tensor(graphs),
+            graphs=torch.tensor(input[0]),
             u_size=torch.tensor([u_size]),
             v_size=torch.tensor([v_size]),
-            weights=torch.tensor(weights),
-            edges=torch.tensor(edges),
-            degree=torch.tensor(degree),
+            weights=torch.tensor(input[1]),
+            edges=torch.tensor(input[3]),
+            degree=torch.tensor(input[2]),
             batch_size=torch.tensor([batch_size]),
-            ids=torch.arange(batch_size, dtype=torch.int64, device=graphs.device)[
+            ids=torch.arange(batch_size, dtype=torch.int64, device=input[0].device)[
                 :, None
             ],  # Add steps dimension
             # Keep visited with depot so we can scatter efficiently (if there is an action for depot)
             matched_nodes=(  # Visited as mask is easier to understand, as long more memory efficient
                 torch.zeros(
-                    batch_size, 1, u_size + 1, dtype=torch.uint8, device=graphs.device
+                    batch_size, 1, u_size + 1, dtype=torch.uint8, device=input[0].device
                 )
                 # if visited_dtype == torch.uint8
                 # else torch.zeros(
@@ -96,7 +90,7 @@ class StateBipartite(NamedTuple):
             ),
             picked_edges=(  # Visited as mask is easier to understand, as long more memory efficient
                 torch.zeros(
-                    batch_size, 1, num_edges, dtype=torch.uint8, device=graphs.device
+                    batch_size, 1, num_edges, dtype=torch.uint8, device=input[0].device
                 )
                 # if visited_dtype == torch.uint8
                 # else torch.zeros(
@@ -107,8 +101,8 @@ class StateBipartite(NamedTuple):
                 #     device=graphs.device,
                 # )  # Ceil
             ),
-            size=torch.zeros(batch_size, 1, device=graphs.device),
-            i=torch.ones(1, dtype=torch.int64, device=graphs.device)
+            size=torch.zeros(batch_size, 1, device=input[0].device),
+            i=torch.ones(1, dtype=torch.int64, device=input[0].device)
             * u_size,  # Vector with length num_steps
         )
 

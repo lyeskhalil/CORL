@@ -8,7 +8,7 @@ import torch
 import torch.optim as optim
 from tensorboard_logger import Logger as TbLogger
 
-from nets.critic_network import CriticNetwork
+# from nets.critic_network import CriticNetwork
 from options import get_options
 from train import train_epoch, validate, get_inner_model
 from reinforce_baselines import (
@@ -18,9 +18,10 @@ from reinforce_baselines import (
     RolloutBaseline,
     WarmupBaseline,
 )
-from nets.attention_model import AttentionModel
-from nets.pointer_network import PointerNetwork, CriticNetworkLSTM
-from utils import torch_load_cpu, load_problem
+from attention_model import AttentionModel
+
+# from nets.pointer_network import PointerNetwork, CriticNetworkLSTM
+from functions import torch_load_cpu, load_problem
 
 
 def run(opts):
@@ -64,9 +65,7 @@ def run(opts):
         load_data = torch_load_cpu(load_path)
 
     # Initialize model
-    model_class = {"attention": AttentionModel, "pointer": PointerNetwork}.get(
-        opts.model, None
-    )
+    model_class = {"attention": AttentionModel}.get(opts.model, None)
     assert model_class is not None, "Unknown model: {}".format(model_class)
     model = model_class(
         opts.embedding_dim,
@@ -91,27 +90,27 @@ def run(opts):
     # Initialize baseline
     if opts.baseline == "exponential":
         baseline = ExponentialBaseline(opts.exp_beta)
-    elif opts.baseline == "critic" or opts.baseline == "critic_lstm":
-        assert problem.NAME == "tsp", "Critic only supported for TSP"
-        baseline = CriticBaseline(
-            (
-                CriticNetworkLSTM(
-                    2,
-                    opts.embedding_dim,
-                    opts.hidden_dim,
-                    opts.n_encode_layers,
-                    opts.tanh_clipping,
-                )
-                if opts.baseline == "critic_lstm"
-                else CriticNetwork(
-                    2,
-                    opts.embedding_dim,
-                    opts.hidden_dim,
-                    opts.n_encode_layers,
-                    opts.normalization,
-                )
-            ).to(opts.device)
-        )
+    # elif opts.baseline == "critic" or opts.baseline == "critic_lstm":
+    #     assert problem.NAME == "tsp", "Critic only supported for TSP"
+    #     baseline = CriticBaseline(
+    #         (
+    #             CriticNetworkLSTM(
+    #                 2,
+    #                 opts.embedding_dim,
+    #                 opts.hidden_dim,
+    #                 opts.n_encode_layers,
+    #                 opts.tanh_clipping,
+    #             )
+    #             if opts.baseline == "critic_lstm"
+    #             else CriticNetwork(
+    #                 2,
+    #                 opts.embedding_dim,
+    #                 opts.hidden_dim,
+    #                 opts.n_encode_layers,
+    #                 opts.normalization,
+    #             )
+    #         ).to(opts.device)
+    #     )
     elif opts.baseline == "rollout":
         baseline = RolloutBaseline(model, problem, opts)
     else:
@@ -155,6 +154,7 @@ def run(opts):
     val_dataset = problem.make_dataset(
         u_size=opts.u_size,
         v_size=opts.v_size,
+        num_edges=opts.num_edges,
         num_samples=opts.val_size,
         filename=opts.val_dataset,
         distribution=opts.data_distribution,
