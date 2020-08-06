@@ -71,7 +71,6 @@ class MultiHeadAttention(nn.Module):
         batch_size, graph_size, input_dim = h.size()
         n_query = q.size(1)
         assert q.size(0) == batch_size
-        print(q.size(2), input_dim)
         assert q.size(2) == input_dim
         assert input_dim == self.input_dim, "Wrong embedding dimension of input"
 
@@ -96,8 +95,7 @@ class MultiHeadAttention(nn.Module):
             mask = mask.view(1, batch_size, n_query, graph_size).expand_as(
                 compatibility
             )
-            compatibility[mask] = -np.inf
-
+            compatibility[mask] = -1e10
         attn = torch.softmax(compatibility, dim=-1)
 
         # If there are nodes with no neighbours then softmax returns nan so we fix them to 0

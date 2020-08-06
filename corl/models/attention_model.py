@@ -165,7 +165,7 @@ class AttentionModel(nn.Module):
         if return_pi:
             return cost, ll, pi
 
-        return cost, ll
+        return -cost, ll
 
     def beam_search(self, *args, **kwargs):
         return self.problem.beam_search(*args, **kwargs, model=self)
@@ -262,26 +262,25 @@ class AttentionModel(nn.Module):
 
         outputs = []
         sequences = []
-
         state = self.problem.make_state(input, opts.u_size, opts.v_size, opts.num_edges)
-        embeddings, _ = self.embedder(
-            self._init_embed(
-                state.weights[
-                    :, : ((state.i.item() - state.u_size) * (state.v_size + 1))
-                ]
-            ),
-            state.graph[
-                :, : (state.i.item() - state.u_size), : (state.i.item() - state.u_size)
-            ],
-        )
         # Compute keys, values for the glimpse and keys for the logits once as they can be reused in every step
-        fixed = self._precompute(embeddings)
+        # fixed = self._precompute(embeddings)
         step_context = 0
         batch_size = state.ids.size(0)
-
         # Perform decoding steps
         i = 1
         while not (self.shrink_size is None and state.all_finished()):
+            step_size = (state.i.item() - state.u_size.item() + 1) * (
+                state.u_size.item() + 1
+            )
+            embeddings, _ = self.embedder(
+                self._init_embed(
+                    state.weights[:, :step_size]
+                    .float()
+                    .reshape(state.weights.size(0) * step_size, 1)
+                ).view(state.weights.size(0), step_size, -1),
+                state.graphs[:, :step_size, :step_size].bool(),
+            )
             fixed = self._precompute(embeddings)
             if self.shrink_size is not None:
                 unfinished = torch.nonzero(state.get_finished() == 0)
@@ -299,13 +298,18 @@ class AttentionModel(nn.Module):
 
             # Select the indices of the next nodes in the sequences, result (batch_size) long
             selected = self._select_node(
-                log_p.exp()[:, 0, :], mask[:, 0, :]
+                log_p.exp()[:, 0, :], mask[:, 0, :].bool()
             )  # Squeeze out steps dimension
+            state = state.update(selected[:, None])
+            s = (
+                selected[:, None].repeat(1, fixed.node_embeddings.size(-1))
+                - (step_size - state.u_size.item() - 1)
+            )[:, None, :]
+            step_context = (
+                step_context
+                + (torch.gather(fixed.node_embeddings, 1, s) - step_context) / i
+            )  # Incremental averaging of selected edges
 
-            state = state.update(selected)
-            step_context += (
-                fixed.node_embeddings.gather(1, selected) - step_context
-            ) / i  # Incremental averaging of selected edges
             # Now make log_p, selected desired output size by 'unshrinking'
             if self.shrink_size is not None and state.ids.size(0) < batch_size:
                 log_p_, selected_ = log_p, selected
@@ -316,20 +320,21 @@ class AttentionModel(nn.Module):
                 selected[state.ids[:, 0]] = selected_
 
             # Collect output of step
-            outputs.append(log_p[:, 0, :])
-            sequences.append(selected)
-            embeddings, _ = self.embedder(
-                self._init_embed(
-                    state.weights[
-                        :, : ((state.i.item() - state.u_size) * (state.v_size + 1))
-                    ]
-                ),
-                state.graph[
-                    :,
-                    : ((state.i.item() - state.u_size) * (state.v_size + 1)),
-                    : ((state.i.item() - state.u_size) * (state.v_size + 1)),
-                ],
-            )
+            # step_size = ((state.i.item() - state.u_size.item() + 1) * (state.u_size + 1))
+            outputs.append(log_p[:, 0, (step_size - state.u_size - 1) :])
+            sequences.append(selected - (step_size - state.u_size.item() - 1))
+            # embeddings, _ = self.embedder(
+            #     self._init_embed(
+            #         state.weights[
+            #             :, : step_size
+            #         ].float().reshape(state.weights.size(0) * step_size, 1)
+            #     ).view(state.weights.size(0), step_size, -1),
+            #     state.graphs[
+            #         :,
+            #         : step_size,
+            #         : step_size,
+            #     ].bool(),
+            # )
             i += 1
         # Collected lists, return Tensor
         return torch.stack(outputs, 1), torch.stack(sequences, 1), state.size
@@ -427,7 +432,11 @@ class AttentionModel(nn.Module):
         glimpse_K, glimpse_V, logit_K = self._get_attention_node_data(fixed, state)
 
         # Compute the mask
-        mask = state.get_mask()
+
+        s = (state.i.item() - state.u_size.item()) * (state.u_size.item() + 1)
+        mask = torch.cat(
+            (torch.ones(state.batch_size, s).long(), state.get_mask()), dim=1
+        )[:, None, :]
 
         # Compute logits (unnormalized log_p)
         log_p, glimpse = self._one_to_many_logits(
@@ -452,117 +461,116 @@ class AttentionModel(nn.Module):
         :return: (batch_size, num_steps, context_dim)
         """
 
-        current_node = state.get_current_node()
-        batch_size, num_steps = current_node.size()
+        # current_node = state.get_current_node()
+        batch_size, num_steps = state.batch_size, 1
 
-        if self.is_vrp:
-            # Embedding of previous node + remaining capacity
-            if from_depot:
-                # 1st dimension is node idx, but we do not squeeze it since we want to insert step dimension
-                # i.e. we actually want embeddings[:, 0, :][:, None, :] which is equivalent
-                return torch.cat(
-                    (
-                        embeddings[:, 0:1, :].expand(
-                            batch_size, num_steps, embeddings.size(-1)
-                        ),
-                        # used capacity is 0 after visiting depot
-                        self.problem.VEHICLE_CAPACITY
-                        - torch.zeros_like(state.used_capacity[:, :, None]),
-                    ),
-                    -1,
-                )
-            else:
-                return torch.cat(
-                    (
-                        torch.gather(
-                            embeddings,
-                            1,
-                            current_node.contiguous()
-                            .view(batch_size, num_steps, 1)
-                            .expand(batch_size, num_steps, embeddings.size(-1)),
-                        ).view(batch_size, num_steps, embeddings.size(-1)),
-                        self.problem.VEHICLE_CAPACITY - state.used_capacity[:, :, None],
-                    ),
-                    -1,
-                )
-        elif self.is_orienteering or self.is_pctsp:
-            return torch.cat(
-                (
-                    torch.gather(
-                        embeddings,
-                        1,
-                        current_node.contiguous()
-                        .view(batch_size, num_steps, 1)
-                        .expand(batch_size, num_steps, embeddings.size(-1)),
-                    ).view(batch_size, num_steps, embeddings.size(-1)),
-                    (
-                        state.get_remaining_length()[:, :, None]
-                        if self.is_orienteering
-                        else state.get_remaining_prize_to_collect()[:, :, None]
-                    ),
-                ),
-                -1,
-            )
-        elif self.is_tsp:  # TSP
+        # if self.is_vrp:
+        #     # Embedding of previous node + remaining capacity
+        #     if from_depot:
+        #         # 1st dimension is node idx, but we do not squeeze it since we want to insert step dimension
+        #         # i.e. we actually want embeddings[:, 0, :][:, None, :] which is equivalent
+        #         return torch.cat(
+        #             (
+        #                 embeddings[:, 0:1, :].expand(
+        #                     batch_size, num_steps, embeddings.size(-1)
+        #                 ),
+        #                 # used capacity is 0 after visiting depot
+        #                 self.problem.VEHICLE_CAPACITY
+        #                 - torch.zeros_like(state.used_capacity[:, :, None]),
+        #             ),
+        #             -1,
+        #         )
+        #     else:
+        #         return torch.cat(
+        #             (
+        #                 torch.gather(
+        #                     embeddings,
+        #                     1,
+        #                     current_node.contiguous()
+        #                     .view(batch_size, num_steps, 1)
+        #                     .expand(batch_size, num_steps, embeddings.size(-1)),
+        #                 ).view(batch_size, num_steps, embeddings.size(-1)),
+        #                 self.problem.VEHICLE_CAPACITY - state.used_capacity[:, :, None],
+        #             ),
+        #             -1,
+        #         )
+        # elif self.is_orienteering or self.is_pctsp:
+        #     return torch.cat(
+        #         (
+        #             torch.gather(
+        #                 embeddings,
+        #                 1,
+        #                 current_node.contiguous()
+        #                 .view(batch_size, num_steps, 1)
+        #                 .expand(batch_size, num_steps, embeddings.size(-1)),
+        #             ).view(batch_size, num_steps, embeddings.size(-1)),
+        #             (
+        #                 state.get_remaining_length()[:, :, None]
+        #                 if self.is_orienteering
+        #                 else state.get_remaining_prize_to_collect()[:, :, None]
+        #             ),
+        #         ),
+        #         -1,
+        #     )
+        # elif self.is_tsp:  # TSP
 
+        #     if (
+        #         num_steps == 1
+        #     ):  # We need to special case if we have only 1 step, may be the first or not
+        #         if state.i.item() == 0:
+        #             # First and only step, ignore prev_a (this is a placeholder)
+        #             return self.W_placeholder[None, None, :].expand(
+        #                 batch_size, 1, self.W_placeholder.size(-1)
+        #             )
+        #         else:
+        #             return embeddings.gather(
+        #                 1,
+        #                 torch.cat((state.first_a, current_node), 1)[:, :, None].expand(
+        #                     batch_size, 2, embeddings.size(-1)
+        #                 ),
+        #             ).view(batch_size, 1, -1)
+        #     # More than one step, assume always starting with first
+        #     embeddings_per_step = embeddings.gather(
+        #         1,
+        #         current_node[:, 1:, None].expand(
+        #             batch_size, num_steps - 1, embeddings.size(-1)
+        #         ),
+        #     )
+        #     return torch.cat(
+        #         (
+        #             # First step placeholder, cat in dim 1 (time steps)
+        #             self.W_placeholder[None, None, :].expand(
+        #                 batch_size, 1, self.W_placeholder.size(-1)
+        #             ),
+        #             # Second step, concatenate embedding of first with embedding of current/previous (in dim 2, context dim)
+        #             torch.cat(
+        #                 (
+        #                     embeddings_per_step[:, 0:1, :].expand(
+        #                         batch_size, num_steps - 1, embeddings.size(-1)
+        #                     ),
+        #                     embeddings_per_step,
+        #                 ),
+        #                 2,
+        #             ),
+        #         ),
+        #         1,
+        #     )
+        if self.is_bipartite:  # Bipartite matching
             if (
                 num_steps == 1
             ):  # We need to special case if we have only 1 step, may be the first or not
-                if state.i.item() == 0:
+                if state.i.item() == state.u_size.item():
                     # First and only step, ignore prev_a (this is a placeholder)
                     return self.W_placeholder[None, None, :].expand(
                         batch_size, 1, self.W_placeholder.size(-1)
                     )
                 else:
-                    return embeddings.gather(
-                        1,
-                        torch.cat((state.first_a, current_node), 1)[:, :, None].expand(
-                            batch_size, 2, embeddings.size(-1)
-                        ),
-                    ).view(batch_size, 1, -1)
-            # More than one step, assume always starting with first
-            embeddings_per_step = embeddings.gather(
-                1,
-                current_node[:, 1:, None].expand(
-                    batch_size, num_steps - 1, embeddings.size(-1)
-                ),
-            )
-            return torch.cat(
-                (
-                    # First step placeholder, cat in dim 1 (time steps)
-                    self.W_placeholder[None, None, :].expand(
-                        batch_size, 1, self.W_placeholder.size(-1)
-                    ),
-                    # Second step, concatenate embedding of first with embedding of current/previous (in dim 2, context dim)
-                    torch.cat(
-                        (
-                            embeddings_per_step[:, 0:1, :].expand(
-                                batch_size, num_steps - 1, embeddings.size(-1)
-                            ),
-                            embeddings_per_step,
-                        ),
-                        2,
-                    ),
-                ),
-                1,
-            )
-        else:  # Bipartite matching
-            if (
-                num_steps == 1
-            ):  # We need to special case if we have only 1 step, may be the first or not
-                if state.i.item() == 0:
-                    # First and only step, ignore prev_a (this is a placeholder)
-                    return self.W_placeholder[None, None, :].expand(
-                        batch_size, 1, self.W_placeholder.size(-1)
-                    )
-                else:
-                    return step_context[:, None, :]
+                    return step_context
 
     def _one_to_many_logits(self, query, glimpse_K, glimpse_V, logit_K, mask):
-
         batch_size, num_steps, embed_dim = query.size()
         key_size = val_size = embed_dim // self.n_heads
-
+        mask = mask.bool()
         # Compute the glimpse, rearrange dimensions so the dimensions are (n_heads, batch_size, num_steps, 1, key_size)
         glimpse_Q = query.view(
             batch_size, num_steps, self.n_heads, 1, key_size

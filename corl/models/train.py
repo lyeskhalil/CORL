@@ -37,7 +37,7 @@ def rollout(model, dataset, opts):
 
     def eval_model_bat(bat):
         with torch.no_grad():
-            cost, _ = model(move_to(bat, opts.device))
+            cost, _ = model(move_to(bat, opts.device), opts)
         return cost.data.cpu()
 
     return torch.cat(
@@ -163,7 +163,7 @@ def train_batch(
     model, optimizer, baseline, epoch, batch_id, step, batch, tb_logger, opts
 ):
     x, bl_val = baseline.unwrap_batch(batch)
-    print(x)
+    # print(x)
     x = move_to(x, opts.device)
     bl_val = move_to(bl_val, opts.device) if bl_val is not None else None
 

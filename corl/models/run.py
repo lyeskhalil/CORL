@@ -149,7 +149,7 @@ def run(opts):
     lr_scheduler = optim.lr_scheduler.LambdaLR(
         optimizer, lambda epoch: opts.lr_decay ** epoch
     )
-
+    torch.autograd.set_detect_anomaly(True)
     # Start the actual training loop
     val_dataset = problem.make_dataset(
         u_size=opts.u_size,

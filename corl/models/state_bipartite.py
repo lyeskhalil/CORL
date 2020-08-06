@@ -122,10 +122,9 @@ class StateBipartite(NamedTuple):
         # selected_v = (self.i).T.expand(selected_u.shape)
         # mask = (selected_u == self.edges[:, :, 0]) & (selected_v == self.edges[:, :, 1])
         total_weights = self.size + self.weights.gather(1, selected)
-        print(self.size.shape, self.weights[:, selected].shape)
         # total_weights = self.size + torch.sum(self.weights * mask.long(), dim=1)[:, None]
         # edges = self.picked_edges.squeeze(1) + mask.long()
-        edges = self.picked_edges.squeeze(1).scatter_(-1, selected, 1)
+        # edges = self.picked_edges.squeeze(1).scatter_(-1, selected, 1)
         # nodes = self.matched_nodes.squeeze(1).scatter_(-1, selected, 1)
         # selected_u = selected.T.expand(self.edges.shape[1], -1)
         # selected_v = (self.i).T.expand(self.edges.shape[1], -1)
@@ -135,9 +134,7 @@ class StateBipartite(NamedTuple):
         # print(mask.long())
         # edges = self.picked_edges + mask.long()
         # mask = edges.scatter_(-1, self.edges[:, :, 0] == )
-        return self._replace(
-            matched_nodes=nodes, size=total_weights, picked_edges=edges, i=self.i + 1,
-        )
+        return self._replace(matched_nodes=nodes, size=total_weights, i=self.i + 1,)
 
     def all_finished(self):
         # Exactly n steps
