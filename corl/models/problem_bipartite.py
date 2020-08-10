@@ -74,6 +74,7 @@ class BipartiteDataset(Dataset):
         v_size,
         u_size,
         num_edges,
+        max_weight,
         filename=None,
         num_samples=1000000,
         offset=0,
@@ -96,7 +97,7 @@ class BipartiteDataset(Dataset):
             ### TODO: Should use generate function in generate_data.py
             # Sample points randomly in [0, 1] square
             self.data = generate_bipartite_data(
-                num_samples, u_size, v_size, num_edges, 0, (1, 10)
+                num_samples, u_size, v_size, num_edges, 0, (1, max_weight)
             )
 
         self.size = len(self.data[0])

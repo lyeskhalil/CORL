@@ -43,7 +43,7 @@ def get_options(args=None):
     parser.add_argument(
         "--val_size",
         type=int,
-        default=10000,
+        default=1000,
         help="Number of instances used for reporting validation performance",
     )
     parser.add_argument(
@@ -138,6 +138,9 @@ def get_options(args=None):
         default=None,
         help="Number of epochs to warmup the baseline, default None means 1 for rollout (exponential "
         "used for warmup phase), 0 otherwise. Can only be used with rollout baseline.",
+    )
+    parser.add_argument(
+        "--max_weight", type=int, default=100, help="Maximum edge weight in the graph"
     )
     parser.add_argument(
         "--eval_batch_size",

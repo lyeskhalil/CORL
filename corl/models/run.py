@@ -155,6 +155,7 @@ def run(opts):
         u_size=opts.u_size,
         v_size=opts.v_size,
         num_edges=opts.num_edges,
+        max_weight=opts.max_weight,
         num_samples=opts.val_size,
         filename=opts.val_dataset,
         distribution=opts.data_distribution,
