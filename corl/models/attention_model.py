@@ -40,8 +40,8 @@ class AttentionModelFixed(NamedTuple):
                 glimpse_val=self.glimpse_val[:, key],  # dim 0 are the heads
                 logit_key=self.logit_key[key],
             )
-        # return super(AttentionModelFixed, self).__getitem__(key)
-        return self[key]
+        return super(AttentionModelFixed, self).__getitem__(key)
+        # return self[key]
 
 
 class AttentionModel(nn.Module):
@@ -435,7 +435,7 @@ class AttentionModel(nn.Module):
 
         s = (state.i.item() - state.u_size.item()) * (state.u_size.item() + 1)
         mask = torch.cat(
-            (torch.ones(state.batch_size, s).long(), state.get_mask()), dim=1
+            (torch.ones(state.batch_size, s).long().cuda(), state.get_mask()), dim=1
         )[:, None, :]
 
         # Compute logits (unnormalized log_p)
