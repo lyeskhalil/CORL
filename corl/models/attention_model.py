@@ -58,6 +58,7 @@ class AttentionModel(nn.Module):
         n_heads=8,
         checkpoint_encoder=False,
         shrink_size=None,
+        num_actions=None,
     ):
         super(AttentionModel, self).__init__()
 

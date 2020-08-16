@@ -19,6 +19,7 @@ from reinforce_baselines import (
     WarmupBaseline,
 )
 from attention_model import AttentionModel
+from ff_model import FeedForwardModel
 
 # from nets.pointer_network import PointerNetwork, CriticNetworkLSTM
 from functions import torch_load_cpu, load_problem
@@ -65,8 +66,11 @@ def run(opts):
         load_data = torch_load_cpu(load_path)
 
     # Initialize model
-    model_class = {"attention": AttentionModel}.get(opts.model, None)
+    model_class = {"attention": AttentionModel, "ff": FeedForwardModel}.get(
+        opts.model, None
+    )
     assert model_class is not None, "Unknown model: {}".format(model_class)
+
     model = model_class(
         opts.embedding_dim,
         opts.hidden_dim,
@@ -78,6 +82,7 @@ def run(opts):
         tanh_clipping=opts.tanh_clipping,
         checkpoint_encoder=opts.checkpoint_encoder,
         shrink_size=opts.shrink_size,
+        num_actions=opts.u_size + 1,
     ).to(opts.device)
 
     if opts.use_cuda and torch.cuda.device_count() > 1:

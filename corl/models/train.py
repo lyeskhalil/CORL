@@ -109,6 +109,7 @@ def train_epoch(
             num_edges=opts.num_edges,
             num_samples=opts.epoch_size,
             distribution=opts.data_distribution,
+            max_weight=opts.max_weight,
         )
     )
     training_dataloader = DataLoader(
