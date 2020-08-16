@@ -43,7 +43,7 @@ def get_options(args=None):
     parser.add_argument(
         "--val_size",
         type=int,
-        default=1000,
+        default=10000,
         help="Number of instances used for reporting validation performance",
     )
     parser.add_argument(
@@ -55,7 +55,9 @@ def get_options(args=None):
 
     # Model
     parser.add_argument(
-        "--model", default="attention", help="Model, 'attention' (default) or 'pointer'"
+        "--model",
+        default="attention",
+        help="Model, 'attention' (default) or 'pointer or Feed forward'",
     )
     parser.add_argument(
         "--embedding_dim", type=int, default=16, help="Dimension of input embedding"
@@ -105,7 +107,7 @@ def get_options(args=None):
         "--eval_only", action="store_true", help="Set this value to only evaluate model"
     )
     parser.add_argument(
-        "--n_epochs", type=int, default=100, help="The number of epochs to train"
+        "--n_epochs", type=int, default=1000, help="The number of epochs to train"
     )
     parser.add_argument("--seed", type=int, default=1234, help="Random seed to use")
     parser.add_argument(
@@ -140,7 +142,7 @@ def get_options(args=None):
         "used for warmup phase), 0 otherwise. Can only be used with rollout baseline.",
     )
     parser.add_argument(
-        "--max_weight", type=int, default=100, help="Maximum edge weight in the graph"
+        "--max_weight", type=int, default=1000, help="Maximum edge weight in the graph"
     )
     parser.add_argument(
         "--eval_batch_size",
