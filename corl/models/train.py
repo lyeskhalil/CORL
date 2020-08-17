@@ -19,13 +19,22 @@ def get_inner_model(model):
 def validate(model, dataset, opts):
     # Validate
     print("Validating...")
-    cost = rollout(model, dataset, opts)
+    cost, cr = rollout(model, dataset, opts)
     avg_cost = cost.mean()
+    min_cr = min(cr)
+    avg_cr = cr.mean()
+
     print(
         "Validation overall avg_cost: {} +- {}".format(
             avg_cost, torch.std(cost) / math.sqrt(len(cost))
         )
     )
+    print(
+        "\nValidation overall avg ratio to optimal: {} +- {}".format(
+            avg_cr, torch.std(cr) / math.sqrt(len(cr))
+        )
+    )
+    print("\nValidation competitive ratio", min_cr)
 
     return avg_cost
 
@@ -41,23 +50,35 @@ def rollout(model, dataset, opts):
 
         # print(-cost.data.flatten())
         # print(bat[-1])
+        cr = -cost.data.flatten() / move_to(bat[-1], opts.device)
         print(
-            "\nBatch Competitive ratio: ",
-            min(-cost.data.flatten() / move_to(bat[-1], opts.device)).item(),
+            "\nBatch Competitive ratio: ", min(cr).item(),
         )
 
-        return cost.data.cpu()
+        return cost.data.cpu(), cr
 
-    return torch.cat(
-        [
-            eval_model_bat(bat)
-            for bat in tqdm(
-                DataLoader(dataset, batch_size=opts.eval_batch_size),
-                disable=opts.no_progress_bar,
-            )
-        ],
-        0,
-    )
+    cost = []
+    crs = []
+    for bat in tqdm(
+        DataLoader(dataset, batch_size=opts.eval_batch_size),
+        disable=opts.no_progress_bar,
+    ):
+        c, cr = eval_model_bat(bat)
+        cost.append(c)
+        crs.append(cr)
+
+    return torch.cat(cost, 0), torch.cat(crs, 0)
+
+    # return torch.cat(
+    #     [
+    #         eval_model_bat(bat)
+    #         for bat in tqdm(
+    #             DataLoader(dataset, batch_size=opts.eval_batch_size),
+    #             disable=opts.no_progress_bar,
+    #         )
+    #     ],
+    #     0,
+    # )
 
 
 def clip_grad_norms(param_groups, max_norm=math.inf):
