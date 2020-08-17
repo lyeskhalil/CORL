@@ -34,7 +34,7 @@ def validate(model, dataset, opts):
             avg_cr, torch.std(cr) / math.sqrt(len(cr))
         )
     )
-    print("\nValidation competitive ratio", min_cr)
+    print("\nValidation competitive ratio", min_cr.item())
 
     return avg_cost
 
