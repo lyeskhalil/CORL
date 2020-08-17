@@ -53,8 +53,8 @@ class StateBipartite(NamedTuple):
                 u_size=self.u_size[key],
                 v_size=self.v_size[key],
             )
-        # return super(StateBipartite, self).__getitem__(key)
-        return self[key]
+        return super(StateBipartite, self).__getitem__(key)
+        # return self[key]
 
     @staticmethod
     def initialize(
@@ -151,18 +151,18 @@ class StateBipartite(NamedTuple):
             self.edges.reshape(self.edges.size(0) * self.edges.size(1), 2)
         )
         b = self.edges.reshape(self.edges.size(0) * self.edges.size(1), 2)[:, 0]
-        c = b[a[:, 1].nonzero()]
-        m = torch.zeros(c.size(0), self.matched_nodes.squeeze(1).size(1)).scatter_(
+        c = b[a[:, 1].nonzero()].cuda()
+        m = torch.zeros(c.size(0), self.matched_nodes.squeeze(1).size(1), device=self.matched_nodes.device).scatter_(
             -1, c + 1, 1
         )
         f = torch.index_select(
             m.cumsum(0),
             0,
             (self.degree[:, self.i.item() - self.u_size.item()]).cumsum(0) - 1,
-        )
+        ).cuda()
         mask = (
-            torch.cat((f, torch.zeros(1, f.size(1))), dim=0)
-            - torch.cat((torch.zeros(1, f.size(1)), f), dim=0)
+            torch.cat((f, torch.zeros(1, f.size(1)).cuda()), dim=0)
+            - torch.cat((torch.zeros(1, f.size(1)).cuda(), f), dim=0)
         )[:-1, :]
         # print(mask)
         return (
