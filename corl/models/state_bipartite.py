@@ -152,9 +152,9 @@ class StateBipartite(NamedTuple):
         )
         b = self.edges.reshape(self.edges.size(0) * self.edges.size(1), 2)[:, 0]
         c = b[a[:, 1].nonzero()]
-        m = torch.zeros(c.size(0), self.matched_nodes.squeeze(1).size(1)).scatter_(
-            -1, c + 1, 1
-        )
+        m = torch.zeros(
+            c.size(0), self.matched_nodes.squeeze(1).size(1), device=self.graphs.device
+        ).scatter_(-1, c + 1, 1)
         f = torch.index_select(
             m.cumsum(0),
             0,

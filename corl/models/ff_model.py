@@ -65,7 +65,7 @@ class FeedForwardModel(nn.Module):
             log_p[mask] = 0
 
         assert (
-            log_p > -1000
+            log_p > -10000
         ).data.all(), "Logprobs should not be -inf, check sampling procedure!"
 
         # Calculate log_likelihood
