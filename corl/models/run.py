@@ -21,6 +21,7 @@ from reinforce_baselines import (
 from attention_model import AttentionModel
 from ff_model import FeedForwardModel
 from greedy import Greedy
+from greedy_rt import GreedyRt
 
 # from nets.pointer_network import PointerNetwork, CriticNetworkLSTM
 from functions import torch_load_cpu, load_problem
@@ -71,6 +72,7 @@ def run(opts):
         "attention": AttentionModel,
         "ff": FeedForwardModel,
         "greedy": Greedy,
+        "greedy-rt": GreedyRt,
     }.get(opts.model, None)
     assert model_class is not None, "Unknown model: {}".format(model_class)
 
