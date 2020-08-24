@@ -51,9 +51,9 @@ def rollout(model, dataset, opts):
         # print(-cost.data.flatten())
         # print(bat[-1])
         cr = -cost.data.flatten() / move_to(bat[-1], opts.device)
-        print(
-            "\nBatch Competitive ratio: ", min(cr).item(),
-        )
+        # print(
+        #     "\nBatch Competitive ratio: ", min(cr).item(),
+        # )
 
         return cost.data.cpu(), cr
 

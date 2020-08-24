@@ -176,7 +176,7 @@ class RolloutBaseline(Baseline):
         else:
             self.dataset = dataset
         print("Evaluating baseline model on evaluation dataset")
-        self.bl_vals = rollout(self.model, self.dataset, self.opts).cpu().numpy()
+        self.bl_vals = rollout(self.model, self.dataset, self.opts)[0].cpu().numpy()
         self.mean = self.bl_vals.mean()
         self.epoch = epoch
 
@@ -185,7 +185,7 @@ class RolloutBaseline(Baseline):
         # Need to convert baseline to 2D to prevent converting to double, see
         # https://discuss.pytorch.org/t/dataloader-gives-double-instead-of-float/717/3
         return BaselineDataset(
-            dataset, rollout(self.model, dataset, self.opts).view(-1, 1)
+            dataset, rollout(self.model, dataset, self.opts)[0].view(-1, 1)
         )
 
     def unwrap_batch(self, batch):
@@ -209,7 +209,7 @@ class RolloutBaseline(Baseline):
         :param epoch: The current epoch
         """
         print("Evaluating candidate model on evaluation dataset")
-        candidate_vals = rollout(model, self.dataset, self.opts).cpu().numpy()
+        candidate_vals = rollout(model, self.dataset, self.opts)[0].cpu().numpy()
 
         candidate_mean = candidate_vals.mean()
 
