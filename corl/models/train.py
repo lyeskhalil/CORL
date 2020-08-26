@@ -3,6 +3,7 @@ import time
 from tqdm import tqdm
 import torch
 import math
+import matplotlib.pyplot as plt
 
 from torch.utils.data import DataLoader
 from torch.nn import DataParallel
@@ -37,6 +38,31 @@ def validate(model, dataset, opts):
     print("\nValidation competitive ratio", min_cr.item())
 
     return avg_cost, min_cr.item()
+
+
+def eval_model(model, problem, opts):
+    c, avg_crs, var_crs, min_cr, ratio = [], [], [], [], []
+    for i in range(len(opts.eval_num)):
+        dataset = problem.make_dataset(
+            u_size=opts.u_size,
+            v_size=opts.v_size + i * 5,
+            num_edges=opts.num_edges + (opts.u_size // 2) * i * 5,
+            max_weight=opts.max_weight,
+            num_samples=opts.val_size,
+            distribution=opts.data_distribution,
+        )
+        cost, cr = rollout(model, dataset, opts)
+        ratio.append(opts.u_size / (opts.v_size + i * 5))
+        c.append(cost)
+        min_cr.append(min(cr).item())
+        var_crs.append(torch.std(cr) / math.sqrt(len(cr)))
+        avg_crs.append(cr.mean())
+
+    plt.plot(ratio, min_cr)
+    plt.xlabel("Ratio of U to V")
+    plt.ylabel("Competitive Ratio")
+    plt.savefig("graph.png")
+    return c, avg_crs, var_crs, min_cr
 
 
 def rollout(model, dataset, opts):
