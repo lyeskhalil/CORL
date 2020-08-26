@@ -188,10 +188,20 @@ def train_epoch(
             epoch, time.strftime("%H:%M:%S", time.gmtime(epoch_duration))
         )
     )
-
-    if (
-        opts.checkpoint_epochs != 0 and epoch % opts.checkpoint_epochs == 0
-    ) or epoch == opts.n_epochs - 1:
+    
+    if opts.checkpoint_epochs == 0:
+        print("Saving model and state...")
+        torch.save(
+            {
+                "model": get_inner_model(model).state_dict(),
+                "optimizer": optimizer.state_dict(),
+                "rng_state": torch.get_rng_state(),
+                "cuda_rng_state": torch.cuda.get_rng_state_all(),
+                "baseline": baseline.state_dict(),
+            },
+            os.path.join(opts.save_dir, "latest.pt".format(epoch)),
+        )
+    elif (epoch % opts.checkpoint_epochs == 0) or (epoch == opts.n_epochs - 1):
         print("Saving model and state...")
         torch.save(
             {
