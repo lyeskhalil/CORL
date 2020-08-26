@@ -42,7 +42,15 @@ class FeedForwardModel(nn.Module):
             nn.Linear(500, 500),
             nn.ReLU(),
             nn.Linear(500, self.num_actions),
+            nn.ReLU(),
         )
+
+        def init_weights(m):
+            if type(m) == nn.Linear:
+                torch.nn.init.xavier_uniform_(m.weight)
+                m.bias.data.fill_(0.01)
+
+        self.ff.apply(init_weights)
 
     def forward(self, x, opts):
 
@@ -65,7 +73,7 @@ class FeedForwardModel(nn.Module):
             log_p[mask] = 0
 
         assert (
-            log_p > -10000
+            log_p != -1e6
         ).data.all(), "Logprobs should not be -inf, check sampling procedure!"
 
         # Calculate log_likelihood
@@ -113,10 +121,10 @@ class FeedForwardModel(nn.Module):
 
         assert (probs == probs).all(), "Probs should not contain any nans"
         p = probs.clone()
-
-        p[mask] = -1e10
-        p = p.softmax(1)
+        p[mask] = -1e6
+        s = torch.nn.Softmax(1)
         # print(p)
+        p = s(p)
         if self.decode_type == "greedy":
             _, selected = p.max(1)
             # assert not mask.gather(

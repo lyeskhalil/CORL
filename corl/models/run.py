@@ -10,7 +10,7 @@ from tensorboard_logger import Logger as TbLogger
 
 # from nets.critic_network import CriticNetwork
 from options import get_options
-from train import train_epoch, validate, get_inner_model
+from train import train_epoch, validate, get_inner_model, eval_model
 from reinforce_baselines import (
     NoBaseline,
     ExponentialBaseline,
@@ -187,6 +187,9 @@ def run(opts):
 
     if opts.eval_only:
         validate(model, val_dataset, opts)
+
+    elif opts.eval_model:
+        eval_model(model, problem, opts)
     else:
         for epoch in range(opts.epoch_start, opts.epoch_start + opts.n_epochs):
             train_epoch(

@@ -3,6 +3,7 @@ import time
 from tqdm import tqdm
 import torch
 import math
+import matplotlib.pyplot as plt
 
 from torch.utils.data import DataLoader
 from torch.nn import DataParallel
@@ -39,6 +40,31 @@ def validate(model, dataset, opts):
     return avg_cost, min_cr.item()
 
 
+def eval_model(model, problem, opts):
+    c, avg_crs, var_crs, min_cr, ratio = [], [], [], [], []
+    for i in range(len(opts.eval_num)):
+        dataset = problem.make_dataset(
+            u_size=opts.u_size,
+            v_size=opts.v_size + i * 5,
+            num_edges=opts.num_edges + (opts.u_size // 2) * i * 5,
+            max_weight=opts.max_weight,
+            num_samples=opts.val_size,
+            distribution=opts.data_distribution,
+        )
+        cost, cr = rollout(model, dataset, opts)
+        ratio.append(opts.u_size / (opts.v_size + i * 5))
+        c.append(cost)
+        min_cr.append(min(cr).item())
+        var_crs.append(torch.std(cr) / math.sqrt(len(cr)))
+        avg_crs.append(cr.mean())
+
+    plt.plot(ratio, min_cr)
+    plt.xlabel("Ratio of U to V")
+    plt.ylabel("Competitive Ratio")
+    plt.savefig("graph.png")
+    return c, avg_crs, var_crs, min_cr
+
+
 def rollout(model, dataset, opts):
     # Put in greedy evaluation mode!
     set_decode_type(model, "greedy")
@@ -51,9 +77,9 @@ def rollout(model, dataset, opts):
         # print(-cost.data.flatten())
         # print(bat[-1])
         cr = -cost.data.flatten() / move_to(bat[-1], opts.device)
-        print(
-            "\nBatch Competitive ratio: ", min(cr).item(),
-        )
+        # print(
+        #     "\nBatch Competitive ratio: ", min(cr).item(),
+        # )
 
         return cost.data.cpu(), cr
 
@@ -162,10 +188,20 @@ def train_epoch(
             epoch, time.strftime("%H:%M:%S", time.gmtime(epoch_duration))
         )
     )
-
-    if (
-        opts.checkpoint_epochs != 0 and epoch % opts.checkpoint_epochs == 0
-    ) or epoch == opts.n_epochs - 1:
+    
+    if opts.checkpoint_epochs == 0:
+        print("Saving model and state...")
+        torch.save(
+            {
+                "model": get_inner_model(model).state_dict(),
+                "optimizer": optimizer.state_dict(),
+                "rng_state": torch.get_rng_state(),
+                "cuda_rng_state": torch.cuda.get_rng_state_all(),
+                "baseline": baseline.state_dict(),
+            },
+            os.path.join(opts.save_dir, "latest.pt".format(epoch)),
+        )
+    elif (epoch % opts.checkpoint_epochs == 0) or (epoch == opts.n_epochs - 1):
         print("Saving model and state...")
         torch.save(
             {

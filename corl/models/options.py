@@ -104,7 +104,20 @@ def get_options(args=None):
         "--lr_decay", type=float, default=1.0, help="Learning rate decay per epoch"
     )
     parser.add_argument(
-        "--eval_only", action="store_true", help="Set this value to only evaluate model"
+        "--eval_num",
+        type=int,
+        default=5,
+        help="Number of U to V ratio's to evaluate the model on",
+    )
+    parser.add_argument(
+        "--eval_model",
+        action="store_true",
+        help="Set this value to evaluate the model on different graph sizes",
+    )
+    parser.add_argument(
+        "--eval_only",
+        action="store_true",
+        help="Set this value to only evaluate model on a specific graph size",
     )
     parser.add_argument(
         "--n_epochs", type=int, default=1000, help="The number of epochs to train"
