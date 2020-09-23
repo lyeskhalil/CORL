@@ -27,7 +27,7 @@ class StateBipartite(NamedTuple):
     # State
     # curr_edge: torch.Tensor  # current edge number
     matched_nodes: torch.Tensor  # Keeps track of nodes that have been matched
-    picked_edges: torch.Tensor
+    # picked_edges: torch.Tensor
     size: torch.Tensor  # size of current matching
     i: torch.Tensor  # Keeps track of step
     # mask: torch.Tensor  # mask for each step
@@ -88,19 +88,19 @@ class StateBipartite(NamedTuple):
                 #     device=graphs.device,
                 # )  # Ceil
             ),
-            picked_edges=(  # Visited as mask is easier to understand, as long more memory efficient
-                torch.zeros(
-                    batch_size, 1, num_edges, dtype=torch.uint8, device=input[0].device
-                )
-                # if visited_dtype == torch.uint8
-                # else torch.zeros(
-                #     batch_size,
-                #     1,
-                #     (n_loc + 63) // 64,
-                #     dtype=torch.int64,
-                #     device=graphs.device,
-                # )  # Ceil
-            ),
+            # picked_edges=(  # Visited as mask is easier to understand, as long more memory efficient
+            #     torch.zeros(
+            #         batch_size, 1, num_edges, dtype=torch.uint8, device=input[0].device
+            #     )
+            #     # if visited_dtype == torch.uint8
+            #     # else torch.zeros(
+            #     #     batch_size,
+            #     #     1,
+            #     #     (n_loc + 63) // 64,
+            #     #     dtype=torch.int64,
+            #     #     device=graphs.device,
+            #     # )  # Ceil
+            # ),
             size=torch.zeros(batch_size, 1, device=input[0].device),
             i=torch.ones(1, dtype=torch.int64, device=input[0].device)
             * u_size,  # Vector with length num_steps
