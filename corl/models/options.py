@@ -210,6 +210,9 @@ def get_options(args=None):
     parser.add_argument(
         "--load_path", help="Path to load model parameters and optimizer state from"
     )
+    parser.add_argument(
+        "--load_path2", help="Path to load second model parameters and optimizer state from"
+    )
     parser.add_argument("--resume", help="Resume from previous checkpoint file")
     parser.add_argument(
         "--no_tensorboard",

@@ -40,29 +40,29 @@ def validate(model, dataset, opts):
     return avg_cost, min_cr.item()
 
 
-def eval_model(model, problem, opts):
-    c, avg_crs, var_crs, min_cr, ratio = [], [], [], [], []
-    for i in range(len(opts.eval_num)):
-        dataset = problem.make_dataset(
-            u_size=opts.u_size,
-            v_size=opts.v_size + i * 5,
-            num_edges=opts.num_edges + (opts.u_size // 2) * i * 5,
-            max_weight=opts.max_weight,
-            num_samples=opts.val_size,
-            distribution=opts.data_distribution,
-        )
-        cost, cr = rollout(model, dataset, opts)
-        ratio.append(opts.u_size / (opts.v_size + i * 5))
-        c.append(cost)
-        min_cr.append(min(cr).item())
-        var_crs.append(torch.std(cr) / math.sqrt(len(cr)))
-        avg_crs.append(cr.mean())
-
-    plt.plot(ratio, min_cr)
+def eval_model(models, problem, opts):
+    for j in range(len(models)):
+      c, avg_crs, var_crs, min_cr, ratio = [], [], [], [], []
+      for i in range(opts.eval_num):
+          dataset = problem.make_dataset(
+              u_size=opts.u_size,
+              v_size=opts.u_size + i * 1,
+              num_edges=opts.num_edges + (opts.u_size // 2) * i * 1,
+              max_weight=opts.max_weight,
+              num_samples=opts.val_size,
+              distribution=opts.data_distribution,
+          )
+          cost, cr = rollout(models[j], dataset, opts)
+          ratio.append(opts.u_size / (opts.u_size + i * 1))
+          c.append(cost)
+          min_cr.append(min(cr).item())
+          var_crs.append(torch.std(cr) / math.sqrt(len(cr)))
+          avg_crs.append(cr.mean())
+      plt.plot(ratio, avg_crs)
     plt.xlabel("Ratio of U to V")
-    plt.ylabel("Competitive Ratio")
-    plt.savefig("graph.png")
-    return c, avg_crs, var_crs, min_cr
+    plt.ylabel("Average Optimality Ratio")
+    plt.savefig("graph1.png")
+    return
 
 
 def rollout(model, dataset, opts):
