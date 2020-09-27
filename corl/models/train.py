@@ -42,23 +42,23 @@ def validate(model, dataset, opts):
 
 def eval_model(models, problem, opts):
     for j in range(len(models)):
-      c, avg_crs, var_crs, min_cr, ratio = [], [], [], [], []
-      for i in range(opts.eval_num):
-          dataset = problem.make_dataset(
-              u_size=opts.u_size,
-              v_size=opts.u_size + i * 1,
-              num_edges=opts.num_edges + (opts.u_size // 2) * i * 1,
-              max_weight=opts.max_weight,
-              num_samples=opts.val_size,
-              distribution=opts.data_distribution,
-          )
-          cost, cr = rollout(models[j], dataset, opts)
-          ratio.append(opts.u_size / (opts.u_size + i * 1))
-          c.append(cost)
-          min_cr.append(min(cr).item())
-          var_crs.append(torch.std(cr) / math.sqrt(len(cr)))
-          avg_crs.append(cr.mean())
-      plt.plot(ratio, avg_crs)
+        c, avg_crs, var_crs, min_cr, ratio = [], [], [], [], []
+        for i in range(opts.eval_num):
+            dataset = problem.make_dataset(
+                u_size=opts.u_size,
+                v_size=opts.u_size + i * 1,
+                num_edges=opts.num_edges + (opts.u_size // 2) * i * 1,
+                max_weight=opts.max_weight,
+                num_samples=opts.val_size,
+                distribution=opts.data_distribution,
+            )
+            cost, cr = rollout(models[j], dataset, opts)
+            ratio.append(opts.u_size / (opts.u_size + i * 1))
+            c.append(cost)
+            min_cr.append(min(cr).item())
+            var_crs.append(torch.std(cr) / math.sqrt(len(cr)))
+            avg_crs.append(cr.mean())
+        plt.plot(ratio, avg_crs)
     plt.xlabel("Ratio of U to V")
     plt.ylabel("Average Optimality Ratio")
     plt.savefig("graph1.png")
@@ -188,7 +188,7 @@ def train_epoch(
             epoch, time.strftime("%H:%M:%S", time.gmtime(epoch_duration))
         )
     )
-    
+
     if opts.checkpoint_epochs == 0:
         print("Saving model and state...")
         torch.save(
@@ -199,7 +199,7 @@ def train_epoch(
                 "cuda_rng_state": torch.cuda.get_rng_state_all(),
                 "baseline": baseline.state_dict(),
             },
-            os.path.join(opts.save_dir, "latest.pt".format(epoch)),
+            os.path.join(opts.save_dir, "latest-{}.pt".format(epoch)),
         )
     elif (epoch % opts.checkpoint_epochs == 0) or (epoch == opts.n_epochs - 1):
         print("Saving model and state...")
