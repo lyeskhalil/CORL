@@ -81,32 +81,32 @@ class AttentionModel(nn.Module):
         self.checkpoint_encoder = checkpoint_encoder
         self.shrink_size = shrink_size
         # Problem specific context parameters (placeholder and step context dimension)
-        if self.is_vrp or self.is_orienteering or self.is_pctsp:
-            # Embedding of last node + remaining_capacity / remaining length / remaining prize to collect
-            step_context_dim = embedding_dim + 1
+        # if self.is_vrp or self.is_orienteering or self.is_pctsp:
+        #     # Embedding of last node + remaining_capacity / remaining length / remaining prize to collect
+        #     step_context_dim = embedding_dim + 1
 
-            if self.is_pctsp:
-                node_dim = 4  # x, y, expected_prize, penalty
-            else:
-                node_dim = 3  # x, y, demand / prize
-            # Special embedding projection for depot node
-            self.init_embed_depot = nn.Linear(2, embedding_dim)
+        #     if self.is_pctsp:
+        #         node_dim = 4  # x, y, expected_prize, penalty
+        #     else:
+        #         node_dim = 3  # x, y, demand / prize
+        #     # Special embedding projection for depot node
+        #     self.init_embed_depot = nn.Linear(2, embedding_dim)
 
-            if (
-                self.is_vrp and self.allow_partial
-            ):  # Need to include the demand if split delivery allowed
-                self.project_node_step = nn.Linear(1, 3 * embedding_dim, bias=False)
-        elif self.is_tsp:  # TSP
-            assert problem.NAME == "tsp", "Unsupported problem: {}".format(problem.NAME)
-            step_context_dim = 2 * embedding_dim  # Embedding of first and last node
-            node_dim = 2  # x, y
+        #     if (
+        #         self.is_vrp and self.allow_partial
+        #     ):  # Need to include the demand if split delivery allowed
+        #         self.project_node_step = nn.Linear(1, 3 * embedding_dim, bias=False)
+        # elif self.is_tsp:  # TSP
+        #     assert problem.NAME == "tsp", "Unsupported problem: {}".format(problem.NAME)
+        #     step_context_dim = 2 * embedding_dim  # Embedding of first and last node
+        #     node_dim = 2  # x, y
 
-            # Learned input symbols for first action
-            self.W_placeholder = nn.Parameter(torch.Tensor(2 * embedding_dim))
-            self.W_placeholder.data.uniform_(
-                -1, 1
-            )  # Placeholder should be in range of activations
-        else:  # online bipartite matching
+        #     # Learned input symbols for first action
+        #     self.W_placeholder = nn.Parameter(torch.Tensor(2 * embedding_dim))
+        #     self.W_placeholder.data.uniform_(
+        #         -1, 1
+        #     )  # Placeholder should be in range of activations
+        if self.is_bipartite:  # online bipartite matching
             step_context_dim = embedding_dim  # Embedding of edges chosen
             node_dim = 1  # edge weight
 
@@ -233,30 +233,30 @@ class AttentionModel(nn.Module):
 
     def _init_embed(self, input):
 
-        if self.is_vrp or self.is_orienteering or self.is_pctsp:
-            if self.is_vrp:
-                features = ("demand",)
-            elif self.is_orienteering:
-                features = ("prize",)
-            else:
-                assert self.is_pctsp
-                features = ("deterministic_prize", "penalty")
-            return torch.cat(
-                (
-                    self.init_embed_depot(input["depot"])[:, None, :],
-                    self.init_embed(
-                        torch.cat(
-                            (
-                                input["loc"],
-                                *(input[feat][:, :, None] for feat in features),
-                            ),
-                            -1,
-                        )
-                    ),
-                ),
-                1,
-            )
-        # TSP
+        # if self.is_vrp or self.is_orienteering or self.is_pctsp:
+        #     if self.is_vrp:
+        #         features = ("demand",)
+        #     elif self.is_orienteering:
+        #         features = ("prize",)
+        #     else:
+        #         assert self.is_pctsp
+        #         features = ("deterministic_prize", "penalty")
+        #     return torch.cat(
+        #         (
+        #             self.init_embed_depot(input["depot"])[:, None, :],
+        #             self.init_embed(
+        #                 torch.cat(
+        #                     (
+        #                         input["loc"],
+        #                         *(input[feat][:, :, None] for feat in features),
+        #                     ),
+        #                     -1,
+        #                 )
+        #             ),
+        #         ),
+        #         1,
+        #     )
+        # bipartite
         return self.init_embed(input)
 
     def _inner(self, input, opts):
@@ -267,7 +267,7 @@ class AttentionModel(nn.Module):
         # Compute keys, values for the glimpse and keys for the logits once as they can be reused in every step
         # fixed = self._precompute(embeddings)
         step_context = 0
-        batch_size = state.ids.size(0)
+        # batch_size = state.ids.size(0)
         # Perform decoding steps
         i = 1
         while not (self.shrink_size is None and state.all_finished()):
@@ -283,17 +283,17 @@ class AttentionModel(nn.Module):
                 state.graphs[:, :step_size, :step_size].bool(),
             )
             fixed = self._precompute(embeddings)
-            if self.shrink_size is not None:
-                unfinished = torch.nonzero(state.get_finished() == 0)
-                if len(unfinished) == 0:
-                    break
-                unfinished = unfinished[:, 0]
-                # Check if we can shrink by at least shrink_size and if this leaves at least 16
-                # (otherwise batch norm will not work well and it is inefficient anyway)
-                if 16 <= len(unfinished) <= state.ids.size(0) - self.shrink_size:
-                    # Filter states
-                    state = state[unfinished]
-                    fixed = fixed[unfinished]
+            # if self.shrink_size is not None:
+            #     unfinished = torch.nonzero(state.get_finished() == 0)
+            #     if len(unfinished) == 0:
+            #         break
+            #     unfinished = unfinished[:, 0]
+            #     # Check if we can shrink by at least shrink_size and if this leaves at least 16
+            #     # (otherwise batch norm will not work well and it is inefficient anyway)
+            #     if 16 <= len(unfinished) <= state.ids.size(0) - self.shrink_size:
+            #         # Filter states
+            #         state = state[unfinished]
+            #         fixed = fixed[unfinished]
 
             log_p, mask = self._get_log_p(fixed, state, step_context, opts)
 
@@ -312,13 +312,13 @@ class AttentionModel(nn.Module):
             )  # Incremental averaging of selected edges
 
             # Now make log_p, selected desired output size by 'unshrinking'
-            if self.shrink_size is not None and state.ids.size(0) < batch_size:
-                log_p_, selected_ = log_p, selected
-                log_p = log_p_.new_zeros(batch_size, *log_p_.size()[1:])
-                selected = selected_.new_zeros(batch_size)
+            # if self.shrink_size is not None and state.ids.size(0) < batch_size:
+            #     log_p_, selected_ = log_p, selected
+            #     log_p = log_p_.new_zeros(batch_size, *log_p_.size()[1:])
+            #     selected = selected_.new_zeros(batch_size)
 
-                log_p[state.ids[:, 0]] = log_p_
-                selected[state.ids[:, 0]] = selected_
+            #     log_p[state.ids[:, 0]] = log_p_
+            #     selected[state.ids[:, 0]] = selected_
 
             # Collect output of step
             # step_size = ((state.i.item() - state.u_size.item() + 1) * (state.u_size + 1))
@@ -529,22 +529,22 @@ class AttentionModel(nn.Module):
 
     def _get_attention_node_data(self, fixed, state):
 
-        if self.is_vrp and self.allow_partial:
+        # if self.is_vrp and self.allow_partial:
 
-            # Need to provide information of how much each node has already been served
-            # Clone demands as they are needed by the backprop whereas they are updated later
-            glimpse_key_step, glimpse_val_step, logit_key_step = self.project_node_step(
-                state.demands_with_depot[:, :, :, None].clone()
-            ).chunk(3, dim=-1)
+        #     # Need to provide information of how much each node has already been served
+        #     # Clone demands as they are needed by the backprop whereas they are updated later
+        #     glimpse_key_step, glimpse_val_step, logit_key_step = self.project_node_step(
+        #         state.demands_with_depot[:, :, :, None].clone()
+        #     ).chunk(3, dim=-1)
 
-            # Projection of concatenation is equivalent to addition of projections but this is more efficient
-            return (
-                fixed.glimpse_key + self._make_heads(glimpse_key_step),
-                fixed.glimpse_val + self._make_heads(glimpse_val_step),
-                fixed.logit_key + logit_key_step,
-            )
+        #     # Projection of concatenation is equivalent to addition of projections but this is more efficient
+        #     return (
+        #         fixed.glimpse_key + self._make_heads(glimpse_key_step),
+        #         fixed.glimpse_val + self._make_heads(glimpse_val_step),
+        #         fixed.logit_key + logit_key_step,
+        #     )
 
-        # TSP or VRP without split delivery
+        # Bipartite
         return fixed.glimpse_key, fixed.glimpse_val, fixed.logit_key
 
     def _make_heads(self, v, num_steps=None):

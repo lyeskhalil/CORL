@@ -144,6 +144,11 @@ class StateBipartite(NamedTuple):
         return self.i
 
     def get_mask(self):
+        """
+        Returns a mask vector which includes only nodes in U that can matched.
+        That is, neighbors of the incoming node that have not been matched already.
+        """
+
         self.matched_nodes[:, 0] = 0
         a = self.edges.reshape(
             self.edges.size(0) * self.edges.size(1), 2
@@ -174,27 +179,27 @@ class StateBipartite(NamedTuple):
             self.matched_nodes.squeeze(1) + (1 - mask) > 0
         ).long()  # Hacky way to return bool or uint8 depending on pytorch version
 
-    def get_nn(self, k=None):
-        # Insert step dimension
-        # Nodes already visited get inf so they do not make it
-        if k is None:
-            k = self.loc.size(-2) - self.i.item()  # Number of remaining
-        return (
-            self.dist[self.ids, :, :] + self.visited.float()[:, :, None, :] * 1e6
-        ).topk(k, dim=-1, largest=False)[1]
+    # def get_nn(self, k=None):
+    #     # Insert step dimension
+    #     # Nodes already visited get inf so they do not make it
+    #     if k is None:
+    #         k = self.loc.size(-2) - self.i.item()  # Number of remaining
+    #     return (
+    #         self.dist[self.ids, :, :] + self.visited.float()[:, :, None, :] * 1e6
+    #     ).topk(k, dim=-1, largest=False)[1]
 
-    def get_nn_current(self, k=None):
-        assert (
-            False
-        ), "Currently not implemented, look into which neighbours to use in step 0?"
-        # Note: if this is called in step 0, it will have k nearest neighbours to node 0, which may not be desired
-        # so it is probably better to use k = None in the first iteration
-        if k is None:
-            k = self.loc.size(-2)
-        k = min(k, self.loc.size(-2) - self.i.item())  # Number of remaining
-        return (self.dist[self.ids, self.prev_a] + self.visited.float() * 1e6).topk(
-            k, dim=-1, largest=False
-        )[1]
+    # def get_nn_current(self, k=None):
+    #     assert (
+    #         False
+    #     ), "Currently not implemented, look into which neighbours to use in step 0?"
+    #     # Note: if this is called in step 0, it will have k nearest neighbours to node 0, which may not be desired
+    #     # so it is probably better to use k = None in the first iteration
+    #     if k is None:
+    #         k = self.loc.size(-2)
+    #     k = min(k, self.loc.size(-2) - self.i.item())  # Number of remaining
+    #     return (self.dist[self.ids, self.prev_a] + self.visited.float() * 1e6).topk(
+    #         k, dim=-1, largest=False
+    #     )[1]
 
     def construct_solutions(self, actions):
         return actions
