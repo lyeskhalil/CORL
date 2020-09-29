@@ -11,6 +11,9 @@ import pickle as pk
 def generate_bipartite_data(
     dataset_size, u_size, v_size, num_edges, future_edge_weight, weights_range
 ):
+    """
+    Generate random graphs using gnmk_random_graph
+    """
     G, D, E, W, M = [], [], [], [], []
     for i in range(dataset_size):
         g1 = nx.bipartite.gnmk_random_graph(u_size, v_size, num_edges)
@@ -60,6 +63,9 @@ def generate_bipartite_data(
 
 
 def _add_nodes_with_bipartite_label(G, lena, lenb):
+    """
+    Helper for generate_ba_graph that initializes the initial empty graph with nodes
+    """
     G.add_nodes_from(range(0, lena + lenb))
     b = dict(zip(range(0, lena), [0] * lena))
     b.update(dict(zip(range(lena, lena + lenb), [1] * lenb)))
@@ -99,6 +105,10 @@ def generate_ba_graph(u, v, p, seed):
 
 
 def generate_obm_data(opts):
+    """
+    Generates graphs using the ER scheme
+
+    """
     G, D, E, M = [], [], [], []
     if opts.graph_family == "er":
         g = nx.bipartite.random_graph
