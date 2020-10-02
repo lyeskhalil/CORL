@@ -62,12 +62,12 @@ class StateBipartite(NamedTuple):
         # size = torch.zeros(batch_size, 1, dtype=torch.long, device=graphs.device)
         return StateBipartite(
             graphs=torch.tensor(input[0]),
-            u_size=torch.tensor([u_size]),
-            v_size=torch.tensor([v_size]),
+            u_size=torch.tensor([u_size], device=input[0].device),
+            v_size=torch.tensor([v_size], device=input[0].device),
             weights=None,
             edges=torch.tensor(input[2]),
             degree=torch.tensor(input[1]),
-            batch_size=torch.tensor([batch_size]),
+            batch_size=torch.tensor([batch_size], device=input[0].device),
             ids=torch.arange(batch_size, dtype=torch.int64, device=input[0].device)[
                 :, None
             ],  # Add steps dimension
