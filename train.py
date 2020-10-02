@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 from torch.nn import DataParallel
 
-from policy.attention_model import set_decode_type
+from policy.attention_model_v2 import set_decode_type
 from log_utils import log_values
 from functions import move_to
 
@@ -154,16 +154,8 @@ def train_epoch(
         tb_logger.log_value("learnrate_pg0", optimizer.param_groups[0]["lr"], step)
 
     # Generate new training data for each epoch
-    training_dataset = baseline.wrap_dataset(
-        problem.make_dataset(
-            u_size=opts.u_size,
-            v_size=opts.v_size,
-            num_edges=opts.num_edges,
-            num_samples=opts.epoch_size,
-            distribution=opts.data_distribution,
-            max_weight=opts.max_weight,
-        )
-    )
+    ## TODO: MODIFY SO THAT WE CAN ALSO USE A PRE-GENERATED DATASET
+    training_dataset = baseline.wrap_dataset(problem.make_dataset(opts))
     training_dataloader = DataLoader(
         training_dataset, batch_size=opts.batch_size, num_workers=1
     )
@@ -235,6 +227,7 @@ def train_batch(
     bl_val = move_to(bl_val, opts.device) if bl_val is not None else None
 
     # Evaluate model, get costs and log probabilities
+
     cost, log_likelihood = model(x, opts)
 
     # Evaluate baseline, get baseline loss if any (only for critic)

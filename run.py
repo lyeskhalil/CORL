@@ -18,8 +18,8 @@ from reinforce_baselines import (
     RolloutBaseline,
     WarmupBaseline,
 )
-from policy.attention_model import AttentionModel
-from policy.ff_model import FeedForwardModel
+from policy.attention_model_v2 import AttentionModel
+from policy.ff_model_v2 import FeedForwardModel
 from policy.greedy import Greedy
 from policy.greedy_rt import GreedyRt
 
@@ -41,7 +41,7 @@ def run(opts):
         tb_logger = TbLogger(
             os.path.join(
                 opts.log_dir,
-                "{}_{}".format(opts.problem, opts.graph_size),
+                "{}_{}_{}".format(opts.problem, opts.u_size, opts.v_size),
                 opts.run_name,
             )
         )
@@ -81,7 +81,7 @@ def run(opts):
     model = model_class(
         opts.embedding_dim,
         opts.hidden_dim,
-        problem,
+        problem=problem,
         n_encode_layers=opts.n_encode_layers,
         mask_inner=True,
         mask_logits=True,
@@ -163,15 +163,7 @@ def run(opts):
     )
     torch.autograd.set_detect_anomaly(True)
     # Start the actual training loop
-    val_dataset = problem.make_dataset(
-        u_size=opts.u_size,
-        v_size=opts.v_size,
-        num_edges=opts.num_edges,
-        max_weight=opts.max_weight,
-        num_samples=opts.val_size,
-        filename=opts.val_dataset,
-        distribution=opts.data_distribution,
-    )
+    val_dataset = problem.make_dataset(opts)
 
     if opts.resume:
         epoch_resume = int(

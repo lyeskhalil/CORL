@@ -1,7 +1,7 @@
 import argparse
 import os
 import numpy as np
-from data_utils import check_extension, save_dataset
+from data.data_utils import check_extension, save_dataset
 import networkx as nx
 from scipy.optimize import linear_sum_assignment
 import torch
@@ -106,7 +106,7 @@ def generate_ba_graph(u, v, p, seed):
 
 def generate_obm_data(opts):
     """
-    Generates graphs using the ER scheme
+    Generates graphs using the ER/BA scheme
 
     """
     G, D, E, M = [], [], [], []
@@ -118,9 +118,13 @@ def generate_obm_data(opts):
         g1 = g(
             opts.u_size, opts.v_size, p=opts.graph_family_parameter, seed=opts.seed + i
         )
+
+        cost = nx.bipartite.biadjacency_matrix(
+            g1, range(0, opts.u_size), range(opts.u_size, opts.u_size + opts.v_size)
+        ).toarray()
         # d_old = np.array(sorted(g1.degree))[u_size:, 1]
         s = sorted(list(g1.nodes))
-        c = nx.convert_matrix.to_numpy_array(g1, s)
+        # c = nx.convert_matrix.to_numpy_array(g1, s)
 
         g1.add_node(
             -1, bipartite=0
@@ -137,11 +141,67 @@ def generate_obm_data(opts):
         G.append(m.tolist())
         D.append(list(d))
         E.append(s)
-        i1, i2 = linear_sum_assignment(c, maximize=True)
-        M.append(c[i1, i2].sum())
+        i1, i2 = linear_sum_assignment(cost, maximize=True)
+        M.append(cost[i1, i2].sum())
+
+    return (
+        torch.tensor(G),
+        torch.tensor(D),
+        torch.tensor(E),
+        torch.tensor(M),
+    )
+
+
+def generate_edge_obm_data(opts):
+    """
+    Generates edge weighted bipartite graphs using the ER/BA schemes
+
+    Only uniform distribution is implemented for now.
+    """
+    G, D, E, M, W = [], [], [], [], []
+    if opts.graph_family == "er":
+        g = nx.bipartite.random_graph
+    if opts.graph_family == "ba":
+        g = generate_ba_graph
+    for i in range(opts.dataset_size):
+        g1 = g(
+            opts.u_size, opts.v_size, p=opts.graph_family_parameter, seed=opts.seed + i
+        )
+        # d_old = np.array(sorted(g1.degree))[u_size:, 1]
+        if opts.weight_distribution == "uniform":
+            weights = nx.bipartite.biadjacency_matrix(
+                g1, range(0, opts.u_size), range(opts.u_size, opts.u_size + opts.v_size)
+            ).toarray() * np.random.randint(
+                1, opts.max_weight, (opts.u_size, opts.v_size)
+            )
+            w = torch.cat(
+                (torch.zeros(opts.v_size, 1).long(), torch.tensor(weights).T), 1
+            ).flatten()
+        s = sorted(list(g1.nodes))
+        # c = nx.convert_matrix.to_numpy_array(g1, s)
+
+        g1.add_node(
+            -1, bipartite=0
+        )  # add extra node in U that represents not matching the current node to anything
+        g1.add_edges_from(
+            list(zip([-1] * opts.v_size, range(opts.u_size, opts.u_size + opts.v_size)))
+        )
+        d = np.array(sorted(g1.degree))[opts.u_size + 1 :, 1]
+
+        s = sorted(list(g1.nodes))
+        m = 1 - nx.convert_matrix.to_numpy_array(g1, s)
+
+        # ordered_m = np.take(np.take(m, order, axis=1), order, axis=0)
+        G.append(m.tolist())
+        D.append(list(d))
+        E.append(s)
+        W.append(w.tolist())
+        i1, i2 = linear_sum_assignment(weights, maximize=True)
+        M.append(weights[i1, i2].sum())
 
     return (
         G,
+        W,
         D,
         E,
         M,
@@ -163,6 +223,9 @@ if __name__ == "__main__":
         default="uniform",
         help="Distributions to generate for problem, default 'all'.",
     )
+    parser.add_argument(
+        "--max_weight", type=int, default=4000, help="max weight in graph",
+    )
 
     parser.add_argument(
         "--dataset_size", type=int, default=10000, help="Size of the dataset"
@@ -172,11 +235,7 @@ if __name__ == "__main__":
         "--u_size", type=int, default=100, help="Sizes of U set (default 100 by 100)",
     )
     parser.add_argument(
-        "--v_size",
-        type=int,
-        nargs="+",
-        default=100,
-        help="Sizes of V set (default 100 by 100)",
+        "--v_size", type=int, default=100, help="Sizes of V set (default 100 by 100)",
     )
     parser.add_argument(
         "--graph_family",
@@ -207,8 +266,8 @@ if __name__ == "__main__":
     np.random.seed(opts.seed)
     if opts.problem == "obm":
         dataset = generate_obm_data(opts)
-    # elif opt.problem == "e-obm":
-
+    elif opts.problem == "e-obm":
+        dataset = generate_edge_obm_data(opts)
     # elif opts.problem == "adwords":
 
     # elif opts.problem == "displayads":

@@ -2,14 +2,14 @@ from torch.utils.data import Dataset
 import torch
 import os
 import pickle
-from state_bipartite import StateBipartite
-from .beam_search import beam_search
-from .data.generate_data import generate_bipartite_data
+from problem_state.edge_obm_state import StateEdgeBipartite
+from beam_search import beam_search
+from data.generate_data import generate_edge_obm_data
 
 
-class Bipartite(object):
+class EdgeBipartite(object):
 
-    NAME = "bipartite"
+    NAME = "e-obm"
 
     # @staticmethod
     # def get_costs(dataset, pi):
@@ -30,11 +30,11 @@ class Bipartite(object):
 
     @staticmethod
     def make_dataset(*args, **kwargs):
-        return BipartiteDataset(*args, **kwargs)
+        return EdgeBipartiteDataset(*args, **kwargs)
 
     @staticmethod
     def make_state(*args, **kwargs):
-        return StateBipartite.initialize(*args, **kwargs)
+        return StateEdgeBipartite.initialize(*args, **kwargs)
 
     # @staticmethod
     # def beam_search(
@@ -66,37 +66,22 @@ class Bipartite(object):
     #     return beam_search(state, beam_size, propose_expansions)
 
 
-class BipartiteDataset(Dataset):
-    def __init__(
-        self,
-        v_size,
-        u_size,
-        num_edges,
-        max_weight,
-        filename=None,
-        num_samples=1000000,
-        offset=0,
-        distribution=None,
-    ):
-        super(BipartiteDataset, self).__init__()
+class EdgeBipartiteDataset(Dataset):
+    def __init__(self, opts):
+        super(EdgeBipartiteDataset, self).__init__()
 
         self.data_set = []
-        if filename is not None:
-            # TODO: TO BE MODIFIED FOR BIPARTITE
-            assert os.path.splitext(filename)[1] == ".pkl"
+        self.problem = opts.problem
+        if opts.train_dataset is not None:
+            assert os.path.splitext(opts.train_dataset)[1] == ".pkl"
 
-            with open(filename, "rb") as f:
+            with open(opts.train_dataset, "rb") as f:
                 data = pickle.load(f)
-                self.data = [
-                    torch.FloatTensor(row)
-                    for row in (data[offset : offset + num_samples])
-                ]
+                self.data = data
         else:
             ### TODO: Should use generate function in generate_data.py
-            # Sample points randomly in [0, 1] square
-            self.data = generate_bipartite_data(
-                num_samples, u_size, v_size, num_edges, 0, (1, max_weight)
-            )
+            # If no filename is specified generated data for normal obm probelm
+            self.data = generate_edge_obm_data(opts)
 
         self.size = len(self.data[0])
 

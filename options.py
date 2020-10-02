@@ -6,12 +6,15 @@ import torch
 
 def get_options(args=None):
     parser = argparse.ArgumentParser(
-        description="Attention based model for solving the Online Bipartite matching Problem with Reinforcement Learning"
+        description="Attention-based model for solving the Online Bipartite matching Problem with Reinforcement Learning"
     )
 
     # Data
     parser.add_argument(
-        "--problem", default="bipartite", help="The problem to solve, default 'tsp'"
+        "--problem",
+        type=str,
+        default="obm",
+        help="Problem: 'obm', 'e-obm', 'adwords' or 'displayads'",
     )
     parser.add_argument(
         "--graph_size", type=int, default=20, help="The size of the problem graph"
@@ -43,7 +46,7 @@ def get_options(args=None):
     parser.add_argument(
         "--val_size",
         type=int,
-        default=10000,
+        default=1000,
         help="Number of instances used for reporting validation performance",
     )
     parser.add_argument(
@@ -51,6 +54,38 @@ def get_options(args=None):
         type=str,
         default=None,
         help="Dataset file to use for validation",
+    )
+
+    parser.add_argument(
+        "--graph_family_parameter",
+        type=float,
+        default=0.6,
+        help="parameter of the graph family distribution",
+    )
+
+    parser.add_argument(
+        "--train_dataset",
+        type=str,
+        default=None,
+        help="Dataset file to use for training",
+    )
+
+    parser.add_argument(
+        "--dataset_size", type=int, default=100, help="Dataset size for training",
+    )
+
+    parser.add_argument(
+        "--weight_distribution",
+        type=str,
+        default="uniform",
+        help="Distribution of weights in graphs",
+    )
+
+    parser.add_argument(
+        "--graph_family",
+        type=str,
+        default="er",
+        help="family of graphs to generate for training/validation (er, ba, etc)",
     )
 
     # Model
@@ -155,12 +190,12 @@ def get_options(args=None):
         "used for warmup phase), 0 otherwise. Can only be used with rollout baseline.",
     )
     parser.add_argument(
-        "--max_weight", type=int, default=1000, help="Maximum edge weight in the graph"
+        "--max_weight", type=int, default=4000, help="Maximum edge weight in the graph"
     )
     parser.add_argument(
         "--eval_batch_size",
         type=int,
-        default=1024,
+        default=10,
         help="Batch size to use during (baseline) evaluation",
     )
     parser.add_argument(

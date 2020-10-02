@@ -7,13 +7,14 @@ import json
 from tqdm import tqdm
 from multiprocessing.dummy import Pool as ThreadPool
 from multiprocessing import Pool
+from problem_state.problem_obm import Bipartite
+from problem_state.problem_edge_bipartite import EdgeBipartite
 import torch.nn.functional as F
 
 
 def load_problem(name):
-    from problem_bipartite import Bipartite
 
-    problem = {"bipartite": Bipartite}.get(name, None)
+    problem = {"obm": Bipartite, "e-obm": EdgeBipartite}.get(name, None)
     assert problem is not None, "Currently unsupported problem: {}!".format(name)
     return problem
 

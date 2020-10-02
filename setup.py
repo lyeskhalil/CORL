@@ -4,7 +4,7 @@ setup(
     name="src",
     packages=find_packages(),
     version="0.1.0",
-    description="Exploring Combinatorial Optimization using Reinforcement Learning (CORL)",
-    author="Parsa Torabian",
+    description="Exploring Online Bipartite Matching using Reinforcement Learning (CORL)",
+    author="Mohammad Ali Alomrani",
     license="MIT",
 )

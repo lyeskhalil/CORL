@@ -88,3 +88,5 @@ target/
 # Mypy cache
 .mypy_cache/
 Fruit-API
+data/__pycache__/generate_data.cpython-38.pyc
+data/__pycache__/__init__.cpython-38.pyc

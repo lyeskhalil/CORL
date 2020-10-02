@@ -26,12 +26,7 @@ class FeedForwardModel(nn.Module):
         self.embedding_dim = embedding_dim
         self.decode_type = None
         self.num_actions = num_actions
-        self.allow_partial = problem.NAME == "sdvrp"
-        self.is_vrp = problem.NAME == "cvrp" or problem.NAME == "sdvrp"
-        self.is_orienteering = problem.NAME == "op"
-        self.is_pctsp = problem.NAME == "pctsp"
         self.is_bipartite = problem.NAME == "bipartite"
-        self.is_tsp = problem.NAME == "tsp"
         self.problem = problem
         self.shrink_size = None
         self.ff = nn.Sequential(
@@ -107,9 +102,7 @@ class FeedForwardModel(nn.Module):
 
             # Select the indices of the next nodes in the sequences, result (batch_size) long
             selected = self._select_node(pi, mask.bool())  # Squeeze out steps dimension
-            state = state.update(
-                (selected + step_size - state.u_size.item() - 1)[:, None]
-            )
+            state = state.update((selected)[:, None])
             outputs.append(pi)
             sequences.append(selected)
             i += 1
