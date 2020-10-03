@@ -181,7 +181,7 @@ def train_epoch(
         )
     )
 
-    if opts.checkpoint_epochs == 0:
+    if opts.checkpoint_epochs == 0 and (epoch == opts.n_epochs - 1):
         print("Saving model and state...")
         torch.save(
             {
@@ -224,6 +224,7 @@ def train_batch(
     x, bl_val = baseline.unwrap_batch(batch)
     # print(x)
     x = move_to(x, opts.device)
+
     bl_val = move_to(bl_val, opts.device) if bl_val is not None else None
 
     # Evaluate model, get costs and log probabilities
