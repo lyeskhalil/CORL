@@ -14,6 +14,8 @@ from beam_search import CachedLookup
 
 # from utils.functions import sample_many
 
+import time
+
 
 def set_decode_type(model, decode_type):
     if isinstance(model, DataParallel):
@@ -104,11 +106,13 @@ class AttentionModel(nn.Module):
         #         -1, 1
         #     )  # Placeholder should be in range of activations
         if self.is_bipartite:  # online bipartite matching
-            step_context_dim = embedding_dim  # Embedding of edges chosen
+            step_context_dim = (
+                embedding_dim * 2
+            )  # Embedding of edges chosen and current node
             node_dim = 1  # edge weight
 
             # Learned input symbols for first action
-            self.W_placeholder = nn.Parameter(torch.Tensor(embedding_dim))
+            self.W_placeholder = nn.Parameter(torch.Tensor(embedding_dim * 2))
             self.W_placeholder.data.uniform_(
                 -1, 1
             )  # Placeholder should be in range of activations
@@ -276,6 +280,7 @@ class AttentionModel(nn.Module):
                 .expand(opts.batch_size, step_size)
                 .unsqueeze(-1)
             )
+
             embeddings, _ = self.embedder(
                 self._init_embed(  # pass in one-hot encoding to embedder
                     node_features.float()
@@ -283,6 +288,7 @@ class AttentionModel(nn.Module):
                 state.graphs[:, :step_size, :step_size].bool(),
                 weights=state.weights,
             )
+
             fixed = self._precompute(embeddings, opts)
             # if self.shrink_size is not None:
             #     unfinished = torch.nonzero(state.get_finished() == 0)
@@ -458,7 +464,6 @@ class AttentionModel(nn.Module):
 
         if normalize:
             log_p = torch.log_softmax(log_p / self.temp, dim=-1)
-
         assert not torch.isnan(log_p).any()
 
         return log_p, mask
@@ -487,7 +492,9 @@ class AttentionModel(nn.Module):
                         batch_size, 1, self.W_placeholder.size(-1)
                     )
                 else:
-                    return step_context
+                    return torch.cat(
+                        (step_context, embeddings[:, -1, :].unsqueeze(1)), dim=2
+                    )  # add embedding of arriving node to context
 
     def _one_to_many_logits(self, query, glimpse_K, glimpse_V, logit_K, mask):
         batch_size, num_steps, embed_dim = query.size()
