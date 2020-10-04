@@ -193,7 +193,7 @@ def train_epoch(
             },
             os.path.join(opts.save_dir, "latest-{}.pt".format(epoch)),
         )
-    elif (epoch % opts.checkpoint_epochs == 0) or (epoch == opts.n_epochs - 1):
+    elif opts.checkpoint_epochs != 0 and ((epoch % opts.checkpoint_epochs == 0) or (epoch == opts.n_epochs - 1)):
         print("Saving model and state...")
         torch.save(
             {

@@ -13,7 +13,7 @@ from torch.nn import DataParallel
 from beam_search import CachedLookup
 
 # from utils.functions import sample_many
-
+import time
 
 def set_decode_type(model, decode_type):
     if isinstance(model, DataParallel):
@@ -42,8 +42,8 @@ class AttentionModelFixed(NamedTuple):
                 glimpse_val=self.glimpse_val[:, key],  # dim 0 are the heads
                 logit_key=self.logit_key[key],
             )
-        # return super(AttentionModelFixed, self).__getitem__(key)
-        return self[key]
+        return super(AttentionModelFixed, self).__getitem__(key)
+        # return self[key]
 
 
 class AttentionModel(nn.Module):
@@ -276,6 +276,7 @@ class AttentionModel(nn.Module):
                 .expand(opts.batch_size, step_size)
                 .unsqueeze(-1)
             )
+            #start = time.time()
             embeddings, _ = self.embedder(
                 self._init_embed(  # pass in one-hot encoding to embedder
                     node_features.float()
@@ -283,6 +284,8 @@ class AttentionModel(nn.Module):
                 state.graphs[:, :step_size, :step_size].bool(),
                 weights=state.weights,
             )
+            #end = time.time()
+            # print(end - start)
             fixed = self._precompute(embeddings, opts)
             # if self.shrink_size is not None:
             #     unfinished = torch.nonzero(state.get_finished() == 0)
