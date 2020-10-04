@@ -109,21 +109,19 @@ def generate_obm_data(opts):
     Generates graphs using the ER/BA scheme
 
     """
-    G, D, E, M = [], [], [], []
+    G, M = [], []
     if opts.graph_family == "er":
         g = nx.bipartite.random_graph
     if opts.graph_family == "ba":
         g = generate_ba_graph
     for i in range(opts.dataset_size):
-        g1 = g(
-            opts.u_size, opts.v_size, p=opts.graph_family_parameter, seed=opts.seed + i
-        )
+        g1 = g(opts.u_size, opts.v_size, p=opts.graph_family_parameter,)
 
         cost = nx.bipartite.biadjacency_matrix(
             g1, range(0, opts.u_size), range(opts.u_size, opts.u_size + opts.v_size)
         ).toarray()
         # d_old = np.array(sorted(g1.degree))[u_size:, 1]
-        s = sorted(list(g1.nodes))
+
         # c = nx.convert_matrix.to_numpy_array(g1, s)
 
         g1.add_node(
@@ -132,22 +130,15 @@ def generate_obm_data(opts):
         g1.add_edges_from(
             list(zip([-1] * opts.v_size, range(opts.u_size, opts.u_size + opts.v_size)))
         )
-        d = np.array(sorted(g1.degree))[opts.u_size + 1 :, 1]
-
         s = sorted(list(g1.nodes))
         m = 1 - nx.convert_matrix.to_numpy_array(g1, s)
 
         # ordered_m = np.take(np.take(m, order, axis=1), order, axis=0)
         G.append(m.tolist())
-        D.append(list(d))
-        E.append(s)
         i1, i2 = linear_sum_assignment(cost, maximize=True)
         M.append(cost[i1, i2].sum())
-
     return (
         torch.tensor(G),
-        torch.tensor(D),
-        torch.tensor(E),
         torch.tensor(M),
     )
 
