@@ -153,7 +153,7 @@ def generate_edge_obm_data(opts):
 
     Only uniform distribution is implemented for now.
     """
-    G, D, E, M, W = [], [], [], [], []
+    G, M, W = [], [], []
     if opts.graph_family == "er":
         g = nx.bipartite.random_graph
     if opts.graph_family == "ba":
@@ -181,24 +181,23 @@ def generate_edge_obm_data(opts):
         g1.add_edges_from(
             list(zip([-1] * opts.v_size, range(opts.u_size, opts.u_size + opts.v_size)))
         )
-        d = np.array(sorted(g1.degree))[opts.u_size + 1 :, 1]
 
         s = sorted(list(g1.nodes))
         m = 1 - nx.convert_matrix.to_numpy_array(g1, s)
-
+        torch.save(
+            [torch.tensor(m), torch.tensor(w)],
+            "{}/graphs/{}.pt".format(opts.dataset_folder, i),
+        )
         # ordered_m = np.take(np.take(m, order, axis=1), order, axis=0)
         G.append(m.tolist())
-        D.append(list(d))
-        E.append(s)
         W.append(w.tolist())
         i1, i2 = linear_sum_assignment(weights, maximize=True)
         M.append(weights[i1, i2].sum())
+    torch.save(torch.tensor(M), "{}/optimal_match.pt".format(opts.dataset_folder))
 
     return (
         G,
         W,
-        D,
-        E,
         M,
     )
 
