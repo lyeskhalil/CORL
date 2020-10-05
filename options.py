@@ -26,10 +26,10 @@ def get_options(args=None):
         help="Number of instances per batch during training",
     )
     parser.add_argument(
-        "--u_size", type=int, default=5, help="Number of nodes in U-set"
+        "--u_size", type=int, default=10, help="Number of nodes in U-set"
     )
     parser.add_argument(
-        "--v_size", type=int, default=4, help="Number of nodes in the V-set"
+        "--v_size", type=int, default=10, help="Number of nodes in the V-set"
     )
     parser.add_argument(
         "--num_edges",
@@ -52,7 +52,7 @@ def get_options(args=None):
     parser.add_argument(
         "--val_dataset",
         type=str,
-        default=None,
+        default="dataset/val",
         help="Dataset file to use for validation",
     )
 
@@ -66,12 +66,12 @@ def get_options(args=None):
     parser.add_argument(
         "--train_dataset",
         type=str,
-        default=None,
+        default="dataset/train",
         help="Dataset file to use for training",
     )
 
     parser.add_argument(
-        "--dataset_size", type=int, default=100, help="Dataset size for training",
+        "--dataset_size", type=int, default=1000, help="Dataset size for training",
     )
 
     parser.add_argument(
@@ -126,7 +126,7 @@ def get_options(args=None):
     parser.add_argument(
         "--lr_model",
         type=float,
-        default=1e-4,
+        default=1e-3,
         help="Set the learning rate for the actor network",
     )
     parser.add_argument(
@@ -136,7 +136,7 @@ def get_options(args=None):
         help="Set the learning rate for the critic network",
     )
     parser.add_argument(
-        "--lr_decay", type=float, default=1.0, help="Learning rate decay per epoch"
+        "--lr_decay", type=float, default=0.99, help="Learning rate decay per epoch"
     )
     parser.add_argument(
         "--eval_num",
@@ -239,7 +239,7 @@ def get_options(args=None):
     parser.add_argument(
         "--checkpoint_epochs",
         type=int,
-        default=1,
+        default=0,
         help="Save checkpoint every n epochs (default 1), 0 to save no checkpoints",
     )
     parser.add_argument(

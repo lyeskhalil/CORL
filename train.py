@@ -70,13 +70,13 @@ def rollout(model, dataset, opts):
     set_decode_type(model, "greedy")
     model.eval()
 
-    def eval_model_bat(bat):
+    def eval_model_bat(bat, optimal):
         with torch.no_grad():
             cost, _ = model(move_to(bat, opts.device), opts)
 
         # print(-cost.data.flatten())
         # print(bat[-1])
-        cr = -cost.data.flatten() / move_to(bat[-1], opts.device)
+        cr = -cost.data.flatten() / move_to(optimal, opts.device)
         # print(
         #     "\nBatch Competitive ratio: ", min(cr).item(),
         # )
@@ -85,11 +85,8 @@ def rollout(model, dataset, opts):
 
     cost = []
     crs = []
-    for bat in tqdm(
-        DataLoader(dataset, batch_size=opts.eval_batch_size),
-        disable=opts.no_progress_bar,
-    ):
-        c, cr = eval_model_bat(bat)
+    for bat, optimal in tqdm(dataset):
+        c, cr = eval_model_bat(bat, optimal)
         cost.append(c)
         crs.append(cr)
 
@@ -138,6 +135,7 @@ def train_epoch(
     lr_scheduler,
     epoch,
     val_dataset,
+    training_dataloader,
     problem,
     tb_logger,
     opts,
@@ -155,10 +153,10 @@ def train_epoch(
 
     # Generate new training data for each epoch
     ## TODO: MODIFY SO THAT WE CAN ALSO USE A PRE-GENERATED DATASET
-    training_dataset = baseline.wrap_dataset(problem.make_dataset(opts))
-    training_dataloader = DataLoader(
-        training_dataset, batch_size=opts.batch_size, num_workers=1
-    )
+    # training_dataset = baseline.wrap_dataset(problem.make_dataset(opts))
+    # training_dataloader = DataLoader(
+    #     training_dataset, batch_size=opts.batch_size, num_workers=1
+    # )
 
     # Put model in train mode!
     model.train()
@@ -167,7 +165,6 @@ def train_epoch(
     for batch_id, batch in enumerate(
         tqdm(training_dataloader, disable=opts.no_progress_bar)
     ):
-
         train_batch(
             model, optimizer, baseline, epoch, batch_id, step, batch, tb_logger, opts
         )
@@ -223,7 +220,7 @@ def train_epoch(
 def train_batch(
     model, optimizer, baseline, epoch, batch_id, step, batch, tb_logger, opts
 ):
-    x, bl_val = baseline.unwrap_batch(batch)
+    x, bl_val = baseline.unwrap_batch(batch[0])
     # print(x)
     x = move_to(x, opts.device)
 

@@ -7,6 +7,7 @@ import pprint as pp
 import torch
 import torch.optim as optim
 from tensorboard_logger import Logger as TbLogger
+from torch.utils.data import DataLoader
 
 # from nets.critic_network import CriticNetwork
 from options import get_options
@@ -163,8 +164,10 @@ def run(opts):
     )
     torch.autograd.set_detect_anomaly(True)
     # Start the actual training loop
-    val_dataset = problem.make_dataset(opts)
-
+    val_dataset = problem.make_dataset(opts.val_dataset, opts.val_size, opts.problem)
+    val_dataloader = DataLoader(
+        val_dataset, batch_size=opts.eval_batch_size, num_workers=1
+    )
     if opts.resume:
         epoch_resume = int(
             os.path.splitext(os.path.split(opts.resume)[-1])[0].split("-")[1]
@@ -180,7 +183,7 @@ def run(opts):
         opts.epoch_start = epoch_resume + 1
 
     if opts.eval_only:
-        validate(model, val_dataset, opts)
+        validate(model, val_dataloader, opts)
 
     elif opts.eval_model:
         model1 = FeedForwardModel(
@@ -200,6 +203,12 @@ def run(opts):
         model1_.load_state_dict({**model1_.state_dict(), **load_data2.get("model", {})})
         eval_model([model, model1], problem, opts)
     else:
+        training_dataset = baseline.wrap_dataset(
+            problem.make_dataset(opts.train_dataset, opts.dataset_size, opts.problem)
+        )
+        training_dataloader = DataLoader(
+            training_dataset, batch_size=opts.batch_size, num_workers=1, shuffle=True,
+        )
         for epoch in range(opts.epoch_start, opts.epoch_start + opts.n_epochs):
             train_epoch(
                 model,
@@ -207,7 +216,8 @@ def run(opts):
                 baseline,
                 lr_scheduler,
                 epoch,
-                val_dataset,
+                val_dataloader,
+                training_dataloader,
                 problem,
                 tb_logger,
                 opts,

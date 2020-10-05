@@ -115,7 +115,9 @@ def generate_obm_data(opts):
     if opts.graph_family == "ba":
         g = generate_ba_graph
     for i in range(opts.dataset_size):
-        g1 = g(opts.u_size, opts.v_size, p=opts.graph_family_parameter,)
+        g1 = g(
+            opts.u_size, opts.v_size, p=opts.graph_family_parameter, seed=opts.seed + i
+        )
 
         cost = nx.bipartite.biadjacency_matrix(
             g1, range(0, opts.u_size), range(opts.u_size, opts.u_size + opts.v_size)
@@ -134,9 +136,11 @@ def generate_obm_data(opts):
         m = 1 - nx.convert_matrix.to_numpy_array(g1, s)
 
         # ordered_m = np.take(np.take(m, order, axis=1), order, axis=0)
-        G.append(m.tolist())
+
+        torch.save(torch.tensor(m), "{}/graphs/{}.pt".format(opts.dataset_folder, i))
         i1, i2 = linear_sum_assignment(cost, maximize=True)
         M.append(cost[i1, i2].sum())
+    torch.save(torch.tensor(M), "{}/optimal_match.pt".format(opts.dataset_folder))
     return (
         torch.tensor(G),
         torch.tensor(M),
@@ -219,14 +223,19 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--dataset_size", type=int, default=10000, help="Size of the dataset"
+        "--dataset_size", type=int, default=100, help="Size of the dataset"
     )
-
+    # parser.add_argument(
+    #     "--save_format", type=str, default='train', help="Save a dataset as one pickle file or one file for each example (for training)"
+    # )
     parser.add_argument(
-        "--u_size", type=int, default=100, help="Sizes of U set (default 100 by 100)",
+        "--dataset_folder", type=str, default="dataset/train", help="dataset folder"
     )
     parser.add_argument(
-        "--v_size", type=int, default=100, help="Sizes of V set (default 100 by 100)",
+        "--u_size", type=int, default=10, help="Sizes of U set (default 100 by 100)",
+    )
+    parser.add_argument(
+        "--v_size", type=int, default=10, help="Sizes of V set (default 100 by 100)",
     )
     parser.add_argument(
         "--graph_family",
@@ -254,6 +263,9 @@ if __name__ == "__main__":
     #     check_extension(filename)
     # ), "File already exists! Try running with -f option to overwrite."
 
+    if not os.path.exists(opts.dataset_folder):
+        os.makedirs(opts.dataset_folder)
+        os.makedirs("{}/graphs".format(opts.dataset_folder))
     np.random.seed(opts.seed)
     if opts.problem == "obm":
         dataset = generate_obm_data(opts)
@@ -265,7 +277,7 @@ if __name__ == "__main__":
 
     else:
         assert False, "Unknown problem: {}".format(opts.problem)
-
-    save_dataset(
-        dataset, "{}by{}-{}.pkl".format(opts.u_size, opts.v_size, opts.graph_family)
-    )
+    # if opts.save_format != 'train':
+    #     save_dataset(
+    #         dataset, "{}by{}-{}.pkl".format(opts.u_size, opts.v_size, opts.graph_family)
+    #     )
