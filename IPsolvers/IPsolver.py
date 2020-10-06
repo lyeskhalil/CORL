@@ -10,7 +10,9 @@ import time
 
 m = gp.Model("wobm")
 
-E = np.random.randint(50, size=(50, 50))   #for testing, size of (U,V), weigths vary from 1 to n-1
+E = np.random.randint(
+    50, size=(50, 50)
+)  # for testing, size of (U,V), weigths vary from 1 to n-1
 u_size = E.shape[0]
 v_size = E.shape[1]
 
@@ -22,38 +24,37 @@ combinations, ms= gp.multidict({
     ('u2','v2'):3
     })
 """
-dic= {}
+dic = {}
 
-#start = time.time()
-for u,v in itertools.product(range(u_size),range(v_size)):
-    dic[(u,v)] = E[u][v]
+# start = time.time()
+for u, v in itertools.product(range(u_size), range(v_size)):
+    dic[(u, v)] = E[u][v]
 
 combinations, dic = gp.multidict(dic)
-#end = time.time() 
+# end = time.time()
 
 try:
-    # add variable 
-    x= m.addVars(combinations, name= "(u,v) pairs")
+    # add variable
+    x = m.addVars(combinations, name="(u,v) pairs")
 
-    #set constraints
-    c1 = m.addConstrs((x.sum('*',v) <= 1 for v in range(v_size)), "V")
-    c2= m.addConstrs((x.sum(u,'*') <= 1 for u in range(u_size)),"U")
+    # set constraints
+    c1 = m.addConstrs((x.sum("*", v) <= 1 for v in range(v_size)), "V")
+    c2 = m.addConstrs((x.sum(u, "*") <= 1 for u in range(u_size)), "U")
 
-
-    #set the objective
+    # set the objective
     m.setObjective(x.prod(dic), GRB.MAXIMIZE)
     m.optimize()
 
     matched = 0
     for v in m.getVars():
-        if(abs(v.x) > 1e-6):
+        if abs(v.x) > 1e-6:
             matched += v.x
 
     print("total nodes matched: ", matched)
     print("total matching score: ", m.objVal)
-    #print("time to generate the dictionary: ", end-start)
+    # print("time to generate the dictionary: ", end-start)
 
 except gp.GurobiError as e:
-        print('Error code ' + str(e.errno) + ": " + str(e))
+    print("Error code " + str(e.errno) + ": " + str(e))
 except AttributeError:
-        print('Encountered an attribute error')
+    print("Encountered an attribute error")
