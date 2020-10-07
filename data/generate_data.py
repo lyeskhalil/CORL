@@ -1,7 +1,7 @@
 import argparse
 import os
 import numpy as np
-from data.data_utils import check_extension, save_dataset
+from data_utils import check_extension, save_dataset
 import networkx as nx
 from scipy.optimize import linear_sum_assignment
 import torch
@@ -9,11 +9,191 @@ import pickle as pk
 from tqdm import tqdm
 
 
+def _add_nodes_with_bipartite_label(G, lena, lenb):
+    """
+    Helper for generate_ba_graph that initializes the initial empty graph with nodes
+    """
+    G.add_nodes_from(range(0, lena + lenb))
+    b = dict(zip(range(0, lena), [0] * lena))
+    b.update(dict(zip(range(lena, lena + lenb), [1] * lenb)))
+    nx.set_node_attributes(G, b, "bipartite")
+    return G
+
+
+def generate_ba_graph(u, v, p, seed):
+    """
+    Genrates a graph using the preferential attachment scheme
+    """
+    np.random.seed(seed)
+
+    G = nx.Graph()
+    G = _add_nodes_with_bipartite_label(G, u, v)
+
+    G.name = f"ba_random_graph({u},{v},{p})"
+
+    deg = np.zeros(u)
+
+    v1 = 0.0
+    w = 0
+    while v1 < v:
+        d = np.random.binomial(u, float(p) / v)
+
+        while w < d:
+            p1 = deg + 1
+            p1 = p1 / np.sum(p1)
+            f = np.random.choice(np.arange(0, u), p=list(p1))
+            if (f, v) not in G.edges:
+                G.add_edge(f, v)
+                deg[f] += 1
+                w += 1
+
+        v1 += 1
+    return G
+
+
+def generate_obm_data(
+    u_size,
+    v_size,
+    graph_family_parameter,
+    seed,
+    graph_family,
+    dataset_folder,
+    dataset_size,
+):
+    """
+    Generates graphs using the ER/BA scheme
+
+    """
+    G, M = [], []
+    if graph_family == "er":
+        g = nx.bipartite.random_graph
+    if graph_family == "ba":
+        g = generate_ba_graph
+    for i in tqdm(range(dataset_size)):
+        g1 = g(u_size, v_size, p=graph_family_parameter, seed=seed + i)
+
+        cost = nx.bipartite.biadjacency_matrix(
+            g1, range(0, u_size), range(u_size, u_size + v_size)
+        ).toarray()
+        # d_old = np.array(sorted(g1.degree))[u_size:, 1]
+
+        # c = nx.convert_matrix.to_numpy_array(g1, s)
+
+        g1.add_node(
+            -1, bipartite=0
+        )  # add extra node in U that represents not matching the current node to anything
+        g1.add_edges_from(list(zip([-1] * v_size, range(u_size, u_size + v_size))))
+        s = sorted(list(g1.nodes))
+        m = 1 - nx.convert_matrix.to_numpy_array(g1, s)
+
+        # ordered_m = np.take(np.take(m, order, axis=1), order, axis=0)
+
+        torch.save(torch.tensor(m), "{}/graphs/{}.pt".format(dataset_folder, i))
+        i1, i2 = linear_sum_assignment(cost, maximize=True)
+        M.append(cost[i1, i2].sum())
+    torch.save(torch.tensor(M), "{}/optimal_match.pt".format(dataset_folder))
+    return (
+        torch.tensor(G),
+        torch.tensor(M),
+    )
+
+
+def generate_edge_obm_data(
+    u_size,
+    v_size,
+    weight_distribution,
+    max_weight,
+    graph_family_parameter,
+    seed,
+    graph_family,
+    dataset_folder,
+    dataset_size,
+):
+    """
+    Generates edge weighted bipartite graphs using the ER/BA schemes
+
+    Only uniform distribution is implemented for now.
+    """
+    G, M, W = [], [], []
+    if graph_family == "er":
+        g = nx.bipartite.random_graph
+    if graph_family == "ba":
+        g = generate_ba_graph
+    for i in range(opts.dataset_size):
+        g1 = g(u_size, v_size, p=graph_family_parameter, seed=seed + i)
+        # d_old = np.array(sorted(g1.degree))[u_size:, 1]
+        if weight_distribution == "uniform":
+            weights = nx.bipartite.biadjacency_matrix(
+                g1, range(0, u_size), range(u_size, u_size + v_size)
+            ).toarray() * np.random.randint(1, max_weight, (u_size, v_size))
+            w = torch.cat(
+                (torch.zeros(v_size, 1).long(), torch.tensor(weights).T), 1
+            ).flatten()
+        s = sorted(list(g1.nodes))
+        # c = nx.convert_matrix.to_numpy_array(g1, s)
+
+        g1.add_node(
+            -1, bipartite=0
+        )  # add extra node in U that represents not matching the current node to anything
+        g1.add_edges_from(list(zip([-1] * v_size, range(u_size, u_size + v_size))))
+
+        s = sorted(list(g1.nodes))
+        m = 1 - nx.convert_matrix.to_numpy_array(g1, s)
+        torch.save(
+            [torch.tensor(m), torch.tensor(w)],
+            "{}/graphs/{}.pt".format(dataset_folder, i),
+        )
+        # ordered_m = np.take(np.take(m, order, axis=1), order, axis=0)
+        G.append(m.tolist())
+        W.append(w.tolist())
+        i1, i2 = linear_sum_assignment(weights, maximize=True)
+        M.append(weights[i1, i2].sum())
+    torch.save(torch.tensor(M), "{}/optimal_match.pt".format(dataset_folder))
+
+    return (
+        G,
+        W,
+        M,
+    )
+
+
+def generate_high_entropy_obm_data(opts):
+    """
+    Generates data from a range of graph family parameters instead of just one.
+    Stores each unique dataset seperately.
+    Used for model evaluation.
+    """
+    seed = opts.seed
+    min_p, max_p = float(opts.parameter_range[0]), float(opts.parameter_range[1])
+    for i, j in enumerate(
+        np.arange(min_p, max_p, (min_p + max_p) / opts.num_eval_datasets)
+    ):
+        dataset_folder = opts.dataset_folder + "/eval{}".format(i)
+        if not os.path.exists(dataset_folder):
+            os.makedirs(dataset_folder)
+            os.makedirs("{}/graphs".format(dataset_folder))
+        generate_obm_data(
+            opts.u_size,
+            opts.v_size,
+            j,
+            seed,
+            opts.graph_family,
+            dataset_folder,
+            opts.dataset_size,
+        )
+        seed += (
+            opts.dataset_size + 1
+        )  # Use different starting seed to make sure datasets do not overlap
+    return
+
+
 def generate_bipartite_data(
     dataset_size, u_size, v_size, num_edges, future_edge_weight, weights_range
 ):
     """
     Generate random graphs using gnmk_random_graph
+
+    This is the old implementation. Do not use.
     """
     G, D, E, W, M = [], [], [], [], []
     for i in range(dataset_size):
@@ -63,146 +243,6 @@ def generate_bipartite_data(
     )
 
 
-def _add_nodes_with_bipartite_label(G, lena, lenb):
-    """
-    Helper for generate_ba_graph that initializes the initial empty graph with nodes
-    """
-    G.add_nodes_from(range(0, lena + lenb))
-    b = dict(zip(range(0, lena), [0] * lena))
-    b.update(dict(zip(range(lena, lena + lenb), [1] * lenb)))
-    nx.set_node_attributes(G, b, "bipartite")
-    return G
-
-
-def generate_ba_graph(u, v, p, seed):
-    """
-    Genrates a graph using the preferential attachment scheme
-    """
-    np.random.seed(seed)
-
-    G = nx.Graph()
-    G = _add_nodes_with_bipartite_label(G, u, v)
-
-    G.name = f"ba_random_graph({u},{v},{p})"
-
-    deg = np.zeros(u)
-
-    v1 = 0.0
-    w = 0
-    while v1 < v:
-        d = np.random.binomial(u, float(p) / v)
-
-        while w < d:
-            p1 = deg + 1
-            p1 = p1 / np.sum(p1)
-            f = np.random.choice(np.arange(0, u), p=list(p1))
-            if (f, v) not in G.edges:
-                G.add_edge(f, v)
-                deg[f] += 1
-                w += 1
-
-        v1 += 1
-    return G
-
-
-def generate_obm_data(opts):
-    """
-    Generates graphs using the ER/BA scheme
-
-    """
-    G, M = [], []
-    if opts.graph_family == "er":
-        g = nx.bipartite.random_graph
-    if opts.graph_family == "ba":
-        g = generate_ba_graph
-    for i in tqdm(range(opts.dataset_size)):
-        g1 = g(
-            opts.u_size, opts.v_size, p=opts.graph_family_parameter, seed=opts.seed + i
-        )
-
-        cost = nx.bipartite.biadjacency_matrix(
-            g1, range(0, opts.u_size), range(opts.u_size, opts.u_size + opts.v_size)
-        ).toarray()
-        # d_old = np.array(sorted(g1.degree))[u_size:, 1]
-
-        # c = nx.convert_matrix.to_numpy_array(g1, s)
-
-        g1.add_node(
-            -1, bipartite=0
-        )  # add extra node in U that represents not matching the current node to anything
-        g1.add_edges_from(
-            list(zip([-1] * opts.v_size, range(opts.u_size, opts.u_size + opts.v_size)))
-        )
-        s = sorted(list(g1.nodes))
-        m = 1 - nx.convert_matrix.to_numpy_array(g1, s)
-
-        # ordered_m = np.take(np.take(m, order, axis=1), order, axis=0)
-
-        torch.save(torch.tensor(m), "{}/graphs/{}.pt".format(opts.dataset_folder, i))
-        i1, i2 = linear_sum_assignment(cost, maximize=True)
-        M.append(cost[i1, i2].sum())
-    torch.save(torch.tensor(M), "{}/optimal_match.pt".format(opts.dataset_folder))
-    return (
-        torch.tensor(G),
-        torch.tensor(M),
-    )
-
-
-def generate_edge_obm_data(opts):
-    """
-    Generates edge weighted bipartite graphs using the ER/BA schemes
-
-    Only uniform distribution is implemented for now.
-    """
-    G, M, W = [], [], []
-    if opts.graph_family == "er":
-        g = nx.bipartite.random_graph
-    if opts.graph_family == "ba":
-        g = generate_ba_graph
-    for i in range(opts.dataset_size):
-        g1 = g(
-            opts.u_size, opts.v_size, p=opts.graph_family_parameter, seed=opts.seed + i
-        )
-        # d_old = np.array(sorted(g1.degree))[u_size:, 1]
-        if opts.weight_distribution == "uniform":
-            weights = nx.bipartite.biadjacency_matrix(
-                g1, range(0, opts.u_size), range(opts.u_size, opts.u_size + opts.v_size)
-            ).toarray() * np.random.randint(
-                1, opts.max_weight, (opts.u_size, opts.v_size)
-            )
-            w = torch.cat(
-                (torch.zeros(opts.v_size, 1).long(), torch.tensor(weights).T), 1
-            ).flatten()
-        s = sorted(list(g1.nodes))
-        # c = nx.convert_matrix.to_numpy_array(g1, s)
-
-        g1.add_node(
-            -1, bipartite=0
-        )  # add extra node in U that represents not matching the current node to anything
-        g1.add_edges_from(
-            list(zip([-1] * opts.v_size, range(opts.u_size, opts.u_size + opts.v_size)))
-        )
-
-        s = sorted(list(g1.nodes))
-        m = 1 - nx.convert_matrix.to_numpy_array(g1, s)
-        torch.save(
-            [torch.tensor(m), torch.tensor(w)],
-            "{}/graphs/{}.pt".format(opts.dataset_folder, i),
-        )
-        # ordered_m = np.take(np.take(m, order, axis=1), order, axis=0)
-        G.append(m.tolist())
-        W.append(w.tolist())
-        i1, i2 = linear_sum_assignment(weights, maximize=True)
-        M.append(weights[i1, i2].sum())
-    torch.save(torch.tensor(M), "{}/optimal_match.pt".format(opts.dataset_folder))
-
-    return (
-        G,
-        W,
-        M,
-    )
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
@@ -232,10 +272,10 @@ if __name__ == "__main__":
         "--dataset_folder", type=str, default="dataset/train", help="dataset folder"
     )
     parser.add_argument(
-        "--u_size", type=int, default=10, help="Sizes of U set (default 100 by 100)",
+        "--u_size", type=int, default=10, help="Sizes of U set (default 10 by 10)",
     )
     parser.add_argument(
-        "--v_size", type=int, default=10, help="Sizes of V set (default 100 by 100)",
+        "--v_size", type=int, default=10, help="Sizes of V set (default 10 by 10)",
     )
     parser.add_argument(
         "--graph_family",
@@ -250,7 +290,24 @@ if __name__ == "__main__":
         help="parameter of the graph family distribution",
     )
 
-    parser.add_argument("-f", action="store_true", help="Set true to overwrite")
+    parser.add_argument(
+        "--parameter_range",
+        nargs="+",
+        help="range of graph family parameters to generate datasets for",
+    )
+
+    parser.add_argument(
+        "--num_eval_datasets",
+        type=int,
+        default=5,
+        help="number of eval datasets to generate for a given range of family parameters",
+    )
+
+    parser.add_argument(
+        "-eval",
+        action="store_true",
+        help="Set true to generate datasets for evaluation of model",
+    )
     parser.add_argument("--seed", type=int, default=1234, help="Intitial Random seed")
 
     opts = parser.parse_args()
@@ -267,7 +324,10 @@ if __name__ == "__main__":
         os.makedirs(opts.dataset_folder)
         os.makedirs("{}/graphs".format(opts.dataset_folder))
     np.random.seed(opts.seed)
-    if opts.problem == "obm":
+
+    if opts.eval:
+        generate_high_entropy_obm_data(opts)
+    elif opts.problem == "obm":
         dataset = generate_obm_data(opts)
     elif opts.problem == "e-obm":
         dataset = generate_edge_obm_data(opts)
