@@ -6,6 +6,7 @@ import networkx as nx
 from scipy.optimize import linear_sum_assignment
 import torch
 import pickle as pk
+from tqdm import tqdm
 
 
 def generate_bipartite_data(
@@ -114,7 +115,7 @@ def generate_obm_data(opts):
         g = nx.bipartite.random_graph
     if opts.graph_family == "ba":
         g = generate_ba_graph
-    for i in range(opts.dataset_size):
+    for i in tqdm(range(opts.dataset_size)):
         g1 = g(
             opts.u_size, opts.v_size, p=opts.graph_family_parameter, seed=opts.seed + i
         )
