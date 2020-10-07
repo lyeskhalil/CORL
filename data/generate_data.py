@@ -1,7 +1,7 @@
 import argparse
 import os
 import numpy as np
-from data_utils import check_extension, save_dataset
+from data.data_utils import check_extension, save_dataset
 import networkx as nx
 from scipy.optimize import linear_sum_assignment
 import torch
@@ -328,9 +328,27 @@ if __name__ == "__main__":
     if opts.eval:
         generate_high_entropy_obm_data(opts)
     elif opts.problem == "obm":
-        dataset = generate_obm_data(opts)
+        dataset = generate_obm_data(
+            opts.u_size,
+            opts.v_size,
+            opts.graph_family_parameter,
+            opts.seed,
+            opts.graph_family,
+            opts.dataset_folder,
+            opts.dataset_size,
+        )
     elif opts.problem == "e-obm":
-        dataset = generate_edge_obm_data(opts)
+        dataset = generate_edge_obm_data(
+            opts.u_size,
+            opts.v_size,
+            opts.weight_distribution,
+            opts.max_weight,
+            opts.graph_family_parameter,
+            opts.seed,
+            opts.graph_family,
+            opts.dataset_folder,
+            opts.dataset_size,
+        )
     # elif opts.problem == "adwords":
 
     # elif opts.problem == "displayads":

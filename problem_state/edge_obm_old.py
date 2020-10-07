@@ -6,7 +6,7 @@ import numpy as np
 import networkx as nx
 
 """
-TODO: CODE BELOW SHOULD BE MODIFIED TO WORK FOR BIPARTITE
+THIS IS THE OLD VERSION: PLEASE DO NOT READ
 """
 
 

@@ -3,7 +3,6 @@ import torch
 import os
 import pickle
 from problem_state.edge_obm_state import StateEdgeBipartite
-from beam_search import beam_search
 from data.generate_data import generate_edge_obm_data
 
 
@@ -67,29 +66,34 @@ class EdgeBipartite(object):
 
 
 class EdgeBipartiteDataset(Dataset):
-    def __init__(self, opts):
+    def __init__(self, dataset, size, problem):
         super(EdgeBipartiteDataset, self).__init__()
 
-        self.data_set = []
-        self.problem = opts.problem
-        if opts.train_dataset is not None:
-            assert os.path.splitext(opts.train_dataset)[1] == ".pkl"
+        self.data_set = dataset
+        self.optimal_size = torch.load("{}/optimal_match.pt".format(self.data_set))
+        self.problem = problem
+        # if opts.train_dataset is not None:
+        #     assert os.path.splitext(opts.train_dataset)[1] == ".pkl"
 
-            with open(opts.train_dataset, "rb") as f:
-                data = pickle.load(f)
-                self.data = data
-        else:
-            ### TODO: Should use generate function in generate_data.py
-            # If no filename is specified generated data for normal obm probelm
-            self.data = generate_edge_obm_data(opts)
+        #     with open(opts.train_dataset, "rb") as f:
+        #         data = pickle.load(f)
+        #         self.data = data
+        # else:
+        #     ### TODO: Should use generate function in generate_data.py
+        #     # If no filename is specified generated data for normal obm probelm
+        #     self.data = generate_obm_data(opts)
 
-        self.size = len(self.data[0])
+        self.size = size
+
+    def __getitem__(self, index):
+
+        # Load data and get label
+        X = torch.load("{}/graphs/{}.pt".format(self.data_set, index))
+        Y = self.optimal_size[index]
+        return X, Y
 
     def __len__(self):
         return self.size
-
-    def __getitem__(self, idx):
-        return tuple(d[idx] for d in self.data)
 
 
 # train_loader = torch.utils.data.DataLoader(

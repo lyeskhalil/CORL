@@ -10,7 +10,6 @@ import torch.nn.functional as F
 
 from encoder.graph_encoder_v2 import GraphAttentionEncoder
 from torch.nn import DataParallel
-from beam_search import CachedLookup
 
 # from utils.functions import sample_many
 
@@ -579,3 +578,30 @@ class AttentionModel(nn.Module):
                 3, 0, 1, 2, 4
             )  # (n_heads, batch_size, num_steps, graph_size, head_dim)
         )
+
+
+class CachedLookup(object):
+    def __init__(self, data):
+        self.orig = data
+        self.key = None
+        self.current = None
+
+    def __getitem__(self, key):
+        assert not isinstance(key, slice), (
+            "CachedLookup does not support slicing, "
+            "you can slice the result of an index operation instead"
+        )
+
+        if torch.is_tensor(key):  # If tensor, idx all tensors by this tensor:
+
+            if self.key is None:
+                self.key = key
+                self.current = self.orig[key]
+            elif len(key) != len(self.key) or (key != self.key).any():
+                self.key = key
+                self.current = self.orig[key]
+
+            return self.current
+
+        return super(CachedLookup, self).__getitem__(key)
+        # return self[key]
