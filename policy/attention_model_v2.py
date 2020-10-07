@@ -153,11 +153,11 @@ class AttentionModel(nn.Module):
         :return:
         """
 
-        if (
-            self.checkpoint_encoder and self.training
-        ):  # Only checkpoint if we need gradients
-            embeddings, _ = checkpoint(self.embedder, self._init_embed(input))
-        # else:
+        # if (
+        #     self.checkpoint_encoder and self.training
+        # ):  # Only checkpoint if we need gradients
+        #     embeddings, _ = checkpoint(self.embedder, self._init_embed(input))
+        # # else:
         #     embeddings, _ = self.embedder(self._init_embed(input))
 
         _log_p, pi, cost = self._inner(input, opts)

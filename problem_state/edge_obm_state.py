@@ -14,7 +14,6 @@ class StateEdgeBipartite(NamedTuple):
     # adj: torch.Tensor # full adjacency matrix of all graphs in a batch
     weights: torch.Tensor  # weights of all edges of each graph in a batch
     edges: torch.Tensor  # edges of each graph in a batch
-    degree: torch.Tensor  # degree of each node in the V set
     u_size: torch.Tensor
     v_size: torch.Tensor
     batch_size: torch.Tensor
@@ -44,10 +43,7 @@ class StateEdgeBipartite(NamedTuple):
                 graphs=self.graphs[key],
                 weights=self.weights[key],
                 matched_nodes=self.matched_nodes[key],
-                picked_edges=self.picked_edges[key],
                 size=self.size[key],
-                edges=self.edges[key],
-                degree=self.degree[key],
                 u_size=self.u_size[key],
                 v_size=self.v_size[key],
             )
@@ -66,8 +62,6 @@ class StateEdgeBipartite(NamedTuple):
             u_size=torch.tensor([u_size]),
             v_size=torch.tensor([v_size]),
             weights=torch.tensor(input[1]),
-            edges=torch.tensor(input[3]),
-            degree=torch.tensor(input[2]),
             batch_size=torch.tensor([batch_size]),
             ids=torch.arange(batch_size, dtype=torch.int64, device=input[0].device)[
                 :, None

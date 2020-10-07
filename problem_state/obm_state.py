@@ -53,25 +53,25 @@ class StateBipartite(NamedTuple):
         input, u_size, v_size, num_edges, visited_dtype=torch.uint8,
     ):
 
-        batch_size = len(input[0])
+        batch_size = len(input)
         # size = torch.zeros(batch_size, 1, dtype=torch.long, device=graphs.device)
         return StateBipartite(
-            graphs=torch.tensor(input[0]),
-            u_size=torch.tensor([u_size], device=input[0].device),
-            v_size=torch.tensor([v_size], device=input[0].device),
+            graphs=input,
+            u_size=torch.tensor([u_size], device=input.device),
+            v_size=torch.tensor([v_size], device=input.device),
             weights=None,
-            batch_size=torch.tensor([batch_size], device=input[0].device),
-            ids=torch.arange(batch_size, dtype=torch.int64, device=input[0].device)[
+            batch_size=torch.tensor([batch_size], device=input.device),
+            ids=torch.arange(batch_size, dtype=torch.int64, device=input.device)[
                 :, None
             ],  # Add steps dimension
             # Keep visited with depot so we can scatter efficiently (if there is an action for depot)
             matched_nodes=(  # Visited as mask is easier to understand, as long more memory efficient
                 torch.zeros(
-                    batch_size, 1, u_size + 1, dtype=torch.uint8, device=input[0].device
+                    batch_size, 1, u_size + 1, dtype=torch.uint8, device=input.device
                 )
             ),
-            size=torch.zeros(batch_size, 1, device=input[0].device),
-            i=torch.ones(1, dtype=torch.int64, device=input[0].device)
+            size=torch.zeros(batch_size, 1, device=input.device),
+            i=torch.ones(1, dtype=torch.int64, device=input.device)
             * (u_size + 1),  # Vector with length num_steps
         )
 
