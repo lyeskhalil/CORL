@@ -13,9 +13,6 @@ from torch.nn import DataParallel
 from beam_search import CachedLookup
 
 # from utils.functions import sample_many
-<<<<<<< HEAD
-import time
-=======
 
 import time
 
