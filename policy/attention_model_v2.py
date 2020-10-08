@@ -16,7 +16,6 @@ from beam_search import CachedLookup
 
 import time
 
->>>>>>> 3d7ee9c5a7165c03b4fd77c858c0d48b4141ce38
 
 def set_decode_type(model, decode_type):
     if isinstance(model, DataParallel):
