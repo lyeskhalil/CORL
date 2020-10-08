@@ -1,7 +1,7 @@
 import argparse
 import os
 import numpy as np
-from data_utils import check_extension, save_dataset
+from data.data_utils import check_extension, save_dataset
 import networkx as nx
 from scipy.optimize import linear_sum_assignment
 import torch
@@ -59,6 +59,7 @@ def generate_obm_data(
     graph_family,
     dataset_folder,
     dataset_size,
+    save_data,
 ):
     """
     Generates graphs using the ER/BA scheme
@@ -87,11 +88,14 @@ def generate_obm_data(
         m = 1 - nx.convert_matrix.to_numpy_array(g1, s)
 
         # ordered_m = np.take(np.take(m, order, axis=1), order, axis=0)
-
-        torch.save(torch.tensor(m), "{}/graphs/{}.pt".format(dataset_folder, i))
+        if save_data:
+            torch.save(torch.tensor(m), "{}/graphs/{}.pt".format(dataset_folder, i))
+        else:
+            G.append(m.tolist())
         i1, i2 = linear_sum_assignment(cost, maximize=True)
         M.append(cost[i1, i2].sum())
-    torch.save(torch.tensor(M), "{}/optimal_match.pt".format(dataset_folder))
+    if save_data:
+        torch.save(torch.tensor(M), "{}/optimal_match.pt".format(dataset_folder))
     return (
         torch.tensor(G),
         torch.tensor(M),
@@ -108,6 +112,7 @@ def generate_edge_obm_data(
     graph_family,
     dataset_folder,
     dataset_size,
+    save_data,
 ):
     """
     Generates edge weighted bipartite graphs using the ER/BA schemes
@@ -139,16 +144,19 @@ def generate_edge_obm_data(
 
         s = sorted(list(g1.nodes))
         m = 1 - nx.convert_matrix.to_numpy_array(g1, s)
-        torch.save(
-            [torch.tensor(m), torch.tensor(w)],
-            "{}/graphs/{}.pt".format(dataset_folder, i),
-        )
+        if save_data:
+            torch.save(
+                [torch.tensor(m), torch.tensor(w)],
+                "{}/graphs/{}.pt".format(dataset_folder, i),
+            )
+        else:
+            G.append(m.tolist())
+            W.append(w.tolist())
         # ordered_m = np.take(np.take(m, order, axis=1), order, axis=0)
-        G.append(m.tolist())
-        W.append(w.tolist())
         i1, i2 = linear_sum_assignment(weights, maximize=True)
         M.append(weights[i1, i2].sum())
-    torch.save(torch.tensor(M), "{}/optimal_match.pt".format(dataset_folder))
+    if save_data:
+        torch.save(torch.tensor(M), "{}/optimal_match.pt".format(dataset_folder))
 
     return (
         G,
@@ -168,6 +176,7 @@ def generate_high_entropy_obm_data(opts):
     for i, j in enumerate(
         np.arange(min_p, max_p, (min_p + max_p) / opts.num_eval_datasets)
     ):
+        print(i, j)
         dataset_folder = opts.dataset_folder + "/eval{}".format(i)
         if not os.path.exists(dataset_folder):
             os.makedirs(dataset_folder)
@@ -180,6 +189,7 @@ def generate_high_entropy_obm_data(opts):
             opts.graph_family,
             dataset_folder,
             opts.dataset_size,
+            True,
         )
         seed += (
             opts.dataset_size + 1
@@ -304,7 +314,7 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "-eval",
+        "--eval",
         action="store_true",
         help="Set true to generate datasets for evaluation of model",
     )
@@ -322,18 +332,41 @@ if __name__ == "__main__":
 
     if not os.path.exists(opts.dataset_folder):
         os.makedirs(opts.dataset_folder)
-        os.makedirs("{}/graphs".format(opts.dataset_folder))
+        if not opts.eval:
+            os.makedirs("{}/graphs".format(opts.dataset_folder))
     np.random.seed(opts.seed)
 
     if opts.eval:
         generate_high_entropy_obm_data(opts)
     elif opts.problem == "obm":
-        dataset = generate_obm_data(opts)
+        dataset = generate_obm_data(
+            opts.u_size,
+            opts.v_size,
+            opts.graph_family_parameter,
+            opts.seed,
+            opts.graph_family,
+            opts.dataset_folder,
+            opts.dataset_size,
+            True,
+        )
     elif opts.problem == "e-obm":
-        dataset = generate_edge_obm_data(opts)
-    # elif opts.problem == "adwords":
+        dataset = generate_edge_obm_data(
+            opts.u_size,
+            opts.v_size,
+            opts.weight_distribution,
+            opts.max_weight,
+            opts.graph_family_parameter,
+            opts.seed,
+            opts.graph_family,
+            opts.dataset_folder,
+            opts.dataset_size,
+            True,
+        )
+    elif opts.problem == "adwords":
+        pass
 
-    # elif opts.problem == "displayads":
+    elif opts.problem == "displayads":
+        pass
 
     else:
         assert False, "Unknown problem: {}".format(opts.problem)

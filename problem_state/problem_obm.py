@@ -3,7 +3,6 @@ import torch
 import os
 import pickle
 from problem_state.obm_state import StateBipartite
-from beam_search import beam_search
 from data.generate_data import generate_obm_data
 
 

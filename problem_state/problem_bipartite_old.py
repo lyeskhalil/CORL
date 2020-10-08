@@ -7,6 +7,10 @@ from edge_obm_state import StateEdgeBipartite
 from ..beam_search import beam_search
 from ..data.generate_data import generate_bipartite_data
 
+"""
+THIS IS THE OLD VERSION: PLEASE DO NOT READ
+"""
+
 
 class Bipartite(object):
 

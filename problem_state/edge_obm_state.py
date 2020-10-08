@@ -3,10 +3,6 @@ from typing import NamedTuple
 
 # from utils.boolmask import mask_long2bool, mask_long_scatter
 
-"""
-TODO: CODE BELOW SHOULD BE MODIFIED TO WORK FOR BIPARTITE
-"""
-
 
 class StateEdgeBipartite(NamedTuple):
     # Fixed input

@@ -138,22 +138,7 @@ def get_options(args=None):
     parser.add_argument(
         "--lr_decay", type=float, default=0.99, help="Learning rate decay per epoch"
     )
-    parser.add_argument(
-        "--eval_num",
-        type=int,
-        default=5,
-        help="Number of U to V ratio's to evaluate the model on",
-    )
-    parser.add_argument(
-        "--eval_model",
-        action="store_true",
-        help="Set this value to evaluate the model on different graph sizes",
-    )
-    parser.add_argument(
-        "--eval_only",
-        action="store_true",
-        help="Set this value to only evaluate model on a specific graph size",
-    )
+
     parser.add_argument(
         "--n_epochs", type=int, default=1000, help="The number of epochs to train"
     )
@@ -215,6 +200,52 @@ def get_options(args=None):
         type=str,
         default=None,
         help="Data distribution to use during training, defaults and options depend on problem.",
+    )
+
+    # Evaluation
+
+    parser.add_argument(
+        "--eval_num",
+        type=int,
+        default=5,
+        help="Number of U to V ratio's to evaluate the model on",
+    )
+    parser.add_argument(
+        "--eval_dataset",
+        type=str,
+        help="path to folder containing all evaluation datasets",
+    )
+
+    parser.add_argument(
+        "--eval_model",
+        action="store_true",
+        help="Set this value to evaluate the model on different graph sizes",
+    )
+    parser.add_argument(
+        "--eval_only",
+        action="store_true",
+        help="Set this value to only evaluate model on a specific graph size",
+    )
+    parser.add_argument(
+        "--eval_range",
+        nargs="+",
+        help="evaluate model over a range of graph family parameters",
+    )
+
+    parser.add_argument(
+        "--eval_num_range",
+        type=int,
+        default=10,
+        help="Number of grpah family parameter to evaluate model on over a specific range",
+    )
+
+    parser.add_argument(
+        "--eval_family",
+        action="store_true",
+        help="Set this to true if you evaluating the model over a family of graphs",
+    )
+    parser.add_argument(
+        "--eval_output", type=str, help="path to output evaulation plots",
     )
 
     # Misc
