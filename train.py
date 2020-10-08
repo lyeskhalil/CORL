@@ -37,7 +37,7 @@ def validate(model, dataset, opts):
     )
     print("\nValidation competitive ratio", min_cr.item())
 
-    return avg_cost, min_cr.item()
+    return avg_cost, min_cr.item(), avg_cr
 
 
 def eval_model(models, problem, opts):
@@ -205,7 +205,7 @@ def train_epoch(
             os.path.join(opts.save_dir, "epoch-{}.pt".format(epoch)),
         )
 
-    avg_reward, min_cr = validate(model, val_dataset, opts)
+    avg_reward, min_cr, avg_cr = validate(model, val_dataset, opts)
 
     if not opts.no_tensorboard:
         tb_logger.log_value("val_avg_reward", avg_reward, step)
