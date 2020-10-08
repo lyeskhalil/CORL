@@ -183,7 +183,6 @@ def run(opts):
 
     if opts.eval_only:
         validate(model, val_dataloader, opts)
-
     elif opts.eval_model:
         model1 = FeedForwardModel(
             (opts.u_size + 1) * 2,
