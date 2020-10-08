@@ -37,7 +37,7 @@ from functions import torch_load_cpu, load_problem
 def validate_many(opts, model, problem):
 
     crs = []
-    avg_ratios = []
+    avg_crs = []
     min_p, max_p = float(opts.eval_range[0]), float(opts.eval_range[1])
     for i, j in enumerate(
         np.arange(min_p, max_p, (min_p + max_p) / opts.eval_num_range)
@@ -49,14 +49,22 @@ def validate_many(opts, model, problem):
             val_dataset, batch_size=opts.eval_batch_size, num_workers=1
         )
 
-        avg_ratio, cr = validate(model, val_dataloader, opts)
+        avg_ratio, cr, avg_cr = validate(model, val_dataloader, opts)
         crs.append(cr)
-        avg_ratios.append(avg_ratio)
+        avg_crs.append(avg_cr)
+    plt.figure(1)
     plt.plot(np.arange(min_p, max_p, (min_p + max_p) / opts.eval_num_range), crs)
-    plt.plot(np.arange(min_p, max_p, (min_p + max_p) / opts.eval_num_range), avg_ratios)
     plt.xlabel("Graph family parameter")
-    plt.ylabel("cr and Avg cr")
-    plt.savefig(opts.eval_output + "/graph.png")
+    plt.ylabel("Competitive ratio")
+
+    plt.savefig(opts.eval_output + "/competitive_ratio.png")
+
+    plt.figure(2)
+    plt.plot(np.arange(min_p, max_p, (min_p + max_p) / opts.eval_num_range), avg_crs)
+    plt.xlabel("Graph family parameter")
+    plt.ylabel("Average ratio to optimal")
+
+    plt.savefig(opts.eval_output + "/avg_optim_ratio.png")
 
 
 def run(opts):
