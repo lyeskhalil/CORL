@@ -37,7 +37,7 @@ class SimpleGreedy(nn.Module):
         sequences = []
         self.rank[:, 0] = state.u_size.item()*2
         while not (state.all_finished()):
-            mask = state.get_mask()
+            mask = state.get_mask().bool()
             r = self.rank.clone()
             r[mask] = 10e6
             selected = torch.argmin(r, dim=1)
