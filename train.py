@@ -149,7 +149,7 @@ def train_epoch(
     start_time = time.time()
 
     if not opts.no_tensorboard:
-        tb_logger.log_value("learnrate_pg0", optimizer.param_groups[0]["lr"], step)
+        tb_logger.add_scalar("learnrate_pg0", optimizer.param_groups[0]["lr"], step)
 
     # Generate new training data for each epoch
     ## TODO: MODIFY SO THAT WE CAN ALSO USE A PRE-GENERATED DATASET
@@ -208,8 +208,8 @@ def train_epoch(
     avg_reward, min_cr, avg_cr = validate(model, val_dataset, opts)
 
     if not opts.no_tensorboard:
-        tb_logger.log_value("val_avg_reward", avg_reward, step)
-        tb_logger.log_value("min_competitive_ratio", min_cr, step)
+        tb_logger.add_scalar("val_avg_reward", avg_reward, step)
+        tb_logger.add_scalar("min_competitive_ratio", min_cr, step)
 
     baseline.epoch_callback(model, epoch)
 

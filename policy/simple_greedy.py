@@ -33,9 +33,12 @@ class SimpleGreedy(nn.Module):
         state = self.problem.make_state(x, opts.u_size, opts.v_size, opts.num_edges)
 
         self.rank = self.permute_uniform(
-            torch.arange(1, state.u_size.item() + 2, device=x.device).unsqueeze(0).expand(state.batch_size.item(), state.u_size.item() + 1))
+            torch.arange(1, state.u_size.item() + 2, device=x.device)
+            .unsqueeze(0)
+            .expand(state.batch_size.item(), state.u_size.item() + 1)
+        )
         sequences = []
-        self.rank[:, 0] = state.u_size.item()*2
+        self.rank[:, 0] = state.u_size.item() * 2
         while not (state.all_finished()):
             mask = state.get_mask().bool()
             r = self.rank.clone()
