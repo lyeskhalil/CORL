@@ -7,6 +7,7 @@ import pprint as pp
 import torch
 import torch.optim as optim
 from tensorboard_logger import Logger as TbLogger
+from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 
 # from nets.critic_network import CriticNetwork
@@ -40,7 +41,7 @@ def run(opts):
     # Optionally configure tensorboard
     tb_logger = None
     if not opts.no_tensorboard:
-        tb_logger = TbLogger(
+        tb_logger = SummaryWriter(
             os.path.join(
                 opts.log_dir,
                 "{}_{}_{}".format(opts.problem, opts.u_size, opts.v_size),

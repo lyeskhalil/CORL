@@ -33,16 +33,17 @@ class SimpleGreedy(nn.Module):
         state = self.problem.make_state(x, opts.u_size, opts.v_size, opts.num_edges)
 
         self.rank = self.permute_uniform(
-            torch.arange(1, state.u_size.item() + 1)
+            torch.arange(1, state.u_size.item() + 2, device=x.device)
             .unsqueeze(0)
             .expand(state.batch_size.item(), state.u_size.item() + 1)
         )
         sequences = []
+        self.rank[:, 0] = state.u_size.item() * 2
         while not (state.all_finished()):
             mask = state.get_mask()
-
-            r = self.rank.clone()[mask] = torch.inf
-            selected = torch.argmin(r, dim=1) + 1
+            r = self.rank.clone()
+            r[mask] = 10e6
+            selected = torch.argmin(r, dim=1)
 
             state = state.update(selected[:, None])
 
@@ -55,7 +56,7 @@ class SimpleGreedy(nn.Module):
         if temp is not None:  # Do not change temperature if not provided
             self.temp = temp
 
-    def permute_uniform(x):
+    def permute_uniform(self, x):
         """
         Permutes a batch of lists uniformly at random using the Fisher Yates algorithm.
         """
@@ -63,7 +64,7 @@ class SimpleGreedy(nn.Module):
         n = x.size(1)
         batch_size = x.size(0)
         for i in range(0, n - 1):
-            j = torch.tensor(np.random.randint(i, n, (batch_size, 1)))
+            j = torch.tensor(np.random.randint(i, n, (batch_size, 1)), device=x.device)
             temp = y[:, i].clone()
             y[:, i] = torch.gather(y, 1, j).squeeze(1)
             y = y.scatter_(1, j, temp.unsqueeze(1))
