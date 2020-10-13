@@ -25,7 +25,6 @@ import math
 import matplotlib.pyplot as plt
 
 from torch.nn import DataParallel
-
 from policy.attention_model_v2 import set_decode_type
 from log_utils import log_values
 from functions import move_to
@@ -66,6 +65,39 @@ def validate_many(opts, model, problem):
 
     plt.savefig(opts.eval_output + "/avg_optim_ratio.png")
 
+
+
+def plot_data(opts, model, problem):
+
+    crs = []
+    avg_crs = []
+    min_p, max_p = float(opts.eval_range[0]), float(opts.eval_range[1])
+    for i, j in enumerate(
+            np.arange(min_p, max_p, (min_p + max_p) / opts.eval_num_range)
+    ):
+       dataset_folder = opts.eval_dataset + "/{}_{}by{}_{}/eval".format(opt.graph_family, opts.u_size, opt.v_size, opt.graph_family_parameter)   #get the path to the test set dir
+
+       val_dataset = problem.make_dataset(dataset_folder, opts.val_size, opts.problem)
+       val_dataloader = DataLoader(
+           val_dataset, batch_size=opts.eval_batch_size, num_workers=1
+       )
+
+       avg_ratio, cr, avg_cr = validate(model, val_dataloader, opts)
+       crs.append(cr)
+       avg_crs.append(avg_cr)
+    plt.figure(1)
+    plt.plot(np.arange(min_p, max_p, (min_p + max_p) / opts.eval_num_range), crs)
+    plt.xlabel("Graph family parameter")
+    plt.ylabel("Competitive ratio")
+
+    plt.savefig(opts.eval_output + "/competitive_ratio.png")
+
+    plt.figure(2)
+    plt.plot(np.arange(min_p, max_p, (min_p + max_p) / opts.eval_num_range), avg_crs)
+    plt.xlabel("Graph family parameter")
+    plt.ylabel("Average ratio to optimal")
+
+    plt.savefig(opts.eval_output + "/avg_optim_ratio.png")
 
 def run(opts):
 
