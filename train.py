@@ -145,7 +145,7 @@ def train_epoch(
             epoch, optimizer.param_groups[0]["lr"], opts.run_name
         )
     )
-    step = epoch * (opts.epoch_size // opts.batch_size)
+    step = epoch * (opts.dataset_size // opts.batch_size)
     start_time = time.time()
 
     if not opts.no_tensorboard:
@@ -208,7 +208,7 @@ def train_epoch(
     avg_reward, min_cr, avg_cr = validate(model, val_dataset, opts)
 
     if not opts.no_tensorboard:
-        tb_logger.add_scalar("val_avg_reward", avg_reward, step)
+        tb_logger.add_scalar("val_avg_reward", -avg_reward, step)
         tb_logger.add_scalar("min_competitive_ratio", min_cr, step)
 
     baseline.epoch_callback(model, epoch)
