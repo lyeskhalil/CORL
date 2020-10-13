@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 
 # from nets.critic_network import CriticNetwork
 from options import get_options
-from train import train_epoch, validate, get_inner_model, eval_model
+from train import train_epoch, validate, get_inner_model, eval_model, evaluate
 from policy.attention_model_v2 import AttentionModel
 from policy.ff_model_v2 import FeedForwardModel
 from policy.greedy import Greedy
@@ -77,16 +77,12 @@ def validate_many(opts, model, problem):
     plt.savefig(opts.eval_output + "/avg_optim_ratio.png")
 
 
-def plot_data(opts, model, problem):
+def get_op_ratios(opts, model, problem):
 
-    crs = []
-    avg_crs = []
-    min_p, max_p = float(opts.eval_range[0]), float(opts.eval_range[1])
-    for i, j in enumerate(
-        np.arange(min_p, max_p, (min_p + max_p) / opts.eval_num_range)
-    ):
+    ops = []
+    for i in range(len(opts.eval_set)):
         dataset_folder = opts.eval_dataset + "/{}_{}by{}_{}/eval".format(
-            opts.graph_family, opts.u_size, opts.v_size, opts.graph_family_parameter
+            opts.graph_family, opts.u_size, opts.v_size, opts.eval_set[i]
         )  # get the path to the test set dir
 
         eval_dataset = problem.make_dataset(
@@ -96,22 +92,9 @@ def plot_data(opts, model, problem):
             eval_dataset, batch_size=opts.eval_batch_size, num_workers=1
         )
 
-        avg_cost, cr, avg_cr = validate(model, eval_dataloader, opts)
-        crs.append(cr)
-        avg_crs.append(avg_cr)
-    plt.figure(1)
-    plt.plot(np.arange(min_p, max_p, (min_p + max_p) / opts.eval_num_range), crs)
-    plt.xlabel("Graph family parameter")
-    plt.ylabel("Competitive ratio")
-
-    plt.savefig(opts.eval_output + "/competitive_ratio.png")
-
-    plt.figure(2)
-    plt.plot(np.arange(min_p, max_p, (min_p + max_p) / opts.eval_num_range), avg_crs)
-    plt.xlabel("Graph family parameter")
-    plt.ylabel("Average ratio to optimal")
-
-    plt.savefig(opts.eval_output + "/avg_optim_ratio.png")
+        op = evaluate(model, eval_dataloader, opts)
+        ops.append(op)
+    return np.array(ops)
 
 
 def run(opts):
@@ -138,51 +121,25 @@ def run(opts):
     assert (
         opts.load_path is None or opts.resume is None
     ), "Only one of load path and resume can be given"
-    load_path = opts.load_path if opts.load_path is not None else opts.resume
-    if load_path is not None:
-        print("  [*] Loading data from {}".format(load_path))
-        load_data = torch_load_cpu(load_path)
-    if opts.load_path2 is not None:
-        print("  [*] Loading data from {}".format(opts.load_path2))
-        load_data2 = torch_load_cpu(opts.load_path2)
-    # Initialize model
-    model_class = {
-        "attention": AttentionModel,
-        "ff": FeedForwardModel,
-        "greedy": Greedy,
-        "greedy-rt": GreedyRt,
-        "simple-greedy": SimpleGreedy,
-    }.get(opts.model, None)
-    assert model_class is not None, "Unknown model: {}".format(model_class)
+    load_paths = opts.eval_model_paths if opts.eval_model_paths is not None else []
+    load_datas = []
+    if load_paths is not None:
+        for path in load_paths:
+            print("  [*] Loading data from {}".format(path))
+            load_data = torch_load_cpu(path)
+            load_datas.append(load_data)
 
-    model = model_class(
-        opts.embedding_dim,
-        opts.hidden_dim,
-        problem=problem,
-        n_encode_layers=opts.n_encode_layers,
-        mask_inner=True,
-        mask_logits=True,
-        normalization=opts.normalization,
-        tanh_clipping=opts.tanh_clipping,
-        checkpoint_encoder=opts.checkpoint_encoder,
-        shrink_size=opts.shrink_size,
-        num_actions=opts.u_size + 1,
-    ).to(opts.device)
+    # Initialize models
+    models = []
+    for m in range(len(opts.eval_models)):
 
-    if opts.use_cuda and torch.cuda.device_count() > 1:
-        model = torch.nn.DataParallel(model)
-
-    # Overwrite model parameters by parameters to load
-    model_ = get_inner_model(model)
-    model_.load_state_dict({**model_.state_dict(), **load_data.get("model", {})})
-
-    if opts.eval_family:
-        validate_many(opts, model, problem)
-    elif opts.eval_model:
-        model1 = FeedForwardModel(
-            (opts.u_size + 1) * 2,
+        model_class = {"attention": AttentionModel, "ff": FeedForwardModel}.get(
+            opts.eval_models[m], None
+        )
+        model = model_class(
+            opts.embedding_dim,
             opts.hidden_dim,
-            problem,
+            problem=problem,
             n_encode_layers=opts.n_encode_layers,
             mask_inner=True,
             mask_logits=True,
@@ -192,9 +149,73 @@ def run(opts):
             shrink_size=opts.shrink_size,
             num_actions=opts.u_size + 1,
         ).to(opts.device)
-        model1_ = get_inner_model(model1)
-        model1_.load_state_dict({**model1_.state_dict(), **load_data2.get("model", {})})
-        eval_model([model, model1], problem, opts)
+
+        if opts.use_cuda and torch.cuda.device_count() > 1:
+            model = torch.nn.DataParallel(model)
+
+        # Overwrite model parameters by parameters to load
+        model_ = get_inner_model(model)
+        model_.load_state_dict(
+            {**model_.state_dict(), **load_datas[m].get("model", {})}
+        )
+        models.append(model)
+    # Initialize baseline models
+    baseline_models = []
+    for i in range(len(opts.eval_baselines)):
+        baseline_model_class = {
+            "greedy": Greedy,
+            "greedy-rt": GreedyRt,
+            "simple-greedy": SimpleGreedy,
+        }.get(opts.eval_baselines[i], None)
+        assert baseline_model_class is not None, "Unknown baseline model: {}".format(
+            opts.eval_baselines[i]
+        )
+        model = baseline_model_class(
+            opts.embedding_dim,
+            opts.hidden_dim,
+            problem=problem,
+            n_encode_layers=opts.n_encode_layers,
+            mask_inner=True,
+            mask_logits=True,
+            normalization=opts.normalization,
+            tanh_clipping=opts.tanh_clipping,
+            checkpoint_encoder=opts.checkpoint_encoder,
+            shrink_size=opts.shrink_size,
+            num_actions=opts.u_size + 1,
+        ).to(opts.device)
+        baseline_models.append(model)
+
+    if len(opts.eval_set) > 0:
+        baseline_results = []
+        trained_models_results = []
+        # plot_data = []
+        for m in baseline_models:  # Get the performance of the baselines
+            ops = get_op_ratios(opts, m, problem)
+            baseline_results.append(ops)
+        for m in range(len(models)):  # Get the performance of the trained models
+            ops = get_op_ratios(opts, models[m], problem)
+            trained_models_results.append(ops[m])
+
+        # plot_box(opts, plot_data)
+    if opts.eval_family:
+        validate_many(opts, model, problem)
+    # elif opts.eval_model:
+    #     model1 = FeedForwardModel(
+    #         (opts.u_size + 1) * 2,
+    #         opts.hidden_dim,
+    #         problem,
+    #         n_encode_layers=opts.n_encode_layers,
+    #         mask_inner=True,
+    #         mask_logits=True,
+    #         normalization=opts.normalization,
+    #         tanh_clipping=opts.tanh_clipping,
+    #         checkpoint_encoder=opts.checkpoint_encoder,
+    #         shrink_size=opts.shrink_size,
+    #         num_actions=opts.u_size + 1,
+    #     ).to(opts.device)
+    #     model1_ = get_inner_model(model1)
+    #     model1_.load_state_dict({**model1_.state_dict(), **load_data2.get("model", {})})
+    #     eval_model([model, model1], problem, opts)
 
 
 if __name__ == "__main__":
