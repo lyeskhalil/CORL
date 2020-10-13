@@ -34,7 +34,16 @@ from functions import move_to
 from functions import torch_load_cpu, load_problem
 
 
+def eval_models(opts, models, problem):
+    """
+    Evaluate the models on a specific set of graph family parameters
+    """
+
+
 def validate_many(opts, model, problem):
+    """
+    Evaluate the models on a range of graph family parameters
+    """
 
     crs = []
     avg_crs = []
@@ -44,12 +53,14 @@ def validate_many(opts, model, problem):
     ):
         dataset_folder = opts.eval_dataset + "/eval{}".format(i)
 
-        val_dataset = problem.make_dataset(dataset_folder, opts.val_size, opts.problem)
-        val_dataloader = DataLoader(
-            val_dataset, batch_size=opts.eval_batch_size, num_workers=1
+        eval_dataset = problem.make_dataset(
+            dataset_folder, opts.eval_size, opts.problem
+        )
+        eval_dataloader = DataLoader(
+            eval_dataset, batch_size=opts.eval_batch_size, num_workers=1
         )
 
-        avg_ratio, cr, avg_cr = validate(model, val_dataloader, opts)
+        avg_ratio, cr, avg_cr = validate(model, eval_dataloader, opts)
         crs.append(cr)
         avg_crs.append(avg_cr)
     plt.figure(1)

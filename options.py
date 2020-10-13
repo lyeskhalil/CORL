@@ -211,6 +211,12 @@ def get_options(args=None):
         help="Number of U to V ratio's to evaluate the model on",
     )
     parser.add_argument(
+        "--eval_size",
+        type=int,
+        default=10000,
+        help="Number of examples in an evaluation dataset.",
+    )
+    parser.add_argument(
         "--eval_dataset",
         type=str,
         help="path to folder containing all evaluation datasets",
