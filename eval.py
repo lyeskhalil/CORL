@@ -6,7 +6,6 @@ import pprint as pp
 
 import torch
 import torch.optim as optim
-from tensorboard_logger import Logger as TbLogger
 from torch.utils.data import DataLoader
 
 # from nets.critic_network import CriticNetwork
@@ -16,6 +15,7 @@ from policy.attention_model_v2 import AttentionModel
 from policy.ff_model_v2 import FeedForwardModel
 from policy.greedy import Greedy
 from policy.greedy_rt import GreedyRt
+from policy.simple_greedy import SimpleGreedy
 
 import numpy as np
 import time
@@ -136,6 +136,7 @@ def run(opts):
         "ff": FeedForwardModel,
         "greedy": Greedy,
         "greedy-rt": GreedyRt,
+        "simple-greedy": SimpleGreedy,
     }.get(opts.model, None)
     assert model_class is not None, "Unknown model: {}".format(model_class)
 
