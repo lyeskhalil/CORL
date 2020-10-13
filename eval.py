@@ -96,7 +96,7 @@ def plot_data(opts, model, problem):
             eval_dataset, batch_size=opts.eval_batch_size, num_workers=1
         )
 
-        avg_ratio, cr, avg_cr = validate(model, eval_dataloader, opts)
+        avg_cost, cr, avg_cr = validate(model, eval_dataloader, opts)
         crs.append(cr)
         avg_crs.append(avg_cr)
     plt.figure(1)
