@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+# !/usr/bin/env python
 
 import os
 import json
@@ -97,36 +97,39 @@ def get_op_ratios(opts, model, problem):
     return np.array(ops)
 
 
-
 def set_box_color(bp, color):
-    plt.setp(bp['boxes'], color=color)
-    plt.setp(bp['whiskers'], color=color)
-    plt.setp(bp['caps'], color=color)
-    plt.setp(bp['medians'], color='#4d4d4d')
+    plt.setp(bp["boxes"], color=color)
+    plt.setp(bp["whiskers"], color=color)
+    plt.setp(bp["caps"], color=color)
+    plt.setp(bp["medians"], color="#4d4d4d")
 
 
-"""
-plots the box data. 
-data is a list of 5 by 1000 (|graph family param| x |training examples|)
-"""
-def plot_box(data):
+def plot_box(opts, data):
+    """
+    plots the box data.
+    data is a list of 5 by 1000 (|graph family param| x |training examples|)
+    """
     plt.figure()
     num = len(data)
     plt.xlabel("Graph family parameter")
     plt.ylabel("Optimality ratio")
-    ticks= ["0.01", "0.05", "0.1", "0.15", "0.2"]
-    colors= [ '#d53e4f', '#3288bd', '#7fbf7b', '#fee08b', '#fc8d59', '#e6f598']
-    i=0
+    ticks = ["0.01", "0.05", "0.1", "0.15", "0.2"]
+    colors = ["#d53e4f", "#3288bd", "#7fbf7b", "#fee08b", "#fc8d59", "#e6f598"]
+    i = 0
     for d in data:
-        bp = plt.boxplot(d.T, positions=np.array(range(len(d)))*num + i/2, sym='', widths=0.6)
+        bp = plt.boxplot(
+            d.T, positions=np.array(range(len(d))) * num + (i / 2), sym="", widths=0.6
+        )
         set_box_color(bp, colors[i])
-        i+=1
+        i += 1
 
-    plt.xlim(-1*num, len(ticks)*num + num/2)
-    #plt.ylim(0, 1)
-    plt.xticks(range(0, len(ticks)* num, num), ticks)
-    plt.savefig(opts.eval_output + "/{}by{}_{}.png".format(opts.graph_family, opts.u_size, opts.v_size))
-
+    plt.xlim(-1 * num, len(ticks) * num + num / 2)
+    # plt.ylim(0, 1)
+    plt.xticks(range(0, len(ticks) * num, num), ticks)
+    plt.savefig(
+        opts.eval_output
+        + "/{}by{}_{}.png".format(opts.graph_family, opts.u_size, opts.v_size)
+    )
 
 
 def run(opts):
@@ -228,7 +231,7 @@ def run(opts):
             ops = get_op_ratios(opts, models[m], problem)
             trained_models_results.append(ops[m])
 
-        # plot_box(opts, plot_data)
+        plot_box(opts, np.array([baseline_results, trained_models_results]))
     if opts.eval_family:
         validate_many(opts, model, problem)
     # elif opts.eval_model:
@@ -252,5 +255,3 @@ def run(opts):
 
 if __name__ == "__main__":
     run(get_options())
-
-
