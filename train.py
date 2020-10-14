@@ -17,6 +17,27 @@ def get_inner_model(model):
     return model.module if isinstance(model, DataParallel) else model
 
 
+def evaluate(model, dataset, opts):
+    print("Evaluating...")
+    cost, op = rollout(model, dataset, opts)
+    cr = min(op)
+    avg_op = op.mean()
+
+    print(
+        "Evaluation overall avg_cost: {} +- {}".format(
+            avg_op, torch.std(cost) / math.sqrt(len(cost))
+        )
+    )
+    print(
+        "\nEvaluation overall avg ratio to optimal: {} +- {}".format(
+            avg_op, torch.std(op) / math.sqrt(len(op))
+        )
+    )
+    print("\nEvaluation competitive ratio", cr.item())
+
+    return op
+
+
 def validate(model, dataset, opts):
     # Validate
     print("Validating...")

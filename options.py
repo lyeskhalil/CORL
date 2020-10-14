@@ -217,15 +217,19 @@ def get_options(args=None):
         help="Number of U to V ratio's to evaluate the model on",
     )
     parser.add_argument(
+        "--eval_size",
+        type=int,
+        default=10000,
+        help="Number of examples in an evaluation dataset.",
+    )
+    parser.add_argument(
         "--eval_dataset",
         type=str,
         help="path to folder containing all evaluation datasets",
     )
 
     parser.add_argument(
-        "--eval_model",
-        action="store_true",
-        help="Set this value to evaluate the model on different graph sizes",
+        "--eval_baselines", nargs="+", help="Different models to evaluate on",
     )
     parser.add_argument(
         "--eval_only",
@@ -236,6 +240,15 @@ def get_options(args=None):
         "--eval_range",
         nargs="+",
         help="evaluate model over a range of graph family parameters",
+    )
+    parser.add_argument(
+        "--eval_model_paths", nargs="+", help="paths to trained models",
+    )
+    parser.add_argument(
+        "--eval_models", nargs="+", help="models to evaluate",
+    )
+    parser.add_argument(
+        "--eval_set", nargs="+", help="Set of family parameters to evaluate models on",
     )
 
     parser.add_argument(
