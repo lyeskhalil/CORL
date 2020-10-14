@@ -237,6 +237,12 @@ def get_options(args=None):
         help="Set this value to only evaluate model on a specific graph size",
     )
     parser.add_argument(
+        "--eval_plot", action="store_true", help="plot results on test data",
+    )
+    parser.add_argument(
+        "--eval_results_file", type=str, help="file that containes test results",
+    )
+    parser.add_argument(
         "--eval_range",
         nargs="+",
         help="evaluate model over a range of graph family parameters",

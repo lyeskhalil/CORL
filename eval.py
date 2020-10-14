@@ -231,12 +231,19 @@ def run(opts):
         for m in range(len(models)):  # Get the performance of the trained models
             ops = get_op_ratios(opts, models[m], problem)
             trained_models_results.append(ops[m])
-
-        plot_box(opts, np.array([baseline_results[0], trained_models_results]))
+        results = np.array([baseline_results[0], trained_models_results])
+        torch.save(
+            torch.tensor(results), opts.eval_output + "/{}by{}_{}_test_results.pt".format(opts.graph_family, opts.u_size, opts.v_size)
+        )
+        plot_box(opts, results)
     if opts.eval_family:
         validate_many(opts, model, problem)
     if opts.eval_plot:
         plot_box(opts, np.array(torch.load(opts.eval_results_folder)))
+    if opts.eval_family:
+        validate_many(opts, model, problem)
+    if opts.eval_plot:
+        plot_box(opts, np.array(torch.load(opts.eval_results_file)))
     # elif opts.eval_model:
     #     model1 = FeedForwardModel(
     #         (opts.u_size + 1) * 2,
