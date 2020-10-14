@@ -118,7 +118,11 @@ def plot_box(opts, data):
     i = 0
     for d in data:
         bp = plt.boxplot(
-            d.T, positions=np.array(range(len(d))) * num + 0.2*i, sym="", widths=0.6
+            d.T,
+            positions=np.array(range(len(d))) * num + (0.2 * i),
+            sym="",
+            widths=0.6,
+            whis=(0, 100),
         )
         set_box_color(bp, colors[i])
         i += 1
@@ -150,7 +154,10 @@ def run(opts):
 
     # Figure out what's the problem
     problem = load_problem(opts.problem)
-
+    if opts.eval_plot:
+        t = torch.load(opts.eval_results_file)
+        plot_box(opts, np.array(t))
+        return
     # Load data from load_path
     load_data = {}
     assert (
@@ -233,7 +240,11 @@ def run(opts):
             trained_models_results.append(ops[m])
         results = np.array([baseline_results[0], trained_models_results])
         torch.save(
-            torch.tensor(results), opts.eval_output + "/{}by{}_{}_test_results.pt".format(opts.graph_family, opts.u_size, opts.v_size)
+            torch.tensor(results),
+            opts.eval_output
+            + "/{}by{}_{}_test_results.pt".format(
+                opts.graph_family, opts.u_size, opts.v_size
+            ),
         )
         plot_box(opts, results)
     if opts.eval_family:
@@ -242,8 +253,7 @@ def run(opts):
         plot_box(opts, np.array(torch.load(opts.eval_results_folder)))
     if opts.eval_family:
         validate_many(opts, model, problem)
-    if opts.eval_plot:
-        plot_box(opts, np.array(torch.load(opts.eval_results_file)))
+
     # elif opts.eval_model:
     #     model1 = FeedForwardModel(
     #         (opts.u_size + 1) * 2,
