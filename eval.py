@@ -93,7 +93,7 @@ def get_op_ratios(opts, model, problem):
         )
 
         op = evaluate(model, eval_dataloader, opts)
-        ops.append(op)
+        ops.append(op.cpu().numpy())
     return np.array(ops)
 
 
@@ -118,17 +118,17 @@ def plot_box(opts, data):
     i = 0
     for d in data:
         bp = plt.boxplot(
-            d.T, positions=np.array(range(len(d))) * num + (i / 2), sym="", widths=0.6
+            d.T, positions=np.array(range(len(d))) * num + 0.2*i, sym="", widths=0.6
         )
         set_box_color(bp, colors[i])
         i += 1
 
-    plt.xlim(-1 * num, len(ticks) * num + num / 2)
+    plt.xlim(-1 * num, len(ticks) * num)
     # plt.ylim(0, 1)
     plt.xticks(range(0, len(ticks) * num, num), ticks)
     plt.savefig(
         opts.eval_output
-        + "/{}by{}_{}.png".format(opts.graph_family, opts.u_size, opts.v_size)
+        + "/{}_{}by{}.png".format(opts.graph_family, opts.u_size, opts.v_size)
     )
 
 
@@ -183,6 +183,7 @@ def run(opts):
             checkpoint_encoder=opts.checkpoint_encoder,
             shrink_size=opts.shrink_size,
             num_actions=opts.u_size + 1,
+            n_heads=opts.n_heads,
         ).to(opts.device)
 
         if opts.use_cuda and torch.cuda.device_count() > 1:
@@ -231,9 +232,11 @@ def run(opts):
             ops = get_op_ratios(opts, models[m], problem)
             trained_models_results.append(ops[m])
 
-        plot_box(opts, np.array([baseline_results, trained_models_results]))
+        plot_box(opts, np.array([baseline_results[0], trained_models_results]))
     if opts.eval_family:
         validate_many(opts, model, problem)
+    if opts.eval_plot:
+        plot_box(opts, np.array(torch.load(opts.eval_results_folder)))
     # elif opts.eval_model:
     #     model1 = FeedForwardModel(
     #         (opts.u_size + 1) * 2,
