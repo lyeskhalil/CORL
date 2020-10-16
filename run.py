@@ -94,6 +94,7 @@ def run(opts):
         checkpoint_encoder=opts.checkpoint_encoder,
         shrink_size=opts.shrink_size,
         num_actions=opts.u_size + 1,
+        n_heads=opts.n_heads,
     ).to(opts.device)
 
     if opts.use_cuda and torch.cuda.device_count() > 1:
@@ -186,7 +187,7 @@ def run(opts):
 
     if opts.eval_only:
         validate(model, val_dataloader, opts)
-    elif opts.eval_model:
+    elif False:
         model1 = FeedForwardModel(
             (opts.u_size + 1) * 2,
             opts.hidden_dim,

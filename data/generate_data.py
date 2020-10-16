@@ -318,7 +318,7 @@ if __name__ == "__main__":
         action="store_true",
         help="Set true to generate datasets for evaluation of model",
     )
-    parser.add_argument("--seed", type=int, default=1234, help="Intitial Random seed")
+    parser.add_argument("--seed", type=int, default=2020, help="Intitial Random seed")
 
     opts = parser.parse_args()
 

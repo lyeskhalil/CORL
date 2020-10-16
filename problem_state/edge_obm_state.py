@@ -9,7 +9,7 @@ class StateEdgeBipartite(NamedTuple):
     graphs: torch.Tensor  # full adjacency matrix of all graphs in a batch
     # adj: torch.Tensor # full adjacency matrix of all graphs in a batch
     weights: torch.Tensor  # weights of all edges of each graph in a batch
-    edges: torch.Tensor  # edges of each graph in a batch
+    # edges: torch.Tensor  # edges of each graph in a batch
     u_size: torch.Tensor
     v_size: torch.Tensor
     batch_size: torch.Tensor
@@ -43,8 +43,8 @@ class StateEdgeBipartite(NamedTuple):
                 u_size=self.u_size[key],
                 v_size=self.v_size[key],
             )
-        # return super(StateBipartite, self).__getitem__(key)
-        return self[key]
+        return super(StateEdgeBipartite, self).__getitem__(key)
+       # return self[key]
 
     @staticmethod
     def initialize(
