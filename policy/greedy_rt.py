@@ -21,6 +21,7 @@ class GreedyRt(nn.Module):
         shrink_size=None,
         n_heads=None,
         num_actions=None,
+        n_heads=None,
     ):
         super(GreedyRt, self).__init__()
         self.decode_type = None
@@ -43,15 +44,8 @@ class GreedyRt(nn.Module):
         )
         sequences = []
         while not (state.all_finished()):
-            step_size = (state.i.item() - state.u_size.item() + 1) * (
-                state.u_size.item() + 1
-            )
-
-            w = (
-                state.weights[:, (step_size - state.u_size.item() - 1) : step_size]
-                .reshape(state.batch_size, state.u_size + 1)
-                .clone()
-            ).float()
+            step_size = state.i.item() + 1
+            w = (state.weights[:, step_size, :].clone()).float()
             mask = state.get_mask()
             w[mask.bool()] = 0.0
             temp = w.clone()
@@ -60,7 +54,7 @@ class GreedyRt(nn.Module):
             # m = (1. - (w == torch.zeros(1, w.size(1))).long()).sum(1)
             w[w.sum(1) == 0, 0] = 1.0
             selected = (w / torch.sum(w, dim=1)[:, None]).multinomial(1)
-            state = state.update((selected + step_size - state.u_size.item() - 1))
+            state = state.update(selected)
 
             sequences.append(selected)
         return -state.size, torch.stack(sequences, 1)
