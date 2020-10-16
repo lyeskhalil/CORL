@@ -124,16 +124,14 @@ def generate_edge_obm_data(
         g = nx.bipartite.random_graph
     if graph_family == "ba":
         g = generate_ba_graph
-    for i in range(opts.dataset_size):
+    for i in tqdm(range(opts.dataset_size)):
         g1 = g(u_size, v_size, p=graph_family_parameter, seed=seed + i)
         # d_old = np.array(sorted(g1.degree))[u_size:, 1]
         if weight_distribution == "uniform":
             weights = nx.bipartite.biadjacency_matrix(
                 g1, range(0, u_size), range(u_size, u_size + v_size)
             ).toarray() * np.random.randint(1, max_weight, (u_size, v_size))
-            w = torch.cat(
-                (torch.zeros(v_size, 1).long(), torch.tensor(weights).T), 1
-            ).flatten()
+            w = torch.cat((torch.zeros(v_size, 1).long(), torch.tensor(weights).T), 1)
         s = sorted(list(g1.nodes))
         # c = nx.convert_matrix.to_numpy_array(g1, s)
 
@@ -146,12 +144,12 @@ def generate_edge_obm_data(
         m = 1 - nx.convert_matrix.to_numpy_array(g1, s)
         if save_data:
             torch.save(
-                [torch.tensor(m), torch.tensor(w)],
+                [torch.tensor(m).clone(), torch.tensor(w).clone()],
                 "{}/graphs/{}.pt".format(dataset_folder, i),
             )
         else:
             G.append(m.tolist())
-            W.append(w.tolist())
+            W.append(w.flatten().tolist())
         # ordered_m = np.take(np.take(m, order, axis=1), order, axis=0)
         i1, i2 = linear_sum_assignment(weights, maximize=True)
         M.append(weights[i1, i2].sum())
@@ -203,7 +201,7 @@ def generate_bipartite_data(
     """
     Generate random graphs using gnmk_random_graph
 
-    This is the old implementation. Do not use.
+    This is the old implementation. DO NOT USE.
     """
     G, D, E, W, M = [], [], [], [], []
     for i in range(dataset_size):
@@ -266,7 +264,7 @@ if __name__ == "__main__":
         "--weight_distribution",
         type=str,
         default="uniform",
-        help="Distributions to generate for problem, default 'all'.",
+        help="Distributions to generate for problem, default 'uniform' ",
     )
     parser.add_argument(
         "--max_weight", type=int, default=4000, help="max weight in graph",

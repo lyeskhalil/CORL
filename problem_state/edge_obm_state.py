@@ -70,7 +70,7 @@ class StateEdgeBipartite(NamedTuple):
             ),
             size=torch.zeros(batch_size, 1, device=input[0].device),
             i=torch.ones(1, dtype=torch.int64, device=input[0].device)
-            * (u_size),  # Vector with length num_steps
+            * (u_size + 1),  # Vector with length num_steps
         )
 
     def get_final_cost(self):
@@ -83,10 +83,8 @@ class StateEdgeBipartite(NamedTuple):
     def update(self, selected):
         # Update the state
         nodes = self.matched_nodes.squeeze(1).scatter_(-1, selected, 1)
-
-        total_weights = self.size + self.weights[
-            :, self.i.item() : self.i.item() + self.u_size
-        ].gather(1, selected)
+        v = self.i.item() - (self.u_size.item() + 1)
+        total_weights = self.size + self.weights[:, v, :].gather(1, selected)
 
         return self._replace(matched_nodes=nodes, size=total_weights, i=self.i + 1,)
 
@@ -102,11 +100,13 @@ class StateEdgeBipartite(NamedTuple):
         Returns a mask vector which includes only nodes in U that can matched.
         That is, neighbors of the incoming node that have not been matched already.
         """
-        mask = self.graphs[:, self.i.item(), : self.u_size]
-        # print(mask)
-        self.matched_nodes[:, 0] = 0
+        mask = self.graphs[:, self.i.item(), : self.u_size.item() + 1]
+
+        self.matched_nodes[
+            :, 0
+        ] = 0  # node that represents not being matched to anything can be matched to more than once
         return (
-            self.matched_nodes.squeeze(1) + (1 - mask) > 0
+            self.matched_nodes.squeeze(1) + mask > 0
         ).long()  # Hacky way to return bool or uint8 depending on pytorch version
 
     # def get_nn(self, k=None):
