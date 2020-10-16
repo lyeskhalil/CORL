@@ -136,45 +136,51 @@ def plot_box(opts, data):
     )
 
 
-def run(opts):
-
-    # Pretty print the run args
-    pp.pprint(vars(opts))
-
-    # Set the random seed
-    torch.manual_seed(opts.seed)
-
-    os.makedirs(opts.save_dir)
-    # Save arguments so exact configuration can always be found
-    with open(os.path.join(opts.save_dir, "args.json"), "w") as f:
-        json.dump(vars(opts), f, indent=True)
-
-    # Set the device
-    opts.device = torch.device("cuda:0" if opts.use_cuda else "cpu")
-
-    # Figure out what's the problem
-    problem = load_problem(opts.problem)
-    if opts.eval_plot:
-        t = torch.load(opts.eval_results_file)
-        plot_box(opts, np.array(t))
-        return
-    # Load data from load_path
+def load_models(opts):
+    """
+    Load models (here we refer to them as data) from load_path (if eval_model_paths is being used )
+    """ 
     load_data = {}
-    assert (
-        opts.load_path is None or opts.resume is None
-    ), "Only one of load path and resume can be given"
-    load_paths = opts.eval_model_paths if opts.eval_model_paths is not None else []
     load_datas = []
+    load_paths = opts.eval_model_paths if opts.eval_model_paths is not None else []
     if load_paths is not None:
         for path in load_paths:
             print("  [*] Loading data from {}".format(path))
             load_data = torch_load_cpu(path)
             load_datas.append(load_data)
+    return load_datas
 
-    # Initialize models
-    models = []
+
+def load_attention_models(opts):
+    """
+    load models from the attention models dir
+    """
+    load_data = {}
+    load_datas = []
+    attention_dir = opts.eval_attention_dir if opts.eval_attention_dir is not None else []
+    print(" Loading all the attention models from {}".format(attention_dir))
+    for path in os.listdir(attention_dir):
+        load_data = torch_load_cpu(path)
+        load_datas.append(load_data)
+    return load_datas
+
+
+def load_ff_models(opts):
+    """
+    load models from the feed forward models dir
+    """
+    load_data = {}
+    load_datas = []
+    ff_dir = opts.eval_ff_dir opts.eval_ff_dir is not None else []
+    print("Loading all the attention models from {}".format(ff_dir))
+    for path in os.listdir(ff_dir):
+        load_data = torch_load_cpu(path)
+        load_datas.append(load_data)
+    return load_datas
+
+
+def initialize_models(opts, models, load_datas):
     for m in range(len(opts.eval_models)):
-
         model_class = {"attention": AttentionModel, "ff": FeedForwardModel}.get(
             opts.eval_models[m], None
         )
@@ -202,6 +208,105 @@ def run(opts):
             {**model_.state_dict(), **load_datas[m].get("model", {})}
         )
         models.append(model)
+
+
+def initialize_attention_models(opts, attention_models, load_attention_datas):
+    for m in range(len(load_attention_datas)):
+        model = AttentionModel(
+            opts.embedding_dim,
+            opts.hidden_dim,
+            problem=problem,
+            n_encode_layers=opts.n_encode_layers,
+            mask_inner=True,
+            mask_logits=True,
+            normalization=opts.normalization,
+            tanh_clipping=opts.tanh_clipping,
+            checkpoint_encoder=opts.checkpoint_encoder,
+            shrink_size=opts.shrink_size,
+            num_actions=opts.u_size + 1,
+            n_heads=opts.n_heads,
+        ).to(opts.device)
+
+        if opts.use_cuda and torch.cuda.device_count() > 1:
+            model = torch.nn.DataParallel(model)
+
+        # Overwrite model parameters by parameters to load
+        model_ = get_inner_model(model)
+        model_.load_state_dict(
+            {**model_.state_dict(), **load_attention_datas[m].get("model", {})}
+        )
+        attention_models.append(model)
+
+
+def initialize_ff_models(opts, ff_models, load_ff_datas):
+    for m in range(len(load_ff_datas)):
+        model = AttentionModel(
+            opts.embedding_dim,
+            opts.hidden_dim,
+            problem=problem,
+            n_encode_layers=opts.n_encode_layers,
+            mask_inner=True,
+            mask_logits=True,
+            normalization=opts.normalization,
+            tanh_clipping=opts.tanh_clipping,
+            checkpoint_encoder=opts.checkpoint_encoder,
+            shrink_size=opts.shrink_size,
+            num_actions=opts.u_size + 1,
+            n_heads=opts.n_heads,
+        ).to(opts.device)
+
+        if opts.use_cuda and torch.cuda.device_count() > 1:
+            model = torch.nn.DataParallel(model)
+
+        # Overwrite model parameters by parameters to load
+        model_ = get_inner_model(model)
+        model_.load_state_dict(
+            {**model_.state_dict(), **load_ff_datas[m].get("model", {})}
+        )
+        ff_models.append(model)
+
+
+def run(opts):
+
+    # Pretty print the run args
+    pp.pprint(vars(opts))
+
+    # Set the random seed
+    torch.manual_seed(opts.seed)
+
+    os.makedirs(opts.save_dir)
+    # Save arguments so exact configuration can always be found
+    with open(os.path.join(opts.save_dir, "args.json"), "w") as f:
+        json.dump(vars(opts), f, indent=True)
+
+    # Set the device
+    opts.device = torch.device("cuda:0" if opts.use_cuda else "cpu")
+
+    # Figure out what's the problem
+    problem = load_problem(opts.problem)
+    if opts.eval_plot:
+        t = torch.load(opts.eval_results_file)
+        plot_box(opts, np.array(t))
+        return
+
+    # load models
+    assert (
+        (opts.load_path is None and opts.eval_ff_dir is None and opts.eval_attention_dir is None)  or opts.resume is None
+    ), "either one of load_path, eval_ff_dir, eval_attention_dir as well as resume should be given"
+    
+    load_datas = load_models(opts)
+    load_attention_datas = load_attention_models(opts)
+    load_ff_datas = load_ff_models(opts)
+
+    # Initialize models
+    models = [] # these are the models that are specified in by the file
+    attention_models = [] # attention models from the directory
+    ff_models = [] # feed forwad models from the directory
+    
+    initialize_models(opts, models, load_datas)
+    initialize_attention_models(opts, attention_models, load_attention_datas)
+    initialize_ff_models(opts, ff_models, load_ff_datas)
+
     # Initialize baseline models
     baseline_models = []
     for i in range(len(opts.eval_baselines)):
