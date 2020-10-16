@@ -104,10 +104,7 @@ def get_options(args=None):
         help="Dimension of hidden layers in Enc/Dec",
     )
     parser.add_argument(
-       "--n_heads",
-       type=int,
-       default=3,
-       help="Number of heads in Enc",
+        "--n_heads", type=int, default=3, help="Number of heads in Enc",
     )
     parser.add_argument(
         "--n_encode_layers",

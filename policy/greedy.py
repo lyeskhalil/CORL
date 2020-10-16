@@ -35,22 +35,14 @@ class Greedy(nn.Module):
 
         sequences = []
         while not (state.all_finished()):
-            step_size = (state.i.item() - state.u_size.item() + 1) * (
-                state.u_size.item() + 1
-            )
+            step_size = state.i.item() + 1
 
-            w = (
-                state.weights[:, (step_size - state.u_size.item() - 1) : step_size]
-                .reshape(state.batch_size, state.u_size + 1)
-                .clone()
-            )
+            w = state.weights[:, step_size, :].clone()
             mask = state.get_mask()
             w[mask.bool()] = -1.0
             selected = torch.argmax(w, dim=1)
 
-            state = state.update(
-                (selected + step_size - state.u_size.item() - 1)[:, None]
-            )
+            state = state.update(selected[:, None])
 
             sequences.append(selected)
         return -state.size, torch.stack(sequences, 1)
