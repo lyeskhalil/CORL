@@ -6,6 +6,7 @@ import pprint as pp
 
 import torch
 import torch.optim as optim
+
 # from tensorboard_logger import Logger as TbLogger
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
@@ -69,9 +70,9 @@ def run(opts):
     if load_path is not None:
         print("  [*] Loading data from {}".format(load_path))
         load_data = torch_load_cpu(load_path)
-    if opts.load_path2 is not None:
-        print("  [*] Loading data from {}".format(opts.load_path2))
-        load_data2 = torch_load_cpu(opts.load_path2)
+    # if opts.load_path2 is not None:
+    #     print("  [*] Loading data from {}".format(opts.load_path2))
+    #     load_data2 = torch_load_cpu(opts.load_path2)
     # Initialize model
     model_class = {
         "attention": AttentionModel,
@@ -94,6 +95,7 @@ def run(opts):
         checkpoint_encoder=opts.checkpoint_encoder,
         shrink_size=opts.shrink_size,
         num_actions=opts.u_size + 1,
+        n_heads=opts.n_heads,
     ).to(opts.device)
 
     if opts.use_cuda and torch.cuda.device_count() > 1:
@@ -186,23 +188,23 @@ def run(opts):
 
     if opts.eval_only:
         validate(model, val_dataloader, opts)
-    elif opts.eval_model:
-        model1 = FeedForwardModel(
-            (opts.u_size + 1) * 2,
-            opts.hidden_dim,
-            problem,
-            n_encode_layers=opts.n_encode_layers,
-            mask_inner=True,
-            mask_logits=True,
-            normalization=opts.normalization,
-            tanh_clipping=opts.tanh_clipping,
-            checkpoint_encoder=opts.checkpoint_encoder,
-            shrink_size=opts.shrink_size,
-            num_actions=opts.u_size + 1,
-        ).to(opts.device)
-        model1_ = get_inner_model(model1)
-        model1_.load_state_dict({**model1_.state_dict(), **load_data2.get("model", {})})
-        eval_model([model, model1], problem, opts)
+    # elif opts.eval_model:
+    #     model1 = FeedForwardModel(
+    #         (opts.u_size + 1) * 2,
+    #         opts.hidden_dim,
+    #         problem,
+    #         n_encode_layers=opts.n_encode_layers,
+    #         mask_inner=True,
+    #         mask_logits=True,
+    #         normalization=opts.normalization,
+    #         tanh_clipping=opts.tanh_clipping,
+    #         checkpoint_encoder=opts.checkpoint_encoder,
+    #         shrink_size=opts.shrink_size,
+    #         num_actions=opts.u_size + 1,
+    #     ).to(opts.device)
+    #     model1_ = get_inner_model(model1)
+    #     model1_.load_state_dict({**model1_.state_dict(), **load_data2.get("model", {})})
+    #     eval_model([model, model1], problem, opts)
     else:
         training_dataset = baseline.wrap_dataset(
             problem.make_dataset(opts.train_dataset, opts.dataset_size, opts.problem)
