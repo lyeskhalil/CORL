@@ -100,10 +100,23 @@ class MultiHeadAttention(nn.Module):
             compatibility = self.norm_factor * torch.matmul(Q, K.transpose(2, 3))
         else:  # Need to encode edge weights
             # Get the full weight matrix of size (batch_size, graph_size, graph_size)
-            weights = torch.cat(
-                (torch.zeros(batch_size, graph_size - weights.size(2)), weights), dim=1
+            v = graph_size - weights.size(2)
+            u = weights.size(2)
+            weights1 = torch.cat(
+                (
+                    torch.zeros((batch_size, u, u), device=weights.device),
+                    weights[:, :v, :].transpose(1, 2).float(),
+                ),
+                dim=2,
             )
-            weights = torch.cat((weights, torch.flip(weights, 1)), dim=0)
+            weights2 = torch.cat(
+                (
+                    weights[:, :v, :].float(),
+                    torch.zeros((batch_size, v, v), device=weights.device),
+                ),
+                dim=2,
+            )
+            weights = torch.cat((weights1, weights2), dim=1)
 
             # Calculate compatibility (n_heads, batch_size, n_query, graph_size)
             compatibility = (
