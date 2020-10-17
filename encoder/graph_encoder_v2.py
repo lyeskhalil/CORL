@@ -120,7 +120,9 @@ class MultiHeadAttention(nn.Module):
 
             # Calculate compatibility (n_heads, batch_size, n_query, graph_size)
             compatibility = (
-                self.norm_factor * torch.matmul(Q, K.transpose(2, 3)) * weights
+                self.norm_factor
+                * torch.matmul(Q, K.transpose(2, 3))
+                * (weights + (weights == 0).float())
             )
 
         # Optionally apply mask to prevent attention
