@@ -110,7 +110,9 @@ def run(opts):
     if opts.baseline == "exponential":
         baseline = ExponentialBaseline(opts.exp_beta)
     elif opts.baseline == "greedy":
-        greedybaseline = Greedy(
+        baseline_class = {"e-obm": Greedy, "obm": SimpleGreedy}.get(opts.problem, None)
+
+        greedybaseline = baseline_class(
             opts.embedding_dim,
             opts.hidden_dim,
             problem=problem,
