@@ -137,6 +137,17 @@ class CriticBaseline(Baseline):
         self.critic.load_state_dict({**self.critic.state_dict(), **critic_state_dict})
 
 
+class GreedyBaseline(Baseline):
+    def __init__(self, greedymodel):
+        super(Baseline, self).__init__()
+
+        self.baseline = greedymodel
+
+    def eval(self, x, c):
+
+        return self.baseline(x).detach(), 0  # No loss
+
+
 class RolloutBaseline(Baseline):
     def __init__(self, model, problem, opts, epoch=0):
         super(Baseline, self).__init__()

@@ -20,6 +20,7 @@ from reinforce_baselines import (
     CriticBaseline,
     RolloutBaseline,
     WarmupBaseline,
+    GreedyBaseline,
 )
 from policy.attention_model_v2 import AttentionModel
 from policy.ff_model_v2 import FeedForwardModel
@@ -108,6 +109,25 @@ def run(opts):
     # Initialize baseline
     if opts.baseline == "exponential":
         baseline = ExponentialBaseline(opts.exp_beta)
+    elif opts.baseline == "greedy":
+        baseline_class = {"e-obm": Greedy, "obm": SimpleGreedy}.get(opts.problem, None)
+
+        greedybaseline = baseline_class(
+            opts.embedding_dim,
+            opts.hidden_dim,
+            problem=problem,
+            n_encode_layers=opts.n_encode_layers,
+            mask_inner=True,
+            mask_logits=True,
+            normalization=opts.normalization,
+            tanh_clipping=opts.tanh_clipping,
+            checkpoint_encoder=opts.checkpoint_encoder,
+            shrink_size=opts.shrink_size,
+            num_actions=opts.u_size + 1,
+            n_heads=opts.n_heads,
+        )
+        baseline = GreedyBaseline(greedybaseline)
+
     # elif opts.baseline == "critic" or opts.baseline == "critic_lstm":
     #     assert problem.NAME == "tsp", "Critic only supported for TSP"
     #     baseline = CriticBaseline(
