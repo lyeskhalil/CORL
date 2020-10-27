@@ -122,7 +122,7 @@ class MultiHeadAttention(nn.Module):
             compatibility = (
                 self.norm_factor
                 * torch.matmul(Q, K.transpose(2, 3))
-                * (weights + (weights == 0).float())
+                # * (weights + (weights == 0).float())
             )
 
         # Optionally apply mask to prevent attention
@@ -131,7 +131,7 @@ class MultiHeadAttention(nn.Module):
                 compatibility
             )
             compatibility[mask] = -1e10
-        attn = torch.softmax(compatibility, dim=-1)
+        attn = torch.softmax(compatibility, dim=-1) * (weights + (weights == 0).float())
 
         # If there are nodes with no neighbours then softmax returns nan so we fix them to 0
         if mask is not None:
