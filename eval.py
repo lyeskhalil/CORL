@@ -139,7 +139,7 @@ def plot_box(opts, data):
 def load_models(opts):
     """
     Load models (here we refer to them as data) from load_path (if eval_model_paths is being used )
-    """ 
+    """
     load_data = {}
     load_datas = []
     load_paths = opts.eval_model_paths if opts.eval_model_paths is not None else []
@@ -157,7 +157,9 @@ def load_attention_models(opts):
     """
     load_data = {}
     load_datas = []
-    attention_dir = opts.eval_attention_dir if opts.eval_attention_dir is not None else []
+    attention_dir = (
+        opts.eval_attention_dir if opts.eval_attention_dir is not None else []
+    )
     print(" Loading all the attention models from {}".format(attention_dir))
     for path in os.listdir(attention_dir):
         load_data = torch_load_cpu(path)
@@ -171,7 +173,7 @@ def load_ff_models(opts):
     """
     load_data = {}
     load_datas = []
-    ff_dir = opts.eval_ff_dir opts.eval_ff_dir is not None else []
+    ff_dir = opts.eval_ff_dir if opts.eval_ff_dir is not None else []
     print("Loading all the attention models from {}".format(ff_dir))
     for path in os.listdir(ff_dir):
         load_data = torch_load_cpu(path)
@@ -187,7 +189,7 @@ def initialize_models(opts, models, load_datas):
         model = model_class(
             opts.embedding_dim,
             opts.hidden_dim,
-            problem=problem,
+            problem=opts.problem,
             n_encode_layers=opts.n_encode_layers,
             mask_inner=True,
             mask_logits=True,
@@ -215,7 +217,7 @@ def initialize_attention_models(opts, attention_models, load_attention_datas):
         model = AttentionModel(
             opts.embedding_dim,
             opts.hidden_dim,
-            problem=problem,
+            problem=opts.problem,
             n_encode_layers=opts.n_encode_layers,
             mask_inner=True,
             mask_logits=True,
@@ -240,10 +242,10 @@ def initialize_attention_models(opts, attention_models, load_attention_datas):
 
 def initialize_ff_models(opts, ff_models, load_ff_datas):
     for m in range(len(load_ff_datas)):
-        model = AttentionModel(
+        model = FeedForwardModel(
             opts.embedding_dim,
             opts.hidden_dim,
-            problem=problem,
+            problem=opts.problem,
             n_encode_layers=opts.n_encode_layers,
             mask_inner=True,
             mask_logits=True,
@@ -291,18 +293,20 @@ def run(opts):
 
     # load models
     assert (
-        (opts.load_path is None and opts.eval_ff_dir is None and opts.eval_attention_dir is None)  or opts.resume is None
-    ), "either one of load_path, eval_ff_dir, eval_attention_dir as well as resume should be given"
-    
+        opts.load_path is None
+        and opts.eval_ff_dir is None
+        and opts.eval_attention_dir is None
+    ) or opts.resume is None, "either one of load_path, eval_ff_dir, eval_attention_dir as well as resume should be given"
+
     load_datas = load_models(opts)
     load_attention_datas = load_attention_models(opts)
     load_ff_datas = load_ff_models(opts)
 
     # Initialize models
-    models = [] # these are the models that are specified in by the file
-    attention_models = [] # attention models from the directory
-    ff_models = [] # feed forwad models from the directory
-    
+    models = []  # these are the models that are specified in by the file
+    attention_models = []  # attention models from the directory
+    ff_models = []  # feed forwad models from the directory
+
     initialize_models(opts, models, load_datas)
     initialize_attention_models(opts, attention_models, load_attention_datas)
     initialize_ff_models(opts, ff_models, load_ff_datas)
