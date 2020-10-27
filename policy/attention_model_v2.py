@@ -115,7 +115,6 @@ class AttentionModel(nn.Module):
             self.W_placeholder.data.uniform_(
                 -1, 1
             )  # Placeholder should be in range of activations
-
         self.init_embed = nn.Linear(node_dim, embedding_dim)
 
         self.embedder = GraphAttentionEncoder(
@@ -374,7 +373,6 @@ class AttentionModel(nn.Module):
     #     )
 
     def _select_node(self, probs, mask):
-
         assert (probs == probs).all(), "Probs should not contain any nans"
 
         if self.decode_type == "greedy":
@@ -399,7 +397,7 @@ class AttentionModel(nn.Module):
     def _precompute(self, embeddings, opts, num_steps=1):
 
         # calculate the mean of the embeddings of the U's
-        graph_embed = embeddings[:, : opts.u_size + 1, :].mean(1)
+        graph_embed = embeddings[:, :, :].mean(1)
         # fixed context = (batch_size, 1, embed_dim) to make broadcastable with parallel timesteps
         fixed_context = self.project_fixed_context(graph_embed)[:, None, :]
 
