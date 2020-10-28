@@ -19,6 +19,7 @@ class FeedForwardModel(nn.Module):
         checkpoint_encoder=False,
         shrink_size=None,
         num_actions=4,
+        n_heads=None,
     ):
 
         super(FeedForwardModel, self).__init__()
@@ -30,13 +31,13 @@ class FeedForwardModel(nn.Module):
         self.problem = problem
         self.shrink_size = None
         self.ff = nn.Sequential(
-            nn.Linear(self.embedding_dim, 500),
+            nn.Linear(self.embedding_dim, 100),
             nn.ReLU(),
-            nn.Linear(500, 500),
+           # nn.Linear(500, 500),
+            #nn.ReLU(),
+            nn.Linear(100, 100),
             nn.ReLU(),
-            nn.Linear(500, 500),
-            nn.ReLU(),
-            nn.Linear(500, self.num_actions),
+            nn.Linear(100, self.num_actions),
         )
 
         def init_weights(m):
@@ -65,9 +66,10 @@ class FeedForwardModel(nn.Module):
         # Optional: mask out actions irrelevant to objective so they do not get reinforced
         if mask is not None:
             log_p[mask] = 0
-
+        if not (log_p > -10000).data.all():
+            print(log_p)
         assert (
-            log_p != -1e6
+            log_p > -10000
         ).data.all(), "Logprobs should not be -inf, check sampling procedure!"
 
         # Calculate log_likelihood
@@ -83,16 +85,17 @@ class FeedForwardModel(nn.Module):
         # batch_size = state.ids.size(0)
         # Perform decoding steps
         i = 1
-        while not (self.shrink_size is None and state.all_finished()):
-            step_size = (state.i.item() - state.u_size.item() + 1) * (
-                state.u_size.item() + 1
-            )
+        while not (state.all_finished()):
+            # step_size = (state.i.item() - state.u_size.item() + 1) * (
+            #    state.u_size.item() + 1
+            # )
+            step_size = state.i.item() + 1
+            v = state.i.item() - (state.u_size.item() + 1)
+            w = (state.weights[:, v, :].clone()).float()
             mask = state.get_mask()
             s = torch.cat(
                 (
-                    state.weights[
-                        :, (step_size - state.u_size.item() - 1) : step_size
-                    ].float(),
+                    w,
                     mask.float(),
                 ),
                 dim=1,

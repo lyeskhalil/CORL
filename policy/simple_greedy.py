@@ -17,6 +17,7 @@ class SimpleGreedy(nn.Module):
         checkpoint_encoder=False,
         shrink_size=None,
         num_actions=None,
+        n_heads=None,
     ):
         super(SimpleGreedy, self).__init__()
         self.decode_type = None

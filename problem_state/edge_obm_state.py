@@ -89,8 +89,8 @@ class StateEdgeBipartite(NamedTuple):
         return self._replace(matched_nodes=nodes, size=total_weights, i=self.i + 1,)
 
     def all_finished(self):
-        # Exactly n steps
-        return (self.i.item() - self.u_size) >= self.v_size
+        # Exactly v_size steps
+        return (self.i.item() - (self.u_size.item() + 1)) >= self.v_size
 
     def get_current_node(self):
         return self.i.item()
