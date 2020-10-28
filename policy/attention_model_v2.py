@@ -273,35 +273,13 @@ class AttentionModel(nn.Module):
         i = 1
         while not (state.all_finished()):
             step_size = state.i.item() + 1
-            if self.problem.Name == "e-obm":
-                v = step_size
-                u = state.u_size + 1
-                weights1 = torch.cat(
-                    (
-                        torch.zeros(
-                            (state.batch_size, u, u), device=state.weights.device
-                        ),
-                        state.weights[:, :v, :].transpose(1, 2).float(),
-                    ),
-                    dim=2,
-                )
-                weights2 = torch.cat(
-                    (
-                        state.weights[:, :v, :].float(),
-                        torch.zeros(
-                            (state.batch_size, v, v), device=state.weights.device
-                        ),
-                    ),
-                    dim=2,
-                )
-                node_features = torch.cat((weights1, weights2), dim=1)
-            else:
-                node_features = (
-                    torch.arange(step_size, device=opts.device)
-                    .unsqueeze(0)
-                    .expand(opts.batch_size, step_size)
-                    .unsqueeze(-1)
-                )
+
+            node_features = (
+                torch.arange(step_size, device=opts.device)
+                .unsqueeze(0)
+                .expand(opts.batch_size, step_size)
+                .unsqueeze(-1)
+            )
 
             embeddings, _ = self.embedder(
                 self._init_embed(  # pass in one-hot encoding to embedder
