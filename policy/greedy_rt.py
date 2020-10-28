@@ -44,7 +44,8 @@ class GreedyRt(nn.Module):
         sequences = []
         while not (state.all_finished()):
             step_size = state.i.item() + 1
-            w = (state.weights[:, step_size, :].clone()).float()
+            v = state.i.item() - (state.u_size.item() + 1)
+            w = (state.weights[:, v, :].clone()).float()
             mask = state.get_mask()
             w[mask.bool()] = 0.0
             temp = w.clone()
