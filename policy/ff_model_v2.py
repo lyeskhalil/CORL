@@ -19,6 +19,7 @@ class FeedForwardModel(nn.Module):
         checkpoint_encoder=False,
         shrink_size=None,
         num_actions=4,
+        n_heads=None,
     ):
 
         super(FeedForwardModel, self).__init__()
