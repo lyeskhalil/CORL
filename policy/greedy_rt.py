@@ -19,6 +19,7 @@ class GreedyRt(nn.Module):
         normalization=None,
         checkpoint_encoder=False,
         shrink_size=None,
+        n_heads=None,
         num_actions=None,
         n_heads=None,
     ):
