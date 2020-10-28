@@ -138,14 +138,14 @@ class CriticBaseline(Baseline):
 
 
 class GreedyBaseline(Baseline):
-    def __init__(self, greedymodel):
+    def __init__(self, greedymodel, opts):
         super(Baseline, self).__init__()
 
         self.baseline = greedymodel
-
+        self.opts = opts
     def eval(self, x, c):
 
-        return self.baseline(x).detach(), 0  # No loss
+        return self.baseline(x, opts=self.opts)[0].detach(), 0  # No loss
 
 
 class RolloutBaseline(Baseline):
