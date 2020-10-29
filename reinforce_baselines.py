@@ -146,7 +146,7 @@ class GreedyBaseline(Baseline):
 
     def eval(self, x, c):
 
-        return self.baseline(x, self.opts).detach(), 0  # No loss
+        return self.baseline(x, opts=self.opts)[0].detach(), 0  # No loss
 
 
 class RolloutBaseline(Baseline):

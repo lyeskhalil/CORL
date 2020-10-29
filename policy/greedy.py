@@ -36,7 +36,6 @@ class Greedy(nn.Module):
 
         sequences = []
         while not (state.all_finished()):
-            step_size = state.i.item() + 1
             v = state.i.item() - (state.u_size.item() + 1)
             w = state.weights[:, v, :].clone()
             mask = state.get_mask()

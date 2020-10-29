@@ -31,19 +31,17 @@ class FeedForwardModel(nn.Module):
         self.problem = problem
         self.shrink_size = None
         self.ff = nn.Sequential(
-            nn.Linear(self.embedding_dim, 100),
+            nn.Linear(self.embedding_dim, 50),
             nn.ReLU(),
-           # nn.Linear(500, 500),
-            #nn.ReLU(),
-            nn.Linear(100, 100),
+            nn.Linear(50, 50),
             nn.ReLU(),
-            nn.Linear(100, self.num_actions),
+            nn.Linear(50, self.num_actions),
         )
 
         def init_weights(m):
             if type(m) == nn.Linear:
                 torch.nn.init.xavier_uniform_(m.weight)
-                m.bias.data.fill_(0.01)
+                # m.bias.data.fill_(0.0001)
 
         self.ff.apply(init_weights)
 
@@ -85,28 +83,25 @@ class FeedForwardModel(nn.Module):
         # batch_size = state.ids.size(0)
         # Perform decoding steps
         i = 1
+        # entropy = 0
         while not (state.all_finished()):
             # step_size = (state.i.item() - state.u_size.item() + 1) * (
             #    state.u_size.item() + 1
             # )
-            step_size = state.i.item() + 1
+            # step_size = state.i.item() + 1
             v = state.i.item() - (state.u_size.item() + 1)
             w = (state.weights[:, v, :].clone()).float()
             mask = state.get_mask()
-            s = torch.cat(
-                (
-                    w,
-                    mask.float(),
-                ),
-                dim=1,
-            )
+            s = torch.cat((w, mask.float(),), dim=1,)
             # print(s)
             pi = self.ff(s)
-
             # Select the indices of the next nodes in the sequences, result (batch_size) long
-            selected = self._select_node(pi, mask.bool())  # Squeeze out steps dimension
+            selected, p = self._select_node(
+                pi, mask.bool()
+            )  # Squeeze out steps dimension
+            # entropy += torch.sum(p * (p.log()), dim=1)
             state = state.update((selected)[:, None])
-            outputs.append(pi)
+            outputs.append(p.log())
             sequences.append(selected)
             i += 1
         # Collected lists, return Tensor
@@ -137,7 +132,7 @@ class FeedForwardModel(nn.Module):
 
         else:
             assert False, "Unknown decode type"
-        return selected
+        return selected, p
 
     def set_decode_type(self, decode_type, temp=None):
         self.decode_type = decode_type

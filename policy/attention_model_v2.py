@@ -265,6 +265,7 @@ class AttentionModel(nn.Module):
         # batch_size = state.ids.size(0)
         # Perform decoding steps
         i = 1
+
         while not (state.all_finished()):
             step_size = state.i.item() + 1
             node_features = (
