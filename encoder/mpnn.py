@@ -68,20 +68,20 @@ class MPNN(nn.Module):
             dim=2,
         )
         weights = torch.cat((weights1, weights2), dim=1)
-        adj = weights
+        # adj = weights
         # obs.transpose_(-1, -2)
 
         # Calculate features to be used in the MPNN
         node_features = node_features
 
         # Get graph adj matrix.
-        adj = adj
+        # adj = adj
         # adj_conns = (adj != 0).type(torch.FloatTensor).to(adj.device)
 
         norm = self.get_normalisation(adj)
 
         init_node_embeddings = self.node_init_embedding_layer(node_features)
-        edge_embeddings = self.edge_embedding_layer(node_features, adj, norm)
+        edge_embeddings = self.edge_embedding_layer(node_features, adj, weights, norm)
 
         # Initialise embeddings.
         current_node_embeddings = init_node_embeddings
@@ -89,18 +89,18 @@ class MPNN(nn.Module):
         if self.tied_weights:
             for _ in range(self.n_layers):
                 current_node_embeddings = self.update_node_embedding_layer(
-                    current_node_embeddings, edge_embeddings, norm, adj
+                    current_node_embeddings, edge_embeddings, norm, adj, weights
                 )
         else:
             for i in range(self.n_layers):
                 current_node_embeddings = self.update_node_embedding_layer[i](
-                    current_node_embeddings, edge_embeddings, norm, adj
+                    current_node_embeddings, edge_embeddings, norm, adj, weights
                 )
 
-        out = self.readout_layer(current_node_embeddings)
-        out = out.squeeze()
+        # out = self.readout_layer(current_node_embeddings)
+        # out = out.squeeze()
 
-        return out
+        return current_node_embeddings
 
 
 class EdgeAndNodeEmbeddingLayer(nn.Module):
@@ -114,10 +114,10 @@ class EdgeAndNodeEmbeddingLayer(nn.Module):
         )
         self.edge_feature_NN = nn.Linear(n_features, n_features, bias=False)
 
-    def forward(self, node_features, adj, norm):
+    def forward(self, node_features, adj, weights, norm):
         edge_features = torch.cat(
             [
-                adj.unsqueeze(-1),
+                weights.unsqueeze(-1),
                 node_features.unsqueeze(-2)
                 .transpose(-2, -3)
                 .repeat(1, adj.shape[-2], 1, 1),
@@ -156,8 +156,10 @@ class UpdateNodeEmbeddingLayer(nn.Module):
         self.message_layer = nn.Linear(2 * n_features, n_features, bias=False)
         self.update_layer = nn.Linear(2 * n_features, n_features, bias=False)
 
-    def forward(self, current_node_embeddings, edge_embeddings, norm, adj):
-        node_embeddings_aggregated = torch.matmul(adj, current_node_embeddings) / norm
+    def forward(self, current_node_embeddings, edge_embeddings, norm, adj, weights):
+        node_embeddings_aggregated = (
+            torch.matmul(weights, current_node_embeddings) / norm
+        )
 
         message = F.relu(
             self.message_layer(

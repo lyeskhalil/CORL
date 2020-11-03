@@ -119,14 +119,6 @@ class AttentionModel(nn.Module):
             )  # Placeholder should be in range of activations
         self.init_embed = nn.Linear(node_dim, embedding_dim)
 
-<<<<<<< HEAD
-        self.embedder = GraphAttentionEncoder(
-             n_heads=n_heads,
-             embed_dim=embedding_dim,
-             n_layers=self.n_encode_layers,
-             normalization=normalization,
-             problem=self.problem.NAME,
-=======
         encoder_class = {"attention": GraphAttentionEncoder, "mpnn": MPNN}.get(
             encoder, None
         )
@@ -137,7 +129,6 @@ class AttentionModel(nn.Module):
             n_layers=self.n_encode_layers,
             normalization=normalization,
             problem=self.problem.NAME,
->>>>>>> e6f00faad39a1ee00cf7ebea26ae81d89aa5723a
         )
 
         # For each node we compute (glimpse key, glimpse value, logit key) so 3 * embedding_dim
@@ -290,11 +281,11 @@ class AttentionModel(nn.Module):
                 .unsqueeze(-1)
             )
             embeddings, _ = self.embedder(
-                 self._init_embed(  # pass in one-hot encoding to embedder
+                self._init_embed(  # pass in one-hot encoding to embedder
                     node_features.float()
-                 ).view(opts.batch_size, step_size, -1),
-                 state.graphs[:, :step_size, :step_size].bool(),
-                 weights=state.weights,
+                ).view(opts.batch_size, step_size, -1),
+                state.graphs[:, :step_size, :step_size].bool(),
+                weights=state.weights,
             )
             # embeddings = self._init_embed(node_features.float()).view(
             #    opts.batch_size, step_size, -1
@@ -365,7 +356,11 @@ class AttentionModel(nn.Module):
             # )
             i += 1
         # Collected lists, return Tensor
-        return torch.stack(outputs, 1), torch.stack(sequences, 1), state.size/state.v_size.item()
+        return (
+            torch.stack(outputs, 1),
+            torch.stack(sequences, 1),
+            state.size / state.v_size.item(),
+        )
 
     # def sample_many(self, input, batch_rep=1, iter_rep=1):
     #     """
@@ -389,10 +384,6 @@ class AttentionModel(nn.Module):
 
     def _select_node(self, probs, mask):
         assert (probs == probs).all(), "Probs should not contain any nans"
-<<<<<<< HEAD
-        # print(probs)
-=======
->>>>>>> e6f00faad39a1ee00cf7ebea26ae81d89aa5723a
         if self.decode_type == "greedy":
             _, selected = probs.max(1)
             assert not mask.gather(
