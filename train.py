@@ -250,7 +250,6 @@ def train_batch(
     # Evaluate model, get costs and log probabilities
 
     cost, log_likelihood = model(x, opts)
-
     # Evaluate baseline, get baseline loss if any (only for critic)
     bl_val, bl_loss = baseline.eval(x, cost) if bl_val is None else (bl_val, 0)
 
