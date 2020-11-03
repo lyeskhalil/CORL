@@ -355,7 +355,11 @@ class AttentionModel(nn.Module):
             # )
             i += 1
         # Collected lists, return Tensor
-        return torch.stack(outputs, 1), torch.stack(sequences, 1), state.size/state.v_size.item()
+        return (
+            torch.stack(outputs, 1),
+            torch.stack(sequences, 1),
+            state.size / state.v_size.item(),
+        )
 
     # def sample_many(self, input, batch_rep=1, iter_rep=1):
     #     """
@@ -379,7 +383,10 @@ class AttentionModel(nn.Module):
 
     def _select_node(self, probs, mask):
         assert (probs == probs).all(), "Probs should not contain any nans"
+<<<<<<< HEAD
         # print(probs)
+=======
+>>>>>>> 609377673a6ad8df0c402d10395c125efbe811d8
         if self.decode_type == "greedy":
             _, selected = probs.max(1)
             assert not mask.gather(
