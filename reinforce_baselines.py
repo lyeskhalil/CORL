@@ -143,6 +143,7 @@ class GreedyBaseline(Baseline):
 
         self.baseline = greedymodel
         self.opts = opts
+
     def eval(self, x, c):
 
         return self.baseline(x, opts=self.opts)[0].detach(), 0  # No loss
