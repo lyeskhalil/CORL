@@ -8,7 +8,7 @@ class MPNN(nn.Module):
         self,
         embed_dim,
         problem,
-        n_obs_in=7,
+        n_obs_in=1,
         n_layers=3,
         tied_weights=False,
         n_hid_readout=[],
@@ -38,7 +38,7 @@ class MPNN(nn.Module):
                 [UpdateNodeEmbeddingLayer(n_features) for _ in range(self.n_layers)]
             )
 
-        self.readout_layer = ReadoutLayer(n_features, n_hid_readout)
+        # self.readout_layer = ReadoutLayer(n_features, n_hid_readout)
 
     @torch.no_grad()
     def get_normalisation(self, adj):
@@ -68,17 +68,21 @@ class MPNN(nn.Module):
             dim=2,
         )
         weights = torch.cat((weights1, weights2), dim=1)
-        adj = weights
+        # print(weights)
+        # print(adj)
+        norm = self.get_normalisation(1. - adj)
+        #print((1. - adj) == (weights != 0).float())
+        adj = 1. - adj
         # obs.transpose_(-1, -2)
 
         # Calculate features to be used in the MPNN
         node_features = node_features
 
         # Get graph adj matrix.
-        adj = adj
+        # adj = adj
         # adj_conns = (adj != 0).type(torch.FloatTensor).to(adj.device)
 
-        norm = self.get_normalisation(adj)
+        # norm = self.get_normalisation(adj)
 
         init_node_embeddings = self.node_init_embedding_layer(node_features)
         edge_embeddings = self.edge_embedding_layer(node_features, adj, norm)
@@ -97,10 +101,10 @@ class MPNN(nn.Module):
                     current_node_embeddings, edge_embeddings, norm, adj
                 )
 
-        out = self.readout_layer(current_node_embeddings)
-        out = out.squeeze()
+        # out = self.readout_layer(current_node_embeddings)
+        # out = out.squeeze()
 
-        return out
+        return current_node_embeddings
 
 
 class EdgeAndNodeEmbeddingLayer(nn.Module):
@@ -114,7 +118,7 @@ class EdgeAndNodeEmbeddingLayer(nn.Module):
         )
         self.edge_feature_NN = nn.Linear(n_features, n_features, bias=False)
 
-    def forward(self, node_features, adj, norm):
+    def forward(self, node_features, adj, weights, norm):
         edge_features = torch.cat(
             [
                 adj.unsqueeze(-1),
