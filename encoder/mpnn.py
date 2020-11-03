@@ -46,10 +46,29 @@ class MPNN(nn.Module):
         norm[norm == 0] = 1
         return norm.float()
 
-    def forward(self, node_features, adj):
+    def forward(self, node_features, adj, weights):
         # if obs.dim() == 2:
         #     obs = obs.unsqueeze(0)
-
+        batch_size = adj.shape[0]
+        graph_size = node_features.size(1)
+        v = graph_size - weights.size(2)
+        u = weights.size(2)
+        weights1 = torch.cat(
+            (
+                torch.zeros((batch_size, u, u), device=weights.device),
+                weights[:, :v, :].transpose(1, 2).float(),
+            ),
+            dim=2,
+        )
+        weights2 = torch.cat(
+            (
+                weights[:, :v, :].float(),
+                torch.zeros((batch_size, v, v), device=weights.device),
+            ),
+            dim=2,
+        )
+        weights = torch.cat((weights1, weights2), dim=1)
+        adj = weights
         # obs.transpose_(-1, -2)
 
         # Calculate features to be used in the MPNN
