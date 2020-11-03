@@ -97,6 +97,7 @@ def run(opts):
         shrink_size=opts.shrink_size,
         num_actions=opts.u_size + 1,
         n_heads=opts.n_heads,
+        encoder=opts.encoder,
     ).to(opts.device)
 
     if opts.use_cuda and torch.cuda.device_count() > 1:

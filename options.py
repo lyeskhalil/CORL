@@ -95,6 +95,11 @@ def get_options(args=None):
         help="Model, 'attention' (default) or 'pointer or Feed forward'",
     )
     parser.add_argument(
+        "--encoder",
+        default="attention",
+        help="Encoder, 'attention' (default) or 'mpnn'",
+    )
+    parser.add_argument(
         "--embedding_dim", type=int, default=16, help="Dimension of input embedding"
     )
     parser.add_argument(

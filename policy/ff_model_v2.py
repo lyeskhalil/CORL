@@ -20,6 +20,7 @@ class FeedForwardModel(nn.Module):
         shrink_size=None,
         num_actions=4,
         n_heads=None,
+        encoder=None,
     ):
 
         super(FeedForwardModel, self).__init__()
@@ -31,17 +32,19 @@ class FeedForwardModel(nn.Module):
         self.problem = problem
         self.shrink_size = None
         self.ff = nn.Sequential(
-            nn.Linear(self.embedding_dim, 50),
+            nn.Linear(self.embedding_dim, 500),
             nn.ReLU(),
-            nn.Linear(50, 50),
+            nn.Linear(500, 500),
             nn.ReLU(),
-            nn.Linear(50, self.num_actions),
+            nn.Linear(500, 500),
+            nn.ReLU(),
+            nn.Linear(500, self.num_actions),
         )
 
         def init_weights(m):
             if type(m) == nn.Linear:
                 torch.nn.init.xavier_uniform_(m.weight)
-                # m.bias.data.fill_(0.0001)
+                m.bias.data.fill_(0.0001)
 
         self.ff.apply(init_weights)
 
@@ -90,9 +93,11 @@ class FeedForwardModel(nn.Module):
             # )
             # step_size = state.i.item() + 1
             v = state.i.item() - (state.u_size.item() + 1)
-            w = (state.weights[:, v, :].clone()).float()
+            # su = (state.weights[:, v, :]).float().sum(1)
+            w = (state.weights[:, v, :]).float()
             mask = state.get_mask()
-            s = torch.cat((w, mask.float(),), dim=1,)
+            s = torch.cat((w, mask.float()), dim=1)
+            # s = w
             # print(s)
             pi = self.ff(s)
             # Select the indices of the next nodes in the sequences, result (batch_size) long
@@ -108,13 +113,10 @@ class FeedForwardModel(nn.Module):
         return torch.stack(outputs, 1), torch.stack(sequences, 1), state.size
 
     def _select_node(self, probs, mask):
-
         assert (probs == probs).all(), "Probs should not contain any nans"
-        p = probs.clone()
-        p[mask] = -1e6
-        s = torch.nn.Softmax(1)
+        probs[mask] = -1e6
+        p = torch.nn.functional.softmax(probs, dim=1)
         # print(p)
-        p = s(p)
         if self.decode_type == "greedy":
             _, selected = p.max(1)
             # assert not mask.gather(
@@ -123,7 +125,6 @@ class FeedForwardModel(nn.Module):
 
         elif self.decode_type == "sampling":
             selected = p.multinomial(1).squeeze(1)
-
             # Check if sampling went OK, can go wrong due to bug on GPU
             # See https://discuss.pytorch.org/t/bad-behavior-of-multinomial-function/10232
             # while mask.gather(1, selected.unsqueeze(-1)).data.any():
@@ -132,7 +133,7 @@ class FeedForwardModel(nn.Module):
 
         else:
             assert False, "Unknown decode type"
-        return selected, p
+        return selected, p + 1e-6
 
     def set_decode_type(self, decode_type, temp=None):
         self.decode_type = decode_type

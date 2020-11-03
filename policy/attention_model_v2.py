@@ -9,6 +9,7 @@ import torch.nn.functional as F
 # from utils.tensor_functions import compute_in_batches
 
 from encoder.graph_encoder_v2 import GraphAttentionEncoder
+from encoder.mpnn import MPNN
 from torch.nn import DataParallel
 
 # from utils.functions import sample_many
@@ -62,6 +63,7 @@ class AttentionModel(nn.Module):
         checkpoint_encoder=False,
         shrink_size=None,
         num_actions=None,
+        encoder="attention",
     ):
         super(AttentionModel, self).__init__()
 
@@ -117,12 +119,25 @@ class AttentionModel(nn.Module):
             )  # Placeholder should be in range of activations
         self.init_embed = nn.Linear(node_dim, embedding_dim)
 
+<<<<<<< HEAD
         self.embedder = GraphAttentionEncoder(
              n_heads=n_heads,
              embed_dim=embedding_dim,
              n_layers=self.n_encode_layers,
              normalization=normalization,
              problem=self.problem.NAME,
+=======
+        encoder_class = {"attention": GraphAttentionEncoder, "mpnn": MPNN}.get(
+            encoder, None
+        )
+
+        self.embedder = encoder_class(
+            n_heads=n_heads,
+            embed_dim=embedding_dim,
+            n_layers=self.n_encode_layers,
+            normalization=normalization,
+            problem=self.problem.NAME,
+>>>>>>> e6f00faad39a1ee00cf7ebea26ae81d89aa5723a
         )
 
         # For each node we compute (glimpse key, glimpse value, logit key) so 3 * embedding_dim
@@ -374,7 +389,10 @@ class AttentionModel(nn.Module):
 
     def _select_node(self, probs, mask):
         assert (probs == probs).all(), "Probs should not contain any nans"
+<<<<<<< HEAD
         # print(probs)
+=======
+>>>>>>> e6f00faad39a1ee00cf7ebea26ae81d89aa5723a
         if self.decode_type == "greedy":
             _, selected = probs.max(1)
             assert not mask.gather(
