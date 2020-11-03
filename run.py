@@ -124,9 +124,9 @@ def run(opts):
             checkpoint_encoder=opts.checkpoint_encoder,
             shrink_size=opts.shrink_size,
             num_actions=opts.u_size + 1,
-            n_heads=opts.n_heads,
+            #n_heads=opts.n_heads,
         )
-        baseline = GreedyBaseline(greedybaseline)
+        baseline = GreedyBaseline(greedybaseline, opts)
 
     # elif opts.baseline == "critic" or opts.baseline == "critic_lstm":
     #     assert problem.NAME == "tsp", "Critic only supported for TSP"

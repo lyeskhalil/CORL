@@ -250,32 +250,32 @@ def train_batch(
     # Evaluate model, get costs and log probabilities
 
     cost, log_likelihood = model(x, opts)
-
     # Evaluate baseline, get baseline loss if any (only for critic)
     bl_val, bl_loss = baseline.eval(x, cost) if bl_val is None else (bl_val, 0)
 
     # Calculate loss
+    print("\nCost: " , cost.item())
     reinforce_loss = ((cost - bl_val) * log_likelihood).mean()
     loss = reinforce_loss + bl_loss
-
+    print("\nLoss: " , reinforce_loss.item())
     # Perform backward pass and optimization step
     optimizer.zero_grad()
     loss.backward()
     # Clip gradient norms and get (clipped) gradient norms for logging
-    grad_norms = clip_grad_norms(optimizer.param_groups, opts.max_grad_norm)
+    # grad_norms = clip_grad_norms(optimizer.param_groups, opts.max_grad_norm)
     optimizer.step()
 
     # Logging
-    if step % int(opts.log_step) == 0:
-        log_values(
-            cost,
-            grad_norms,
-            epoch,
-            batch_id,
-            step,
-            log_likelihood,
-            reinforce_loss,
-            bl_loss,
-            tb_logger,
-            opts,
-        )
+    # if step % int(opts.log_step) == 0:
+    #    log_values(
+    #        cost,
+    #        grad_norms,
+    #        epoch,
+    #        batch_id,
+    #        step,
+    #        log_likelihood,
+    #        reinforce_loss,
+    #        bl_loss,
+    #        tb_logger,
+    #        opts,
+    #    )
