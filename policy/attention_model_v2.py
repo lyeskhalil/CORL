@@ -9,6 +9,7 @@ import torch.nn.functional as F
 # from utils.tensor_functions import compute_in_batches
 
 from encoder.graph_encoder_v2 import GraphAttentionEncoder
+from encoder.mpnn import MPNN
 from torch.nn import DataParallel
 
 # from utils.functions import sample_many
@@ -62,6 +63,7 @@ class AttentionModel(nn.Module):
         checkpoint_encoder=False,
         shrink_size=None,
         num_actions=None,
+        encoder="attention",
     ):
         super(AttentionModel, self).__init__()
 
@@ -117,13 +119,17 @@ class AttentionModel(nn.Module):
             )  # Placeholder should be in range of activations
         self.init_embed = nn.Linear(node_dim, embedding_dim)
 
-        # self.embedder = GraphAttentionEncoder(
-        #     n_heads=n_heads,
-        #     embed_dim=embedding_dim,
-        #     n_layers=self.n_encode_layers,
-        #     normalization=normalization,
-        #     problem=self.problem.NAME,
-        # )
+        encoder_class = {"attention": GraphAttentionEncoder, "mpnn": MPNN}.get(
+            encoder, None
+        )
+
+        self.embedder = encoder_class(
+            n_heads=n_heads,
+            embed_dim=embedding_dim,
+            n_layers=self.n_encode_layers,
+            normalization=normalization,
+            problem=self.problem.NAME,
+        )
 
         # For each node we compute (glimpse key, glimpse value, logit key) so 3 * embedding_dim
         self.project_node_embeddings = nn.Linear(embedding_dim, 3 * embedding_dim)
@@ -274,16 +280,16 @@ class AttentionModel(nn.Module):
                 .expand(opts.batch_size, step_size)
                 .unsqueeze(-1)
             )
-            # embeddings = self.embedder(
-            #     self._init_embed(  # pass in one-hot encoding to embedder
-            #         node_features.float()
-            #     ).view(opts.batch_size, step_size, -1),
-            #     state.graphs[:, :step_size, :step_size].bool(),
-            #     weights=state.weights,
-            # )
-            embeddings = self._init_embed(node_features.float()).view(
-                opts.batch_size, step_size, -1
+            embeddings, _ = self.embedder(
+                self._init_embed(  # pass in one-hot encoding to embedder
+                    node_features.float()
+                ).view(opts.batch_size, step_size, -1),
+                state.graphs[:, :step_size, :step_size].bool(),
+                weights=state.weights,
             )
+            # embeddings = self._init_embed(node_features.float()).view(
+            #     opts.batch_size, step_size, -1
+            # )
             fixed = self._precompute(embeddings, opts)
             # if self.shrink_size is not None:
             #     unfinished = torch.nonzero(state.get_finished() == 0)
@@ -374,7 +380,6 @@ class AttentionModel(nn.Module):
 
     def _select_node(self, probs, mask):
         assert (probs == probs).all(), "Probs should not contain any nans"
-        print(probs)
         if self.decode_type == "greedy":
             _, selected = probs.max(1)
             assert not mask.gather(

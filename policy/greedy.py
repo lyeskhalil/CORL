@@ -20,6 +20,7 @@ class Greedy(nn.Module):
         shrink_size=None,
         num_actions=None,
         n_heads=None,
+        encoder=None,
     ):
         super(Greedy, self).__init__()
         self.decode_type = None
