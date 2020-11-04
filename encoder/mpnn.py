@@ -91,14 +91,26 @@ class MPNN(nn.Module):
         current_node_embeddings = init_node_embeddings
 
         if self.tied_weights:
-            for _ in range(self.n_layers):
+            for i in range(self.n_layers):
+                last_layer = i == self.n_layers - 1
                 current_node_embeddings = self.update_node_embedding_layer(
-                    current_node_embeddings, edge_embeddings, norm, adj, weights
+                    current_node_embeddings,
+                    edge_embeddings,
+                    norm,
+                    adj,
+                    weights,
+                    last_layer=last_layer,
                 )
         else:
             for i in range(self.n_layers):
+                last_layer = i == self.n_layers - 1
                 current_node_embeddings = self.update_node_embedding_layer[i](
-                    current_node_embeddings, edge_embeddings, norm, adj, weights
+                    current_node_embeddings,
+                    edge_embeddings,
+                    norm,
+                    adj,
+                    weights,
+                    last_layer=last_layer,
                 )
 
         # out = self.readout_layer(current_node_embeddings)
@@ -159,7 +171,15 @@ class UpdateNodeEmbeddingLayer(nn.Module):
         self.message_layer = nn.Linear(2 * n_features, n_features, bias=bias_act)
         self.update_layer = nn.Linear(2 * n_features, n_features, bias=bias_act)
 
-    def forward(self, current_node_embeddings, edge_embeddings, norm, adj, weights):
+    def forward(
+        self,
+        current_node_embeddings,
+        edge_embeddings,
+        norm,
+        adj,
+        weights,
+        last_layer=False,
+    ):
         node_embeddings_aggregated = (
             torch.matmul(weights, current_node_embeddings) / norm
         )
@@ -169,9 +189,14 @@ class UpdateNodeEmbeddingLayer(nn.Module):
                 torch.cat([node_embeddings_aggregated, edge_embeddings], dim=-1)
             )
         )
-        new_node_embeddings = F.relu(
-            self.update_layer(torch.cat([current_node_embeddings, message], dim=-1))
-        )
+        if not last_layer:
+            new_node_embeddings = F.relu(
+                self.update_layer(torch.cat([current_node_embeddings, message], dim=-1))
+            )
+        else:
+            new_node_embeddings = self.update_layer(
+                torch.cat([current_node_embeddings, message], dim=-1)
+            )
 
         return new_node_embeddings
 
