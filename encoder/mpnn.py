@@ -24,18 +24,18 @@ class MPNN(nn.Module):
         self.n_layers = n_layers
         self.n_features = n_features
         self.tied_weights = tied_weights
-
+        bias_act = True
         self.node_init_embedding_layer = nn.Sequential(
             nn.Linear(n_obs_in, n_features, bias=False), nn.ReLU()
         )
 
-        self.edge_embedding_layer = EdgeAndNodeEmbeddingLayer(n_obs_in, n_features)
+        self.edge_embedding_layer = EdgeAndNodeEmbeddingLayer(n_obs_in, n_features, bias_act)
 
         if self.tied_weights:
-            self.update_node_embedding_layer = UpdateNodeEmbeddingLayer(n_features)
+            self.update_node_embedding_layer = UpdateNodeEmbeddingLayer(n_features, bias_act)
         else:
             self.update_node_embedding_layer = nn.ModuleList(
-                [UpdateNodeEmbeddingLayer(n_features) for _ in range(self.n_layers)]
+                [UpdateNodeEmbeddingLayer(n_features, bias_act) for _ in range(self.n_layers)]
             )
 
         # self.readout_layer = ReadoutLayer(n_features, n_hid_readout)
@@ -103,20 +103,19 @@ class MPNN(nn.Module):
 
         # out = self.readout_layer(current_node_embeddings)
         # out = out.squeeze()
-
         return current_node_embeddings
 
 
 class EdgeAndNodeEmbeddingLayer(nn.Module):
-    def __init__(self, n_obs_in, n_features):
+    def __init__(self, n_obs_in, n_features, bias_act=True):
         super().__init__()
         self.n_obs_in = n_obs_in
         self.n_features = n_features
 
         self.edge_embedding_NN = nn.Linear(
-            int(n_obs_in + 1), n_features - 1, bias=False
+            int(n_obs_in + 1), n_features - 1, bias=bias_act
         )
-        self.edge_feature_NN = nn.Linear(n_features, n_features, bias=False)
+        self.edge_feature_NN = nn.Linear(n_features, n_features, bias=bias_act)
 
     def forward(self, node_features, adj, weights, norm):
         edge_features = torch.cat(
@@ -154,11 +153,11 @@ class EdgeAndNodeEmbeddingLayer(nn.Module):
 
 
 class UpdateNodeEmbeddingLayer(nn.Module):
-    def __init__(self, n_features):
+    def __init__(self, n_features, bias_act=True):
         super().__init__()
 
-        self.message_layer = nn.Linear(2 * n_features, n_features, bias=False)
-        self.update_layer = nn.Linear(2 * n_features, n_features, bias=False)
+        self.message_layer = nn.Linear(2 * n_features, n_features, bias=bias_act)
+        self.update_layer = nn.Linear(2 * n_features, n_features, bias=bias_act)
 
     def forward(self, current_node_embeddings, edge_embeddings, norm, adj, weights):
         node_embeddings_aggregated = (
