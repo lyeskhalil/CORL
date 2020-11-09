@@ -268,8 +268,6 @@ import torch.nn.functional as F
 #             h,  # (batch_size, graph_size, embed_dim)
 #             h.mean(dim=1),  # average to get embedding of graph, (batch_size, embed_dim)
 #         )
-
-
 class GraphAttentionEncoder(nn.Module):
     def __init__(
         self,
@@ -288,9 +286,50 @@ class GraphAttentionEncoder(nn.Module):
         super(GraphAttentionEncoder, self).__init__()
         self.dropout = dropout
 
+        self.layers = nn.ModuleList(
+            [
+                *(
+                    MultiHeadAttentionLayer(
+                        n_heads,
+                        embed_dim,
+                        dropout=dropout,
+                        alpha=alpha,
+                        normalization=normalization,
+                        problem=problem,
+                    )
+                    for _ in range(n_layers)
+                )
+            ]
+        )
+
+    def forward(self, x, adj=None, weights=None):
+        h = x
+        for layer in self.layers:
+            h = layer(h, adj=adj, weights=weights)
+
+        return h
+
+
+class MultiHeadAttentionLayer(nn.Module):
+    def __init__(
+        self,
+        n_heads,
+        embed_dim,
+        problem,
+        dropout=0.1,
+        alpha=0.01,
+        node_dim=None,
+        normalization="batch",
+        feed_forward_hidden=512,
+    ):
+
+        """Multi-Head attention Layer"""
+        super(MultiHeadAttentionLayer, self).__init__()
+        self.dropout = dropout
+
         self.attentions = [
             GraphAttentionLayer(
-                node_dim, embed_dim, dropout=dropout, alpha=alpha, concat=True
+                embed_dim, embed_dim, dropout=dropout, alpha=alpha, concat=True
             )
             for _ in range(n_heads)
         ]
@@ -339,28 +378,29 @@ class GraphAttentionLayer(nn.Module):
         a_input = self._prepare_attentional_mechanism_input(Wh)
         e = self.leakyrelu(self.a(a_input).squeeze(3))
         batch_size, graph_size, input_dim = h.size()
-        v = graph_size - weights.size(2)
-        u = weights.size(2)
-        weights1 = torch.cat(
-            (
-                torch.zeros((batch_size, u, u), device=weights.device),
-                weights[:, :v, :].transpose(1, 2).float(),
-            ),
-            dim=2,
-        )
-        weights2 = torch.cat(
-            (
-                weights[:, :v, :].float(),
-                torch.zeros((batch_size, v, v), device=weights.device),
-            ),
-            dim=2,
-        )
-        weights = torch.cat((weights1, weights2), dim=1)
+        # v = graph_size - weights.size(2)
+        # u = weights.size(2)
+        # weights1 = torch.cat(
+        #     (
+        #         torch.zeros((batch_size, u, u), device=weights.device),
+        #         weights[:, :v, :].transpose(1, 2).float(),
+        #     ),
+        #     dim=2,
+        # )
+        # weights2 = torch.cat(
+        #     (
+        #         weights[:, :v, :].float(),
+        #         torch.zeros((batch_size, v, v), device=weights.device),
+        #     ),
+        #     dim=2,
+        # )
+        # weights = torch.cat((weights1, weights2), dim=1)
         # zero_vec = -9e15 * torch.ones_like(e)
         # attention = torch.where(adj > 0, e, zero_vec)
         e[adj] = -9e15
-        attention = e.exp() * weights
-        attention = F.normalize(attention, dim=1, p=1)
+        # attention = e.exp() * (weights + (weights == 0).float())
+        attention = e.exp()
+        attention = F.normalize(attention, dim=2, p=1)
         attention = F.dropout(attention, self.dropout, training=self.training)
         h_prime = torch.matmul(attention, Wh)
 
