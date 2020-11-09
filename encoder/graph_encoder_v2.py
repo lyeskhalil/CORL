@@ -124,21 +124,23 @@ class MultiHeadAttention(nn.Module):
                 * torch.matmul(Q, K.transpose(2, 3))
                 # * (weights + (weights == 0).float())
             )
-
+        mask = (mask.float() - torch.diag_embed(torch.ones(batch_size, graph_size, device=mask.device))).bool()
         # Optionally apply mask to prevent attention
         if mask is not None:
             mask = mask.view(1, batch_size, n_query, graph_size).expand_as(
                 compatibility
             )
             compatibility[mask] = -1e10
-        attn = torch.softmax(compatibility, dim=-1) * (weights + (weights == 0).float())
-
+        # attn = torch.softmax(compatibility, dim=-1)
+        # attn = torch.softmax(compatibility * (weights + (weights == 0).float()), dim=-1)
+        compatibility = compatibility.exp() * (weights + (weights == 0).float())
+        attn = torch.nn.functional.normalize(compatibility, dim=-1, p=1)
         # If there are nodes with no neighbours then softmax returns nan so we fix them to 0
+        print(attn, weights)
         if mask is not None:
             attnc = attn.clone()
             attnc[mask] = 0
             attn = attnc
-
         heads = torch.matmul(attn, V)
 
         out = torch.mm(
