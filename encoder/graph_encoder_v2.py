@@ -273,28 +273,40 @@ class GraphAttentionEncoder(nn.Module):
 
 
 class GAT(nn.Module):
-    def __init__(self, nfeat, nhid, nclass, dropout, alpha, nheads, weights):
+    def __init__(
+            self,
+            dropout,
+            alpha,
+            weights,
+            n_heads,
+            embed_dim,
+            n_layers,
+            problem,
+            problem,
+            node_dim=None,
+    ):
         """Dense version of GAT."""
         super(GAT, self).__init__()
         self.dropout = dropout
 
         self.attentions = [
-            GraphAttentionLayer(nfeat, nhid, dropout=dropout, alpha=alpha, concat=True)
-            for _ in range(nheads)
+            GraphAttentionLayer(node_dim, embed_dim, problem=problem, dropout=dropout, alpha=alpha, concat=True)
+            for _ in range(n_heads)
         ]
         for i, attention in enumerate(self.attentions):
             self.add_module("attention_{}".format(i), attention)
 
-        self.out_att = GraphAttentionLayer(
-            nhid * nheads, nclass, dropout=dropout, alpha=alpha, concat=False
-        )
+        # self.out_att = GraphAttentionLayer(
+        #    nhid * nheads, nclass, dropout=dropout, alpha=alpha, concat=False
+        # )
 
     def forward(self, x, adj, weights):
         x = F.dropout(x, self.dropout, training=self.training)
         x = torch.cat([att(x, adj, weights) for att in self.attentions], dim=1)
         x = F.dropout(x, self.dropout, training=self.training)
-        x = F.elu(self.out_att(x, adj))
-        return F.log_softmax(x, dim=1)
+        # x = F.elu(self.out_att(x, adj))
+        #return F.log_softmax(x, dim=1)
+        return x
 
 
 class GraphAttentionLayer(nn.Module):
@@ -302,14 +314,14 @@ class GraphAttentionLayer(nn.Module):
     Simple GAT layer, similar to https://arxiv.org/abs/1710.10903
     """
 
-    def __init__(self, in_features, out_features, dropout, alpha, concat=True):
+    def __init__(self, in_features, out_features, dropout, alpha, problem, concat=True):
         super(GraphAttentionLayer, self).__init__()
         self.dropout = dropout
         self.in_features = in_features
         self.out_features = out_features
         self.alpha = alpha
         self.concat = concat
-
+        self.problem = problem
         self.W = nn.Parameter(torch.empty(size=(in_features, out_features)))
         nn.init.xavier_uniform_(self.W.data, gain=1.414)
         self.a = nn.Parameter(torch.empty(size=(2 * out_features, 1)))
