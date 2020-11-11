@@ -285,13 +285,13 @@ class GraphAttentionEncoder(nn.Module):
         """Dense version of GAT."""
         super(GraphAttentionEncoder, self).__init__()
         self.dropout = dropout
-
+        assert embed_dim % n_heads == 0, "embeddings dimenions must be a multiple of number of heads"
         self.layers = nn.ModuleList(
             [
                 *(
                     MultiHeadAttentionLayer(
                         n_heads,
-                        embed_dim,
+                        int(embed_dim/n_heads),
                         dropout=dropout,
                         alpha=alpha,
                         normalization=normalization,
@@ -342,7 +342,7 @@ class MultiHeadAttentionLayer(nn.Module):
 
     def forward(self, x, adj, weights):
         x = F.dropout(x, self.dropout, training=self.training)
-        x = torch.cat([att(x, adj, weights) for att in self.attentions], dim=1)
+        x = torch.cat([att(x, adj, weights) for att in self.attentions], dim=2)
         x = F.dropout(x, self.dropout, training=self.training)
         # x = F.elu(self.out_att(x, adj))
         # return F.log_softmax(x, dim=1)
@@ -378,29 +378,31 @@ class GraphAttentionLayer(nn.Module):
         a_input = self._prepare_attentional_mechanism_input(Wh)
         e = self.leakyrelu(self.a(a_input).squeeze(3))
         batch_size, graph_size, input_dim = h.size()
-        # v = graph_size - weights.size(2)
-        # u = weights.size(2)
-        # weights1 = torch.cat(
-        #     (
-        #         torch.zeros((batch_size, u, u), device=weights.device),
-        #         weights[:, :v, :].transpose(1, 2).float(),
-        #     ),
-        #     dim=2,
-        # )
-        # weights2 = torch.cat(
-        #     (
-        #         weights[:, :v, :].float(),
-        #         torch.zeros((batch_size, v, v), device=weights.device),
-        #     ),
-        #     dim=2,
-        # )
-        # weights = torch.cat((weights1, weights2), dim=1)
+        v = graph_size - weights.size(2)
+        u = weights.size(2)
+        weights1 = torch.cat(
+            (
+                torch.zeros((batch_size, u, u), device=weights.device),
+                weights[:, :v, :].transpose(1, 2).float(),
+            ),
+            dim=2,
+        )
+        weights2 = torch.cat(
+            (
+                weights[:, :v, :].float(),
+                torch.zeros((batch_size, v, v), device=weights.device),
+            ),
+            dim=2,
+        )
+        weights = torch.cat((weights1, weights2), dim=1)
         # zero_vec = -9e15 * torch.ones_like(e)
         # attention = torch.where(adj > 0, e, zero_vec)
+        adj = (adj.float() - torch.diag_embed(torch.ones(batch_size, graph_size, device=adj.device))).bool()
         e[adj] = -9e15
-        # attention = e.exp() * (weights + (weights == 0).float())
-        attention = e.exp()
+        attention = e.exp() * (weights + (weights == 0).float())
+        # attention = e.exp()
         attention = F.normalize(attention, dim=2, p=1)
+        # print(attention)
         attention = F.dropout(attention, self.dropout, training=self.training)
         h_prime = torch.matmul(attention, Wh)
 
@@ -449,7 +451,7 @@ class GraphAttentionLayer(nn.Module):
             [Wh_repeated_in_chunks, Wh_repeated_alternating], dim=2
         )
         # all_combinations_matrix.shape == (N * N, 2 * out_features)
-
+         
         return all_combinations_matrix.view(batch_size, N, N, 2 * self.out_features)
 
     def __repr__(self):
