@@ -130,7 +130,7 @@ def generate_edge_obm_data(
         if weight_distribution == "uniform":
             weights = nx.bipartite.biadjacency_matrix(
                 g1, range(0, u_size), range(u_size, u_size + v_size)
-            ).toarray() * np.random.randint(1, max_weight, (u_size, v_size))
+            ).toarray() * np.random.randint(5, max_weight, (u_size, v_size))
             w = torch.cat((torch.zeros(v_size, 1).long(), torch.tensor(weights).T), 1)
         s = sorted(list(g1.nodes))
         # c = nx.convert_matrix.to_numpy_array(g1, s)

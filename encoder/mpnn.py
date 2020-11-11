@@ -9,7 +9,7 @@ class MPNN(nn.Module):
         embed_dim,
         problem,
         n_obs_in=1,
-        n_layers=3,
+        n_layers=4,
         tied_weights=False,
         n_hid_readout=[],
         n_heads=None,
@@ -24,9 +24,9 @@ class MPNN(nn.Module):
         self.n_layers = n_layers
         self.n_features = n_features
         self.tied_weights = tied_weights
-        bias_act = True
+        bias_act = False
         self.node_init_embedding_layer = nn.Sequential(
-            nn.Linear(n_obs_in, n_features, bias=False), nn.ReLU()
+            nn.Linear(n_obs_in, n_features, bias=True), nn.ReLU()
         )
 
         self.edge_embedding_layer = EdgeAndNodeEmbeddingLayer(n_obs_in, n_features, bias_act)
@@ -77,7 +77,6 @@ class MPNN(nn.Module):
 
         # Calculate features to be used in the MPNN
         node_features = node_features
-
         # Get graph adj matrix.
         # adj = adj
         # adj_conns = (adj != 0).type(torch.FloatTensor).to(adj.device)
@@ -85,7 +84,7 @@ class MPNN(nn.Module):
         # norm = self.get_normalisation(adj)
 
         init_node_embeddings = self.node_init_embedding_layer(node_features)
-        edge_embeddings = self.edge_embedding_layer(node_features, adj, weights, norm)
+        edge_embeddings = self.edge_embedding_layer(node_features, adj, weights/100., norm)
 
         # Initialise embeddings.
         current_node_embeddings = init_node_embeddings
@@ -98,7 +97,7 @@ class MPNN(nn.Module):
                     edge_embeddings,
                     norm,
                     adj,
-                    weights,
+                    weights/100.,
                     last_layer=last_layer,
                 )
         else:
@@ -109,7 +108,7 @@ class MPNN(nn.Module):
                     edge_embeddings,
                     norm,
                     adj,
-                    weights,
+                    weights/100.,
                     last_layer=last_layer,
                 )
 
@@ -139,7 +138,6 @@ class EdgeAndNodeEmbeddingLayer(nn.Module):
             ],
             dim=-1,
         )
-
         edge_features *= (adj.unsqueeze(-1) != 0).float()
 
         edge_features_unrolled = torch.reshape(

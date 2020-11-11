@@ -43,8 +43,8 @@ class StateEdgeBipartite(NamedTuple):
                 u_size=self.u_size[key],
                 v_size=self.v_size[key],
             )
-        # return super(StateEdgeBipartite, self).__getitem__(key)
-        return self[key]
+        return super(StateEdgeBipartite, self).__getitem__(key)
+        # return self[key]
 
     @staticmethod
     def initialize(
@@ -85,7 +85,6 @@ class StateEdgeBipartite(NamedTuple):
         nodes = self.matched_nodes.squeeze(1).scatter_(-1, selected, 1)
         v = self.i.item() - (self.u_size.item() + 1)
         total_weights = self.size + self.weights[:, v, :].gather(1, selected)
-
         return self._replace(matched_nodes=nodes, size=total_weights, i=self.i + 1,)
 
     def all_finished(self):
