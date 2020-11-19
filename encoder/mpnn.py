@@ -84,7 +84,7 @@ class MPNN(nn.Module):
         # norm = self.get_normalisation(adj)
 
         init_node_embeddings = self.node_init_embedding_layer(node_features)
-        edge_embeddings = self.edge_embedding_layer(node_features, adj, weights/100., norm)
+        edge_embeddings = self.edge_embedding_layer(node_features, adj, weights, norm)
 
         # Initialise embeddings.
         current_node_embeddings = init_node_embeddings
@@ -97,7 +97,7 @@ class MPNN(nn.Module):
                     edge_embeddings,
                     norm,
                     adj,
-                    weights/100.,
+                    weights,
                     last_layer=last_layer,
                 )
         else:
@@ -108,7 +108,7 @@ class MPNN(nn.Module):
                     edge_embeddings,
                     norm,
                     adj,
-                    weights/100.,
+                    weights,
                     last_layer=last_layer,
                 )
 

@@ -100,8 +100,7 @@ def rollout(model, dataset, opts):
         # print(
         #     "\nBatch Competitive ratio: ", min(cr).item(),
         # )
-
-        return cost.data.cpu(), cr
+        return cost.data.cpu()*opts.v_size, cr
 
     cost = []
     crs = []
@@ -256,6 +255,7 @@ def train_batch(
     # print("\nCost: " , cost.item())
     reinforce_loss = ((cost - bl_val) * log_likelihood).mean()
     loss = reinforce_loss + bl_loss
+    #print(loss.item())
     # Perform backward pass and optimization step
     optimizer.zero_grad()
     loss.backward()
