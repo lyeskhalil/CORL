@@ -277,6 +277,11 @@ def get_options(args=None):
 
     # Misc
     parser.add_argument(
+        "--tune",
+        action="store_true",
+        help="Set this to true if you want to tune the hyperparameters",
+    )
+    parser.add_argument(
         "--log_step", type=int, default=50, help="Log info every log_step steps"
     )
     parser.add_argument(

@@ -83,7 +83,88 @@ def run(opts):
         "simple-greedy": SimpleGreedy,
     }.get(opts.model, None)
     assert model_class is not None, "Unknown model: {}".format(model_class)
+    if not opts.tune:
+        model, lr_scheduler, optimizer, val_dataloader, baseline = setup_training_env(opts, model_class, problem, load_data)
 
+    training_dataset = baseline.wrap_dataset(
+        problem.make_dataset(opts.train_dataset, opts.dataset_size, opts.problem)
+    )
+    training_dataloader = DataLoader(
+        training_dataset, batch_size=opts.batch_size, num_workers=1, shuffle=True,
+    )
+
+    if opts.eval_only:
+        validate(model, val_dataloader, opts)
+    elif opts.tune:
+        PARAM_GRID = list(product(
+            [0.0001, 0.0002, 0.0003, 0.0004, 0.0005]  # learning_rate
+            [(30, 1), (40, 2), (60, 3)],  # embedding size
+            [0.7, 0.8, 0.85, 0.9],  # baseline exponential decay
+            [1.0, 0.99, 0.98, 0.97]  # lr decay
+        ))
+
+        # total number of slurm workers detected
+        # defaults to 1 if not running under SLURM
+        N_WORKERS = int(os.getenv('SLURM_ARRAY_TASK_COUNT', 1))
+
+        # this worker's array index. Assumes slurm array job is zero-indexed
+        # defaults to zero if not running under SLURM
+        this_worker = int(os.getenv('SLURM_ARRAY_TASK_ID', 0))
+        max_reward = (None, 0)
+        for param_ix in range(this_worker, len(PARAM_GRID), N_WORKERS):
+
+            params = PARAM_GRID[param_ix]
+            lr = params[0]
+            embedding_dim = params[1][0]
+            n_heads = params[1][1]
+            exp_decay = params[2]
+
+            opts.lr_model = lr
+            opts.exp_beta = exp_decay
+            opts.embedding_dim = embedding_dim
+            opts.n_heads = n_heads
+            if not opts.no_tensorboard:
+                tb_logger = SummaryWriter(
+                    os.path.join(
+                        opts.log_dir,
+                        "{}_{}_{}_{}_{}".format(opts.lr_decay, opts.exp_beta, opts.lr_model, opts.embedding_dim, opts.n_heads),
+                        opts.run_name,
+                    )
+                )
+            model, lr_scheduler, optimizer, val_dataloader, baseline = setup_training_env(opts, model_class, problem, load_data)
+            for epoch in range(opts.epoch_start, opts.epoch_start + opts.n_epochs):
+                avg_reward = train_epoch(
+                    model,
+                    optimizer,
+                    baseline,
+                    lr_scheduler,
+                    epoch,
+                    val_dataloader,
+                    training_dataloader,
+                    problem,
+                    tb_logger,
+                    opts,
+                )
+            if avg_reward > max_reward[1]:
+                max_reward = (params, avg_reward)
+        print(max_reward)
+    else:
+        for epoch in range(opts.epoch_start, opts.epoch_start + opts.n_epochs):
+            train_epoch(
+                model,
+                optimizer,
+                baseline,
+                lr_scheduler,
+                epoch,
+                val_dataloader,
+                training_dataloader,
+                problem,
+                tb_logger,
+                opts,
+            )
+
+
+def setup_training_env(opts, model_class, problem, load_data):
     model = model_class(
         opts.embedding_dim,
         opts.hidden_dim,

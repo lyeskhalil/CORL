@@ -236,6 +236,8 @@ def train_epoch(
     # lr_scheduler should be called at end of epoch
     lr_scheduler.step()
 
+    return avg_reward
+
 
 def train_batch(
     model, optimizer, baseline, epoch, batch_id, step, batch, tb_logger, opts
