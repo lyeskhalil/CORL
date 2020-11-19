@@ -45,7 +45,6 @@ def validate(model, dataset, opts):
     avg_cost = cost.mean()
     min_cr = min(cr)
     avg_cr = cr.mean()
-
     print(
         "Validation overall avg_cost: {} +- {}".format(
             avg_cost, torch.std(cost) / math.sqrt(len(cost))
@@ -97,7 +96,7 @@ def rollout(model, dataset, opts):
 
         # print(-cost.data.flatten())
         # print(bat[-1])
-        cr = -cost.data.flatten() / move_to(optimal, opts.device)
+        cr = -cost.data.flatten() * opts.v_size / move_to(optimal + (optimal == 0).float(), opts.device)
         # print(
         #     "\nBatch Competitive ratio: ", min(cr).item(),
         # )
@@ -254,27 +253,27 @@ def train_batch(
     bl_val, bl_loss = baseline.eval(x, cost) if bl_val is None else (bl_val, 0)
 
     # Calculate loss
-    print("\nCost: " , cost.item())
+    # print("\nCost: " , cost.item())
     reinforce_loss = ((cost - bl_val) * log_likelihood).mean()
     loss = reinforce_loss + bl_loss
     # Perform backward pass and optimization step
     optimizer.zero_grad()
     loss.backward()
     # Clip gradient norms and get (clipped) gradient norms for logging
-    # grad_norms = clip_grad_norms(optimizer.param_groups, opts.max_grad_norm)
+    grad_norms = clip_grad_norms(optimizer.param_groups, opts.max_grad_norm)
     optimizer.step()
 
     # Logging
-    # if step % int(opts.log_step) == 0:
-    #    log_values(
-    #        cost,
-    #        grad_norms,
-    #        epoch,
-    #        batch_id,
-    #        step,
-    #        log_likelihood,
-    #        reinforce_loss,
-    #        bl_loss,
-    #        tb_logger,
-    #        opts,
-    #    )
+    if step % int(opts.log_step) == 0:
+       log_values(
+           cost,
+           grad_norms,
+           epoch,
+           batch_id,
+           step,
+           log_likelihood,
+           reinforce_loss,
+           bl_loss,
+           tb_logger,
+           opts,
+       )
