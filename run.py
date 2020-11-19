@@ -191,7 +191,7 @@ def run(opts):
     # Start the actual training loop
     val_dataset = problem.make_dataset(opts.val_dataset, opts.val_size, opts.problem)
     val_dataloader = DataLoader(
-        val_dataset, batch_size=opts.eval_batch_size, num_workers=1
+        val_dataset, batch_size=opts.eval_batch_size, num_workers=0
     )
     if opts.resume:
         epoch_resume = int(
