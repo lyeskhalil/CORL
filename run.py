@@ -6,7 +6,7 @@ import pprint as pp
 
 import torch
 import torch.optim as optim
-
+from itertools import product
 # from tensorboard_logger import Logger as TbLogger
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
@@ -46,7 +46,7 @@ def run(opts):
         tb_logger = SummaryWriter(
             os.path.join(
                 opts.log_dir,
-                "{}_{}_{}".format(opts.problem, opts.u_size, opts.v_size),
+                "{}_{}_{}_{}_{}".format(opts.problem, opts.u_size, opts.v_size, opts.lr_model, opts.embedding_dim),
                 opts.run_name,
             )
         )
@@ -206,31 +206,9 @@ def setup_training_env(opts, model_class, problem, load_data):
             checkpoint_encoder=opts.checkpoint_encoder,
             shrink_size=opts.shrink_size,
             num_actions=opts.u_size + 1,
-            #n_heads=opts.n_heads,
+            # n_heads=opts.n_heads,
         )
         baseline = GreedyBaseline(greedybaseline, opts)
-
-    # elif opts.baseline == "critic" or opts.baseline == "critic_lstm":
-    #     assert problem.NAME == "tsp", "Critic only supported for TSP"
-    #     baseline = CriticBaseline(
-    #         (
-    #             CriticNetworkLSTM(
-    #                 2,
-    #                 opts.embedding_dim,
-    #                 opts.hidden_dim,
-    #                 opts.n_encode_layers,
-    #                 opts.tanh_clipping,
-    #             )
-    #             if opts.baseline == "critic_lstm"
-    #             else CriticNetwork(
-    #                 2,
-    #                 opts.embedding_dim,
-    #                 opts.hidden_dim,
-    #                 opts.n_encode_layers,
-    #                 opts.normalization,
-    #             )
-    #         ).to(opts.device)
-    #     )
     elif opts.baseline == "rollout":
         baseline = RolloutBaseline(model, problem, opts)
     else:
@@ -287,46 +265,7 @@ def setup_training_env(opts, model_class, problem, load_data):
         baseline.epoch_callback(model, epoch_resume)
         print("Resuming after {}".format(epoch_resume))
         opts.epoch_start = epoch_resume + 1
-
-    if opts.eval_only:
-        validate(model, val_dataloader, opts)
-    # elif opts.eval_model:
-    #     model1 = FeedForwardModel(
-    #         (opts.u_size + 1) * 2,
-    #         opts.hidden_dim,
-    #         problem,
-    #         n_encode_layers=opts.n_encode_layers,
-    #         mask_inner=True,
-    #         mask_logits=True,
-    #         normalization=opts.normalization,
-    #         tanh_clipping=opts.tanh_clipping,
-    #         checkpoint_encoder=opts.checkpoint_encoder,
-    #         shrink_size=opts.shrink_size,
-    #         num_actions=opts.u_size + 1,
-    #     ).to(opts.device)
-    #     model1_ = get_inner_model(model1)
-    #     model1_.load_state_dict({**model1_.state_dict(), **load_data2.get("model", {})})
-    #     eval_model([model, model1], problem, opts)
-    else:
-        training_dataset = baseline.wrap_dataset(
-            problem.make_dataset(opts.train_dataset, opts.dataset_size, opts.problem)
-        )
-        training_dataloader = DataLoader(
-            training_dataset, batch_size=opts.batch_size, num_workers=1, shuffle=True,
-        )
-        for epoch in range(opts.epoch_start, opts.epoch_start + opts.n_epochs):
-            train_epoch(
-                model,
-                optimizer,
-                baseline,
-                lr_scheduler,
-                epoch,
-                val_dataloader,
-                training_dataloader,
-                problem,
-                tb_logger,
-                opts,
-            )
+    return model, lr_scheduler, optimizer, val_dataloader, baseline
 
 
 if __name__ == "__main__":
