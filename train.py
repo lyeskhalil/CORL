@@ -244,7 +244,6 @@ def train_batch(
     x, bl_val = baseline.unwrap_batch(batch[0])
     # print(x)
     x = move_to(x, opts.device)
-
     bl_val = move_to(bl_val, opts.device) if bl_val is not None else None
 
     # Evaluate model, get costs and log probabilities

@@ -83,8 +83,8 @@ def run(opts):
         "simple-greedy": SimpleGreedy,
     }.get(opts.model, None)
     assert model_class is not None, "Unknown model: {}".format(model_class)
-    if not opts.tune:
-        model, lr_scheduler, optimizer, val_dataloader, baseline = setup_training_env(opts, model_class, problem, load_data, tb_logger)
+    #if not opts.tune:
+    model, lr_scheduler, optimizer, val_dataloader, baseline = setup_training_env(opts, model_class, problem, load_data, tb_logger)
 
     training_dataset = baseline.wrap_dataset(
         problem.make_dataset(opts.train_dataset, opts.dataset_size, opts.problem)
@@ -97,10 +97,10 @@ def run(opts):
         validate(model, val_dataloader, opts)
     elif opts.tune:
         PARAM_GRID = list(product(
-            [0.0001, 0.0002, 0.0003, 0.0004, 0.0005]  # learning_rate
-            [(30, 1), (40, 2), (60, 3)],  # embedding size
-            [0.7, 0.8, 0.85, 0.9],  # baseline exponential decay
-            [1.0, 0.99, 0.98, 0.97]  # lr decay
+            [0.00001],  # learning_rate
+            [(60, 3)],  # embedding size
+            [0.8, 0.85],  # baseline exponential decay
+            [1.0, 0.99, 0.98, 0.97, 0.96]  # lr decay
         ))
 
         # total number of slurm workers detected
@@ -110,17 +110,17 @@ def run(opts):
         # this worker's array index. Assumes slurm array job is zero-indexed
         # defaults to zero if not running under SLURM
         this_worker = int(os.getenv('SLURM_ARRAY_TASK_ID', 0))
-        max_reward = (None, 0)
-        SCOREFILE = osp.expanduser('./val_rewards.csv')
+        SCOREFILE = os.path.expanduser('./val_rewards.csv')
         for param_ix in range(this_worker, len(PARAM_GRID), N_WORKERS):
-
+            torch.manual_seed(opts.seed)
             params = PARAM_GRID[param_ix]
             lr = params[0]
             embedding_dim = params[1][0]
             n_heads = params[1][1]
             exp_decay = params[2]
-
+            lr_decay = params[3]
             opts.lr_model = lr
+            opts.lr_decay = lr_decay
             opts.exp_beta = exp_decay
             opts.embedding_dim = embedding_dim
             opts.n_heads = n_heads
@@ -132,7 +132,14 @@ def run(opts):
                         opts.run_name,
                     )
                 )
+            load_data = {}
             model, lr_scheduler, optimizer, val_dataloader, baseline = setup_training_env(opts, model_class, problem, load_data, tb_logger)
+            training_dataset = baseline.wrap_dataset(
+                problem.make_dataset(opts.train_dataset, opts.dataset_size, opts.problem)
+            )
+            training_dataloader = DataLoader(
+                training_dataset, batch_size=opts.batch_size, num_workers=1, shuffle=True,
+            )
             for epoch in range(opts.epoch_start, opts.epoch_start + opts.n_epochs):
                 avg_reward = train_epoch(
                     model,
