@@ -84,7 +84,7 @@ def run(opts):
     }.get(opts.model, None)
     assert model_class is not None, "Unknown model: {}".format(model_class)
     if not opts.tune:
-        model, lr_scheduler, optimizer, val_dataloader, baseline = setup_training_env(opts, model_class, problem, load_data)
+        model, lr_scheduler, optimizer, val_dataloader, baseline = setup_training_env(opts, model_class, problem, load_data, tb_logger)
 
     training_dataset = baseline.wrap_dataset(
         problem.make_dataset(opts.train_dataset, opts.dataset_size, opts.problem)
@@ -111,6 +111,7 @@ def run(opts):
         # defaults to zero if not running under SLURM
         this_worker = int(os.getenv('SLURM_ARRAY_TASK_ID', 0))
         max_reward = (None, 0)
+        SCOREFILE = osp.expanduser('./val_rewards.csv')
         for param_ix in range(this_worker, len(PARAM_GRID), N_WORKERS):
 
             params = PARAM_GRID[param_ix]
@@ -131,7 +132,7 @@ def run(opts):
                         opts.run_name,
                     )
                 )
-            model, lr_scheduler, optimizer, val_dataloader, baseline = setup_training_env(opts, model_class, problem, load_data)
+            model, lr_scheduler, optimizer, val_dataloader, baseline = setup_training_env(opts, model_class, problem, load_data, tb_logger)
             for epoch in range(opts.epoch_start, opts.epoch_start + opts.n_epochs):
                 avg_reward = train_epoch(
                     model,
@@ -145,9 +146,8 @@ def run(opts):
                     tb_logger,
                     opts,
                 )
-            if avg_reward > max_reward[1]:
-                max_reward = (params, avg_reward)
-        print(max_reward)
+            with open(SCOREFILE, 'a') as f:
+                f.write(f'{",".join(map(str, params + (avg_reward,)))}\n')
     else:
         for epoch in range(opts.epoch_start, opts.epoch_start + opts.n_epochs):
             train_epoch(
@@ -164,7 +164,7 @@ def run(opts):
             )
 
 
-def setup_training_env(opts, model_class, problem, load_data):
+def setup_training_env(opts, model_class, problem, load_data, tb_logger):
     model = model_class(
         opts.embedding_dim,
         opts.hidden_dim,
@@ -272,7 +272,7 @@ def setup_training_env(opts, model_class, problem, load_data):
     # Start the actual training loop
     val_dataset = problem.make_dataset(opts.val_dataset, opts.val_size, opts.problem)
     val_dataloader = DataLoader(
-        val_dataset, batch_size=opts.eval_batch_size, num_workers=0
+        val_dataset, batch_size=opts.eval_batch_size, num_workers=1
     )
     if opts.resume:
         epoch_resume = int(
