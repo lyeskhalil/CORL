@@ -7,6 +7,7 @@ from scipy.optimize import linear_sum_assignment
 import torch
 import pickle as pk
 from tqdm import tqdm
+from scipy.stats import powerlaw
 
 
 def _add_nodes_with_bipartite_label(G, lena, lenb):
@@ -102,11 +103,31 @@ def generate_obm_data(
     )
 
 
+def generate_weights(distribution, u_size, v_size, parameters, g1):
+    if distribution == "uniform":
+        weights = nx.bipartite.biadjacency_matrix(
+            g1, range(0, u_size), range(u_size, u_size + v_size)
+        ).toarray() * np.random.randint(parameters[0], parameters[1], (u_size, v_size))
+        w = torch.cat((torch.zeros(v_size, 1).long(), torch.tensor(weights).T), 1)
+    elif distribution == "normal":
+        weights = nx.bipartite.biadjacency_matrix(
+            g1, range(0, u_size), range(u_size, u_size + v_size)
+        ).toarray() * np.random.normal(parameters[0], parameters[1], (u_size, v_size))
+        w = torch.cat((torch.zeros(v_size, 1).long(), torch.tensor(weights).T), 1)
+    elif distribution == "power":
+        weights = nx.bipartite.biadjacency_matrix(
+            g1, range(0, u_size), range(u_size, u_size + v_size)
+        ).toarray() * powerlaw.rvs(parameters[0], parameters[1], parameters[2], (u_size, v_size))
+        w = torch.cat((torch.zeros(v_size, 1).long(), torch.tensor(weights).T), 1)
+
+    return weights, w
+
+
 def generate_edge_obm_data(
     u_size,
     v_size,
     weight_distribution,
-    max_weight,
+    weight_param,
     graph_family_parameter,
     seed,
     graph_family,
@@ -127,11 +148,7 @@ def generate_edge_obm_data(
     for i in tqdm(range(opts.dataset_size)):
         g1 = g(u_size, v_size, p=graph_family_parameter, seed=seed + i)
         # d_old = np.array(sorted(g1.degree))[u_size:, 1]
-        if weight_distribution == "uniform":
-            weights = nx.bipartite.biadjacency_matrix(
-                g1, range(0, u_size), range(u_size, u_size + v_size)
-            ).toarray() * np.random.randint(5, max_weight, (u_size, v_size))
-            w = torch.cat((torch.zeros(v_size, 1).long(), torch.tensor(weights).T), 1)
+        weights, w = generate_weights(weight_distribution, u_size, v_size, weight_param, g1)
         s = sorted(list(g1.nodes))
         # c = nx.convert_matrix.to_numpy_array(g1, s)
 
@@ -267,6 +284,12 @@ if __name__ == "__main__":
         help="Distributions to generate for problem, default 'uniform' ",
     )
     parser.add_argument(
+        "--weight_distribution_param",
+        nargs="+",
+        default=[5, 4000],
+        help="parameters of weight distribtion ",
+    )
+    parser.add_argument(
         "--max_weight", type=int, default=4000, help="max weight in graph",
     )
 
@@ -352,7 +375,7 @@ if __name__ == "__main__":
             opts.u_size,
             opts.v_size,
             opts.weight_distribution,
-            opts.max_weight,
+            opts.weight_distribution_param,
             opts.graph_family_parameter,
             opts.seed,
             opts.graph_family,
@@ -362,10 +385,8 @@ if __name__ == "__main__":
         )
     elif opts.problem == "adwords":
         pass
-
     elif opts.problem == "displayads":
         pass
-
     else:
         assert False, "Unknown problem: {}".format(opts.problem)
     # if opts.save_format != 'train':
