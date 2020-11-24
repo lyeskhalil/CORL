@@ -81,10 +81,11 @@ def get_op_ratios(opts, model, problem):
 
     ops = []
     for i in range(len(opts.eval_set)):
-        dataset_folder = opts.eval_dataset + "/{}_{}by{}_{}/eval".format(
-            opts.graph_family, opts.u_size, opts.v_size, opts.eval_set[i]
-        )  # get the path to the test set dir
-
+        #dataset_folder = opts.eval_dataset + "{}_{}/{}_by_{}/eval".format(
+        #    opts.graph_family, opts.eval_set[i], opts.u_size, opts.v_size
+        #)  # get the path to the test set dir
+        dataset_folder = opts.eval_dataset
+        
         eval_dataset = problem.make_dataset(
             dataset_folder, opts.eval_size, opts.problem
         )
@@ -297,19 +298,20 @@ def run(opts):
         and opts.eval_ff_dir is None
         and opts.eval_attention_dir is None
     ) or opts.resume is None, "either one of load_path, eval_ff_dir, eval_attention_dir as well as resume should be given"
-
-    load_datas = load_models(opts)
-    load_attention_datas = load_attention_models(opts)
-    load_ff_datas = load_ff_models(opts)
-
+    
     # Initialize models
-    models = []  # these are the models that are specified in by the file
-    attention_models = []  # attention models from the directory
-    ff_models = []  # feed forwad models from the directory
-
-    initialize_models(opts, models, load_datas)
-    initialize_attention_models(opts, attention_models, load_attention_datas)
-    initialize_ff_models(opts, ff_models, load_ff_datas)
+    if opts.load_path is not None:
+        load_datas = load_models(opts)
+        models = []  # these are the models that are specified in by the file
+        initialize_models(opts, models, load_datas)
+    elif opts.eval_attention_dir is not None:
+        load_attention_datas = load_attention_models(opts)
+        attention_models = []  # attention models from the directory
+        initialize_attention_models(opts, attention_models, load_attention_datas)
+    elif opts.eval_ff_dir is not None:
+        load_ff_datas = load_ff_models(opts)
+        ff_models = []  # feed forwad models from the directory
+        initialize_ff_models(opts, ff_models, load_ff_datas)
 
     # Initialize baseline models
     baseline_models = []
