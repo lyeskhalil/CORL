@@ -233,11 +233,6 @@ def get_options(args=None):
         help="path to folder containing all evaluation datasets",
     )
     parser.add_argument(
-        "--eval_ff_dir",
-        type=str,
-        help="dir to trained ff models",
-    )
-    parser.add_argument(
         "--eval_attention_dir",
         type=str,
         help="dir to trained attention models",
