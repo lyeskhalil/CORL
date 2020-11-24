@@ -212,7 +212,30 @@ def get_options(args=None):
         default=None,
         help="Data distribution to use during training, defaults and options depend on problem.",
     )
-
+    parser.add_argument(
+        "--weight_distribution",
+        type=str,
+        default="uniform",
+        help="Distributions to generate for problem, default 'uniform' ",
+    )
+    parser.add_argument(
+        "--weight_distribution_param",
+        nargs="+",
+        default=[5, 4000],
+        help="parameters of weight distribtion ",
+    )
+    parser.add_argument(
+        "--graph_family",
+        type=str,
+        default="er",
+        help="family of graphs to generate (er, ba, etc)",
+    )
+    parser.add_argument(
+        "--graph_family_parameter",
+        type=float,
+        default=0.6,
+        help="parameter of the graph family distribution",
+    )
     # Evaluation
 
     parser.add_argument(

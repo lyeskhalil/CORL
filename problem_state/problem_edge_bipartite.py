@@ -81,12 +81,12 @@ class EdgeBipartiteDataset(Dataset):
                 opts.u_size,
                 opts.v_size,
                 opts.weight_distribution,
-                opts.weight_param,
+                opts.weight_distribution_param,
                 opts.graph_family_parameter,
                 opts.seed,
                 opts.graph_family,
                 opts.dataset_folder,
-                opts.dataset_size,
+                size,
                 opts.save_data
             )
             self.optimal_size = optimal_size
