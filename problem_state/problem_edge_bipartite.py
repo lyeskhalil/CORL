@@ -66,29 +66,41 @@ class EdgeBipartite(object):
 
 
 class EdgeBipartiteDataset(Dataset):
-    def __init__(self, dataset, size, problem):
+    def __init__(self, dataset, size, problem, opts):
         super(EdgeBipartiteDataset, self).__init__()
 
-        self.data_set = dataset
-        self.optimal_size = torch.load("{}/optimal_match.pt".format(self.data_set))
+        # self.data_set = dataset
+        # self.optimal_size = torch.load("{}/optimal_match.pt".format(self.data_set))
         self.problem = problem
-        # if opts.train_dataset is not None:
-        #     assert os.path.splitext(opts.train_dataset)[1] == ".pkl"
-
-        #     with open(opts.train_dataset, "rb") as f:
-        #         data = pickle.load(f)
-        #         self.data = data
-        # else:
-        #     ### TODO: Should use generate function in generate_data.py
-        #     # If no filename is specified generated data for normal obm probelm
-        #     self.data = generate_obm_data(opts)
+        if dataset is not None:
+            self.optimal_size = torch.load("{}/optimal_match.pt".format(self.data_set))
+            self.data_set = dataset
+        else:
+            # If no filename is specified generated data for edge obm probelm
+            D, optimal_size = generate_edge_obm_data(
+                opts.u_size,
+                opts.v_size,
+                opts.weight_distribution,
+                opts.weight_param,
+                opts.graph_family_parameter,
+                opts.seed,
+                opts.graph_family,
+                opts.dataset_folder,
+                opts.dataset_size,
+                opts.save_data
+            )
+            self.optimal_size = optimal_size
+            self.data_set = D
 
         self.size = size
 
     def __getitem__(self, index):
 
         # Load data and get label
-        X = torch.load("{}/graphs/{}.pt".format(self.data_set, index))
+        if type(self.data_set) == str:
+            X = torch.load("{}/graphs/{}.pt".format(self.data_set, index))
+        else:
+            X = self.data_set[index]
         Y = self.optimal_size[index]
         return X, Y
 

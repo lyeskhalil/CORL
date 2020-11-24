@@ -138,9 +138,9 @@ def generate_edge_obm_data(
     """
     Generates edge weighted bipartite graphs using the ER/BA schemes
 
-    Only uniform distribution is implemented for now.
+    Supports unifrom, normal, and power distributions.
     """
-    G, M, W = [], [], []
+    D, M = [], []
     if graph_family == "er":
         g = nx.bipartite.random_graph
     if graph_family == "ba":
@@ -165,8 +165,7 @@ def generate_edge_obm_data(
                 "{}/graphs/{}.pt".format(dataset_folder, i),
             )
         else:
-            G.append(m.tolist())
-            W.append(w.flatten().tolist())
+            D.append([torch.tensor(m).clone(), torch.tensor(w).clone()])
         # ordered_m = np.take(np.take(m, order, axis=1), order, axis=0)
         i1, i2 = linear_sum_assignment(weights, maximize=True)
         M.append(weights[i1, i2].sum())
@@ -174,9 +173,8 @@ def generate_edge_obm_data(
         torch.save(torch.tensor(M), "{}/optimal_match.pt".format(dataset_folder))
 
     return (
-        G,
-        W,
-        M,
+        D,
+        torch.tensor(M),
     )
 
 
