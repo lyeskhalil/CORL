@@ -57,13 +57,6 @@ def get_options(args=None):
     )
 
     parser.add_argument(
-        "--graph_family_parameter",
-        type=float,
-        default=0.6,
-        help="parameter of the graph family distribution",
-    )
-
-    parser.add_argument(
         "--train_dataset",
         type=str,
         default="dataset/train",
@@ -81,12 +74,6 @@ def get_options(args=None):
         help="Distribution of weights in graphs",
     )
 
-    parser.add_argument(
-        "--graph_family",
-        type=str,
-        default="er",
-        help="family of graphs to generate for training/validation (er, ba, etc)",
-    )
  
     # Model
     parser.add_argument(
@@ -248,11 +235,6 @@ def get_options(args=None):
         "--eval_dataset",
         type=str,
         help="path to folder containing all evaluation datasets",
-    )
-    parser.add_argument(
-        "--eval_attention_dir",
-        type=str,
-        help="dir to trained attention models",
     )
     parser.add_argument(
         "--eval_baselines", nargs="+", help="Different models to evaluate on",
