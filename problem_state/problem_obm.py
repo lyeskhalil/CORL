@@ -66,7 +66,7 @@ class Bipartite(object):
 
 
 class BipartiteDataset(Dataset):
-    def __init__(self, dataset, size, problem):
+    def __init__(self, dataset, size, problem, opts):
         super(BipartiteDataset, self).__init__()
 
         self.data_set = dataset

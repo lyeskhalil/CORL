@@ -20,6 +20,7 @@ class Greedy(nn.Module):
         shrink_size=None,
         num_actions=None,
         n_heads=None,
+        encoder=None,
     ):
         super(Greedy, self).__init__()
         self.decode_type = None
@@ -44,7 +45,7 @@ class Greedy(nn.Module):
 
             state = state.update(selected[:, None])
             sequences.append(selected)
-        return -state.size, torch.stack(sequences, 1)
+        return -state.size/state.v_size.item(), torch.stack(sequences, 1)
 
     def set_decode_type(self, decode_type, temp=None):
         self.decode_type = decode_type

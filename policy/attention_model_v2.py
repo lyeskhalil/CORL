@@ -9,6 +9,7 @@ import torch.nn.functional as F
 # from utils.tensor_functions import compute_in_batches
 
 from encoder.graph_encoder_v2 import GraphAttentionEncoder
+from encoder.mpnn import MPNN
 from torch.nn import DataParallel
 
 # from utils.functions import sample_many
@@ -62,6 +63,7 @@ class AttentionModel(nn.Module):
         checkpoint_encoder=False,
         shrink_size=None,
         num_actions=None,
+        encoder="attention",
     ):
         super(AttentionModel, self).__init__()
 
@@ -106,7 +108,7 @@ class AttentionModel(nn.Module):
         #     )  # Placeholder should be in range of activations
         if self.is_bipartite:  # online bipartite matching
             step_context_dim = (
-                embedding_dim * 2
+                embedding_dim * 1
             )  # Embedding of edges chosen and current node
             node_dim = 1  # edge weight
 
@@ -117,12 +119,16 @@ class AttentionModel(nn.Module):
             )  # Placeholder should be in range of activations
         self.init_embed = nn.Linear(node_dim, embedding_dim)
 
-        self.embedder = GraphAttentionEncoder(
+        encoder_class = {"attention": GraphAttentionEncoder, "mpnn": MPNN}.get(
+            encoder, None
+        )
+
+        self.embedder = encoder_class(
             n_heads=n_heads,
             embed_dim=embedding_dim,
             n_layers=self.n_encode_layers,
             normalization=normalization,
-            problem=self.problem,  #this was previously slef.problem.NAME
+            problem=self.problem.NAME,
         )
 
         # For each node we compute (glimpse key, glimpse value, logit key) so 3 * embedding_dim
@@ -261,7 +267,7 @@ class AttentionModel(nn.Module):
         state = self.problem.make_state(input, opts.u_size, opts.v_size, opts.num_edges)
         # Compute keys, values for the glimpse and keys for the logits once as they can be reused in every step
         # fixed = self._precompute(embeddings)
-        step_context = 0
+        step_context = 0 
         # batch_size = state.ids.size(0)
         # Perform decoding steps
         i = 1
@@ -269,22 +275,30 @@ class AttentionModel(nn.Module):
         while not (state.all_finished()):
             step_size = state.i.item() + 1
             node_features = (
-                torch.arange(step_size, device=opts.device)
+                torch.arange(1, step_size+1, device=opts.device)
                 .unsqueeze(0)
                 .expand(opts.batch_size, step_size)
                 .unsqueeze(-1)
             )
-            embeddings, _ = self.embedder(
-                 self._init_embed(  # pass in one-hot encoding to embedder
-                     node_features.float()
-                 ).view(opts.batch_size, step_size, -1),
-                 state.graphs[:, :step_size, :step_size].bool(),
-                 weights=state.weights,
-             )
-            #embeddings = self._init_embed(node_features.float()).view(
-            #   opts.batch_size, step_size, -1
-            #)
-            fixed = self._precompute(embeddings, opts)
+            if opts.encoder == "attention":
+                embeddings = self.embedder(
+                    self._init_embed(  # pass in one-hot encoding to embedder
+                        node_features.float()
+                    ).view(opts.batch_size, step_size, -1),
+                    state.graphs[:, :step_size, :step_size].bool(),
+                    weights=state.weights,
+                )
+            else:
+                embeddings = self.embedder(
+                    node_features.float().view(opts.batch_size, step_size, -1),
+                    state.graphs[:, :step_size, :step_size],
+                    weights=state.weights,
+                )
+            #print(embeddings)
+            # embeddings = self._init_embed(node_features.float()).view(
+            #    opts.batch_size, step_size, -1
+            # )
+            fixed = self._precompute(embeddings, step_size, opts, state)
             # if self.shrink_size is not None:
             #     unfinished = torch.nonzero(state.get_finished() == 0)
             #     if len(unfinished) == 0:
@@ -296,15 +310,17 @@ class AttentionModel(nn.Module):
             #         # Filter states
             #         state = state[unfinished]
             #         fixed = fixed[unfinished]
-
             log_p, mask = self._get_log_p(
                 fixed, state, step_context, opts, embeddings[:, -1, :]
             )
-
             # Select the indices of the next nodes in the sequences, result (batch_size) long
             selected = self._select_node(
                 log_p.exp()[:, 0, :], mask[:, 0, :].bool()
             )  # Squeeze out steps dimension
+            print(log_p.exp()[:, 0, :])
+            #print(selected)
+            #print(embeddings)
+            #print(state.weights)
             state = state.update(selected[:, None])
             s = (selected[:, None].repeat(1, fixed.node_embeddings.size(-1)))[
                 :, None, :
@@ -313,11 +329,11 @@ class AttentionModel(nn.Module):
                 step_context
                 + (
                     (
-                        (
+  #                      (
                             torch.gather(fixed.node_embeddings, 1, s)
-                            + embeddings[:, -1, :].unsqueeze(1)
-                        )
-                        / 2.0
+ #                           + embeddings[:, -1, :].unsqueeze(1)
+ #                       )
+#                        / 2.0
                     )
                     - step_context
                 )
@@ -350,7 +366,11 @@ class AttentionModel(nn.Module):
             # )
             i += 1
         # Collected lists, return Tensor
-        return torch.stack(outputs, 1), torch.stack(sequences, 1), state.size
+        return (
+            torch.stack(outputs, 1),
+            torch.stack(sequences, 1),
+            state.size / state.v_size.item(),
+        )
 
     # def sample_many(self, input, batch_rep=1, iter_rep=1):
     #     """
@@ -391,23 +411,24 @@ class AttentionModel(nn.Module):
             assert False, "Unknown decode type"
         return selected
 
-    def _precompute(self, embeddings, opts, num_steps=1):
+    def _precompute(self, embeddings, step_size, opts, state, num_steps=1):
         # calculate the mean of the embeddings of the U's
         graph_embed = embeddings.mean(1)
         # fixed context = (batch_size, 1, embed_dim) to make broadcastable with parallel timesteps
         fixed_context = self.project_fixed_context(graph_embed)[:, None, :]
-
+        offset = (step_size - 1) * (step_size)
         # The projection of the node embeddings for the attention is calculated once up front
         (
             glimpse_key_fixed,
             glimpse_val_fixed,
             logit_key_fixed,
         ) = self.project_node_embeddings(
-            embeddings[:, None, : opts.u_size + 1, :]
+#                torch.cat((embeddings[:, None, : opts.u_size + 1, :], embeddings[:, None, step_size - 1, :].unsqueeze(2)), dim=2)
+                 embeddings[:, None, offset: offset + opts.u_size + 1, :]
         ).chunk(
             3, dim=-1
         )
-
+        #print(embeddings[:, None, offset: offset + opts.u_size + 1, :])
         # No need to rearrange key for logit as there is a single head
         fixed_attention_node_data = (
             self._make_heads(glimpse_key_fixed, num_steps),
@@ -415,7 +436,8 @@ class AttentionModel(nn.Module):
             logit_key_fixed.contiguous(),
         )
         return AttentionModelFixed(
-            embeddings[:, : opts.u_size + 1, :],
+            #torch.cat((embeddings[:, : opts.u_size + 1, :], embeddings[:, step_size - 1, :].unsqueeze(1)), dim=1),
+            embeddings[:, offset: offset + opts.u_size + 1, :],
             fixed_context,
             *fixed_attention_node_data,
         )
@@ -450,6 +472,7 @@ class AttentionModel(nn.Module):
         # Compute the mask
 
         mask = state.get_mask()[:, None, :]
+        #mask = torch.cat((mask, torch.zeros(mask.size(0), 1, 1, device=mask.device).long()), dim=2)
 
         # Compute logits (unnormalized log_p)
         log_p, glimpse = self._one_to_many_logits(
@@ -481,19 +504,25 @@ class AttentionModel(nn.Module):
             ):  # We need to special case if we have only 1 step, may be the first or not
                 if state.i.item() == state.u_size.item() + 1:
                     # First and only step, ignore prev_a (this is a placeholder)
-                    return torch.cat(
-                        (
-                            self.W_placeholder[None, None, :].expand(
-                                batch_size, 1, self.W_placeholder.size(-1)
-                            ),
-                            curr_node.unsqueeze(1),
-                        ),
-                        dim=2,
+                    #return torch.cat(
+                    #    (
+                    #    	self.W_placeholder[None, None, :].expand(
+                    #           		batch_size, 1, self.W_placeholder.size(-1)
+                   #	),
+                    #    	curr_node.unsqueeze(1),
+                    #   	),
+                    #   	dim=2,
+                    #)
+                    return self.W_placeholder[None, None, :].expand(
+                        batch_size, 1, self.W_placeholder.size(-1)
                     )
+            #        return (curr_node.unsqueeze(1))
                 else:
-                    return torch.cat(
-                        (step_context, curr_node.unsqueeze(1)), dim=2
-                    )  # add embedding of arriving node to context
+                    #return torch.cat(
+                    #    (step_context, curr_node.unsqueeze(1)), dim=2
+                    return (step_context)
+                       # , dim=2
+                    #)  # add embedding of arriving node to context
 
     def _one_to_many_logits(self, query, glimpse_K, glimpse_V, logit_K, mask):
         batch_size, num_steps, embed_dim = query.size()
@@ -516,7 +545,6 @@ class AttentionModel(nn.Module):
 
         # Batch matrix multiplication to compute heads (n_heads, batch_size, num_steps, val_size)
         heads = torch.matmul(torch.softmax(compatibility, dim=-1), glimpse_V)
-
         # Project to get glimpse/updated context node embedding (batch_size, num_steps, embedding_dim)
         glimpse = self.project_out(
             heads.permute(1, 2, 3, 0, 4)
@@ -538,6 +566,7 @@ class AttentionModel(nn.Module):
             logits = torch.tanh(logits) * self.tanh_clipping
         if self.mask_logits:
             logits[mask] = -math.inf
+        #    logits[:, :, -1] = -math.inf
         return logits, glimpse.squeeze(-2)
 
     def _get_attention_node_data(self, fixed, state):

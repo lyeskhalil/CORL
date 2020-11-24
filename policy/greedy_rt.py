@@ -21,6 +21,7 @@ class GreedyRt(nn.Module):
         shrink_size=None,
         n_heads=None,
         num_actions=None,
+        encoder=None,
     ):
         super(GreedyRt, self).__init__()
         self.decode_type = None

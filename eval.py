@@ -81,11 +81,12 @@ def get_op_ratios(opts, model, problem):
 
     ops = []
     for i in range(len(opts.eval_set)):
+        # opts.eval_dataset + "eval/graphs/"
         #dataset_folder = opts.eval_dataset + "{}_{}/{}_by_{}/eval".format(
         #    opts.graph_family, opts.eval_set[i], opts.u_size, opts.v_size
         #)  # get the path to the test set dir
         dataset_folder = opts.eval_dataset
-        
+
         eval_dataset = problem.make_dataset(
             dataset_folder, opts.eval_size, opts.problem
         )

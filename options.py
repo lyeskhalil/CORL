@@ -95,6 +95,11 @@ def get_options(args=None):
         help="Model, 'attention' (default) or 'pointer or Feed forward'",
     )
     parser.add_argument(
+        "--encoder",
+        default="attention",
+        help="Encoder, 'attention' (default) or 'mpnn'",
+    )
+    parser.add_argument(
         "--embedding_dim", type=int, default=16, help="Dimension of input embedding"
     )
     parser.add_argument(
@@ -227,7 +232,16 @@ def get_options(args=None):
         type=str,
         help="path to folder containing all evaluation datasets",
     )
-
+    parser.add_argument(
+        "--eval_ff_dir",
+        type=str,
+        help="dir to trained ff models",
+    )
+    parser.add_argument(
+        "--eval_attention_dir",
+        type=str,
+        help="dir to trained attention models",
+    )
     parser.add_argument(
         "--eval_baselines", nargs="+", help="Different models to evaluate on",
     )
@@ -280,6 +294,11 @@ def get_options(args=None):
     )
 
     # Misc
+    parser.add_argument(
+        "--tune",
+        action="store_true",
+        help="Set this to true if you want to tune the hyperparameters",
+    )
     parser.add_argument(
         "--log_step", type=int, default=50, help="Log info every log_step steps"
     )

@@ -48,7 +48,6 @@ def validate(model, dataset, opts):
     
     min_cr = min(cr)
     avg_cr = cr.mean()
-
     print(
         "Validation overall avg_cost: {} +- {}".format(
             avg_cost, torch.std(cost) / math.sqrt(len(cost))
@@ -100,12 +99,11 @@ def rollout(model, dataset, opts):
 
         # print(-cost.data.flatten())
         # print(bat[-1])
-        cr = -cost.data.flatten() / move_to(optimal, opts.device)
+        cr = -cost.data.flatten() * opts.v_size / move_to(optimal + (optimal == 0).float(), opts.device)
         # print(
         #     "\nBatch Competitive ratio: ", min(cr).item(),
         # )
-
-        return cost.data.cpu(), cr
+        return cost.data.cpu() * opts.v_size, cr
 
     cost = []
     crs = []
@@ -202,7 +200,7 @@ def train_epoch(
         )
     )
 
-    if opts.checkpoint_epochs == 0 and (epoch == opts.n_epochs - 1):
+    if opts.checkpoint_epochs == 0 and (epoch == opts.n_epochs - 1) and not opts.tune:
         print("Saving model and state...")
         torch.save(
             {
@@ -214,7 +212,7 @@ def train_epoch(
             },
             os.path.join(opts.save_dir, "latest-{}.pt".format(epoch)),
         )
-    elif (opts.checkpoint_epochs != 0) and (
+    elif not opts.tune and (opts.checkpoint_epochs != 0) and (
         (epoch % opts.checkpoint_epochs == 0) or (epoch == opts.n_epochs - 1)
     ):
         print("Saving model and state...")
@@ -240,6 +238,8 @@ def train_epoch(
     # lr_scheduler should be called at end of epoch
     lr_scheduler.step()
 
+    return avg_reward
+
 
 def train_batch(
     model, optimizer, baseline, epoch, batch_id, step, batch, tb_logger, opts
@@ -247,37 +247,37 @@ def train_batch(
     x, bl_val = baseline.unwrap_batch(batch[0])
     # print(x)
     x = move_to(x, opts.device)
-
     bl_val = move_to(bl_val, opts.device) if bl_val is not None else None
 
     # Evaluate model, get costs and log probabilities
 
     cost, log_likelihood = model(x, opts)
-
     # Evaluate baseline, get baseline loss if any (only for critic)
     bl_val, bl_loss = baseline.eval(x, cost) if bl_val is None else (bl_val, 0)
 
     # Calculate loss
+    # print("\nCost: " , cost.item())
     reinforce_loss = ((cost - bl_val) * log_likelihood).mean()
     loss = reinforce_loss + bl_loss
+    # print(loss.item())
     # Perform backward pass and optimization step
     optimizer.zero_grad()
     loss.backward()
     # Clip gradient norms and get (clipped) gradient norms for logging
-    # grad_norms = clip_grad_norms(optimizer.param_groups, opts.max_grad_norm)
+    grad_norms = clip_grad_norms(optimizer.param_groups, opts.max_grad_norm)
     optimizer.step()
 
     # Logging
-    # if step % int(opts.log_step) == 0:
-    #     log_values(
-    #         cost,
-    #         grad_norms,
-    #         epoch,
-    #         batch_id,
-    #         step,
-    #         log_likelihood,
-    #         reinforce_loss,
-    #         bl_loss,
-    #         tb_logger,
-    #         opts,
-    #     )
+    if step % int(opts.log_step) == 0:
+        log_values(
+            cost,
+            grad_norms,
+            epoch,
+            batch_id,
+            step,
+            log_likelihood,
+            reinforce_loss,
+            bl_loss,
+            tb_logger,
+            opts,
+        )
