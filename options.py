@@ -213,12 +213,6 @@ def get_options(args=None):
         help="Data distribution to use during training, defaults and options depend on problem.",
     )
     parser.add_argument(
-        "--weight_distribution",
-        type=str,
-        default="uniform",
-        help="Distributions to generate for problem, default 'uniform' ",
-    )
-    parser.add_argument(
         "--weight_distribution_param",
         nargs="+",
         default=[5, 4000],
