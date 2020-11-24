@@ -235,7 +235,7 @@ def train_epoch(
     # lr_scheduler should be called at end of epoch
     lr_scheduler.step()
 
-    return avg_reward
+    return avg_reward, min_cr, avg_cr
 
 
 def train_batch(
