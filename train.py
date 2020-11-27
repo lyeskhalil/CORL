@@ -180,7 +180,6 @@ def train_epoch(
     # Put model in train mode!
     model.train()
     set_decode_type(model, "sampling")
-
     for batch_id, batch in enumerate(
         tqdm(training_dataloader, disable=opts.no_progress_bar)
     ):
@@ -241,9 +240,8 @@ def train_epoch(
 def train_batch(
     model, optimizer, baseline, epoch, batch_id, step, batch, tb_logger, opts
 ):
-    x, bl_val = baseline.unwrap_batch(batch[0])
-    # print(x)
-    x = move_to(x, opts.device)
+    x, bl_val = baseline.unwrap_batch(batch)
+    x = move_to(x[0], opts.device)
     bl_val = move_to(bl_val, opts.device) if bl_val is not None else None
 
     # Evaluate model, get costs and log probabilities
@@ -254,7 +252,7 @@ def train_batch(
 
     # Calculate loss
     # print("\nCost: " , cost.item())
-    reinforce_loss = ((cost - bl_val) * log_likelihood).mean()
+    reinforce_loss = ((cost.squeeze(1) - bl_val) * log_likelihood).mean()
     loss = reinforce_loss + bl_loss
     # print(loss.item())
     # Perform backward pass and optimization step
