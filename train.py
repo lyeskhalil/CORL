@@ -42,7 +42,10 @@ def validate(model, dataset, opts):
     # Validate
     print("Validating...")
     cost, cr = rollout(model, dataset, opts)
+    print("cost: ", cost)
+    print("competetive ratio: ", cr)
     avg_cost = cost.mean()
+    
     min_cr = min(cr)
     avg_cr = cr.mean()
     print(

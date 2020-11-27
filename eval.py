@@ -81,15 +81,17 @@ def get_op_ratios(opts, model, problem):
 
     ops = []
     for i in range(len(opts.eval_set)):
-        dataset_folder = opts.eval_dataset + "/{}_{}_{}by{}_{}/eval".format(
-            opts.problem, opts.graph_family, opts.u_size, opts.v_size, opts.eval_set[i]
-        )  # get the path to the test set dir
+        # opts.eval_dataset + "eval/graphs/"
+        #dataset_folder = opts.eval_dataset + "{}_{}/{}_by_{}/eval".format(
+        #    opts.graph_family, opts.eval_set[i], opts.u_size, opts.v_size
+        #)  # get the path to the test set dir
+        dataset_folder = opts.eval_dataset
 
         eval_dataset = problem.make_dataset(
             dataset_folder, opts.eval_size, opts.problem
         )
         eval_dataloader = DataLoader(
-            eval_dataset, batch_size=opts.eval_batch_size, num_workers=0
+            eval_dataset, batch_size=opts.eval_batch_size, num_workers=1
         )
 
         op = evaluate(model, eval_dataloader, opts)
@@ -113,7 +115,7 @@ def plot_box(opts, data):
     num = len(data)
     plt.xlabel("Graph family parameter")
     plt.ylabel("Optimality ratio")
-    ticks = ["0.05", "0.15", "0.5", "1.0"]
+    ticks = ["0.01", "0.05", "0.1", "0.15", "0.2"]
     colors = ["#d53e4f", "#3288bd", "#7fbf7b", "#fee08b", "#fc8d59", "#e6f598"]
     i = 0
     for d in data:
@@ -157,8 +159,6 @@ def load_attention_models(opts):
     """
     load_data = {}
     load_datas = []
-    if opts.eval_attention_dir is None:
-        return []
     attention_dir = (
         opts.eval_attention_dir if opts.eval_attention_dir is not None else []
     )
@@ -175,8 +175,6 @@ def load_ff_models(opts):
     """
     load_data = {}
     load_datas = []
-    if opts.eval_ff_dir is None:
-        return []
     ff_dir = opts.eval_ff_dir if opts.eval_ff_dir is not None else []
     print("Loading all the attention models from {}".format(ff_dir))
     for path in os.listdir(ff_dir):
@@ -186,7 +184,6 @@ def load_ff_models(opts):
 
 
 def initialize_models(opts, models, load_datas):
-    problem = load_problem(opts.problem)
     for m in range(len(opts.eval_models)):
         model_class = {"attention": AttentionModel, "ff": FeedForwardModel}.get(
             opts.eval_models[m], None
@@ -194,7 +191,7 @@ def initialize_models(opts, models, load_datas):
         model = model_class(
             opts.embedding_dim,
             opts.hidden_dim,
-            problem=problem,
+            problem=opts.problem,
             n_encode_layers=opts.n_encode_layers,
             mask_inner=True,
             mask_logits=True,
@@ -218,12 +215,11 @@ def initialize_models(opts, models, load_datas):
 
 
 def initialize_attention_models(opts, attention_models, load_attention_datas):
-    problem = load_problem(opts.problem)
     for m in range(len(load_attention_datas)):
         model = AttentionModel(
             opts.embedding_dim,
             opts.hidden_dim,
-            problem=problem,
+            problem=opts.problem,
             n_encode_layers=opts.n_encode_layers,
             mask_inner=True,
             mask_logits=True,
@@ -247,12 +243,11 @@ def initialize_attention_models(opts, attention_models, load_attention_datas):
 
 
 def initialize_ff_models(opts, ff_models, load_ff_datas):
-    problem = load_problem(opts.problem)
     for m in range(len(load_ff_datas)):
         model = FeedForwardModel(
             opts.embedding_dim,
             opts.hidden_dim,
-            problem=problem,
+            problem=opts.problem,
             n_encode_layers=opts.n_encode_layers,
             mask_inner=True,
             mask_logits=True,
@@ -304,19 +299,20 @@ def run(opts):
         and opts.eval_ff_dir is None
         and opts.eval_attention_dir is None
     ) or opts.resume is None, "either one of load_path, eval_ff_dir, eval_attention_dir as well as resume should be given"
-
-    load_datas = load_models(opts)
-    load_attention_datas = load_attention_models(opts)
-    load_ff_datas = load_ff_models(opts)
-
+    
     # Initialize models
-    models = []  # these are the models that are specified in by the file
-    attention_models = []  # attention models from the directory
-    ff_models = []  # feed forwad models from the directory
-
-    initialize_models(opts, models, load_datas)
-    initialize_attention_models(opts, attention_models, load_attention_datas)
-    initialize_ff_models(opts, ff_models, load_ff_datas)
+    if opts.load_path is not None:
+        load_datas = load_models(opts)
+        models = []  # these are the models that are specified in by the file
+        initialize_models(opts, models, load_datas)
+    elif opts.eval_attention_dir is not None:
+        load_attention_datas = load_attention_models(opts)
+        attention_models = []  # attention models from the directory
+        initialize_attention_models(opts, attention_models, load_attention_datas)
+    elif opts.eval_ff_dir is not None:
+        load_ff_datas = load_ff_models(opts)
+        ff_models = []  # feed forwad models from the directory
+        initialize_ff_models(opts, ff_models, load_ff_datas)
 
     # Initialize baseline models
     baseline_models = []

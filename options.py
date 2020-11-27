@@ -57,13 +57,6 @@ def get_options(args=None):
     )
 
     parser.add_argument(
-        "--graph_family_parameter",
-        type=float,
-        default=0.6,
-        help="parameter of the graph family distribution",
-    )
-
-    parser.add_argument(
         "--train_dataset",
         type=str,
         default="dataset/train",
@@ -81,13 +74,7 @@ def get_options(args=None):
         help="Distribution of weights in graphs",
     )
 
-    parser.add_argument(
-        "--graph_family",
-        type=str,
-        default="er",
-        help="family of graphs to generate for training/validation (er, ba, etc)",
-    )
-
+ 
     # Model
     parser.add_argument(
         "--model",
@@ -109,7 +96,10 @@ def get_options(args=None):
         help="Dimension of hidden layers in Enc/Dec",
     )
     parser.add_argument(
-        "--n_heads", type=int, default=3, help="Number of heads in Enc",
+        "--n_heads",
+        type=int,
+        default=2,
+        help="Number of heads in Enc",
     )
     parser.add_argument(
         "--n_encode_layers",
@@ -253,16 +243,6 @@ def get_options(args=None):
         help="path to folder containing all evaluation datasets",
     )
     parser.add_argument(
-        "--eval_ff_dir",
-        type=str,
-        help="dir to trained ff models",
-    )
-    parser.add_argument(
-        "--eval_attention_dir",
-        type=str,
-        help="dir to trained attention models",
-    )
-    parser.add_argument(
         "--eval_baselines", nargs="+", help="Different models to evaluate on",
     )
     parser.add_argument(
@@ -282,10 +262,16 @@ def get_options(args=None):
         help="evaluate model over a range of graph family parameters",
     )
     parser.add_argument(
-        "--eval_model_paths", nargs="+", help="paths to trained models",
+        "--eval_model_paths", nargs="+", help="paths to trained models files",
     )
     parser.add_argument(
-        "--eval_models", nargs="+", help="models to evaluate",
+        "--eval_ff_dir", type=str, help="path to the directory containing trained ff neural nets", 
+    )
+    parser.add_argument(
+        "--eval_attention_dir", type=str, help="path to the directory containing trained attention models", 
+    )
+    parser.add_argument(
+        "--eval_models", nargs="+", help="type of models to evaluate",
     )
     parser.add_argument(
         "--eval_set", nargs="+", help="Set of family parameters to evaluate models on",
