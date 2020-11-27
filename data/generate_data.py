@@ -1,7 +1,7 @@
 import argparse
 import os
 import numpy as np
-from data.data_utils import check_extension, save_dataset
+from data_utils import check_extension, save_dataset
 import networkx as nx
 from scipy.optimize import linear_sum_assignment
 import torch
