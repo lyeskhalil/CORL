@@ -76,19 +76,27 @@ def validate_many(opts, model, problem):
 
     plt.savefig(opts.eval_output + "/avg_optim_ratio.png")
 
-
+"""
+given the model, run the model on the evaluation dataset and return the optmiality ratios
+"""
 def get_op_ratios(opts, model, problem):
 
     ops = []
+    # for i in graph family parameters
     for i in range(len(opts.eval_set)):
         # opts.eval_dataset + "eval/graphs/"
-        #dataset_folder = opts.eval_dataset + "{}_{}/{}_by_{}/eval".format(
-        #    opts.graph_family, opts.eval_set[i], opts.u_size, opts.v_size
-        #)  # get the path to the test set dir
-        dataset_folder = opts.eval_dataset
+        dataset_folder = opts.eval_dataset + "/{}_{}_{}_{}_{}_{}by{}".format(
+            opts.problem, opts.graph_family, opts.eval_set[i], 
+            opts.weight_distribution, opts.weight_distribution_param, 
+            opts.u_size, opts.v_size
+        ).replace(" ","")
+        
+        # get the path to the test set dir
+        # dataset_folder = opts.eval_dataset
 
+        # get the eval data set as a pytorch dataset object 
         eval_dataset = problem.make_dataset(
-            dataset_folder, opts.eval_size, opts.problem
+            dataset_folder, opts.eval_size, opts.eval_size, opts.problem
         )
         eval_dataloader = DataLoader(
             eval_dataset, batch_size=opts.eval_batch_size, num_workers=1
