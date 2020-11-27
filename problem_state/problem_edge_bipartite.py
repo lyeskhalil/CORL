@@ -73,7 +73,7 @@ class EdgeBipartiteDataset(Dataset):
         # self.optimal_size = torch.load("{}/optimal_match.pt".format(self.data_set))
         self.problem = problem
         if dataset is not None:
-            self.optimal_size = torch.load("{}/optimal_match.pt".format(self.data_set))
+            self.optimal_size = torch.load("{}/optimal_match.pt".format(dataset))
             self.data_set = dataset
         else:
             # If no filename is specified generated data for edge obm probelm

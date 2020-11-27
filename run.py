@@ -97,10 +97,10 @@ def run(opts):
         validate(model, val_dataloader, opts)
     elif opts.tune:
         PARAM_GRID = list(product(
-            [0.00001],  # learning_rate
+            [0.00001, 0.001, 0.0001],  # learning_rate
             [(60, 3)],  # embedding size
-            [0.8, 0.85],  # baseline exponential decay
-            [1.0, 0.99, 0.98, 0.97, 0.96]  # lr decay
+            [0.75, 0.85, 0.9],  # baseline exponential decay
+            [1.0, 0.99, 0.98, 0.97, 0.96, 0.95]  # lr decay
         ))
 
         # total number of slurm workers detected
@@ -141,7 +141,7 @@ def run(opts):
                 training_dataset, batch_size=opts.batch_size, num_workers=1, shuffle=True,
             )
             for epoch in range(opts.epoch_start, opts.epoch_start + opts.n_epochs):
-                avg_reward = train_epoch(
+                avg_reward, min_cr, avg_cr = train_epoch(
                     model,
                     optimizer,
                     baseline,
@@ -154,7 +154,7 @@ def run(opts):
                     opts,
                 )
             with open(SCOREFILE, 'a') as f:
-                f.write(f'{",".join(map(str, params + (avg_reward,)))}\n')
+                f.write(f'{",".join(map(str, params + (avg_reward,min_cr,avg_cr)))}\n')
     else:
         for epoch in range(opts.epoch_start, opts.epoch_start + opts.n_epochs):
             train_epoch(

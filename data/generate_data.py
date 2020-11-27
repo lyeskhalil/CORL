@@ -107,17 +107,17 @@ def generate_weights(distribution, u_size, v_size, parameters, g1):
     if distribution == "uniform":
         weights = nx.bipartite.biadjacency_matrix(
             g1, range(0, u_size), range(u_size, u_size + v_size)
-        ).toarray() * np.random.randint(parameters[0], parameters[1], (u_size, v_size))
+        ).toarray() * np.random.randint(int(parameters[0]), int(parameters[1]), (u_size, v_size))
         w = torch.cat((torch.zeros(v_size, 1).long(), torch.tensor(weights).T), 1)
     elif distribution == "normal":
         weights = nx.bipartite.biadjacency_matrix(
             g1, range(0, u_size), range(u_size, u_size + v_size)
-        ).toarray() * np.random.normal(parameters[0], parameters[1], (u_size, v_size))
+        ).toarray() * (np.abs(np.random.normal(int(parameters[0]), int(parameters[1]), (u_size, v_size))) + 5)  # to make sure no edge has weight zero
         w = torch.cat((torch.zeros(v_size, 1).long(), torch.tensor(weights).T), 1)
     elif distribution == "power":
         weights = nx.bipartite.biadjacency_matrix(
             g1, range(0, u_size), range(u_size, u_size + v_size)
-        ).toarray() * powerlaw.rvs(parameters[0], parameters[1], parameters[2], (u_size, v_size))
+        ).toarray() * (powerlaw.rvs(int(parameters[0]), int(parameters[1]), int(parameters[2]), (u_size, v_size)) + 5)  # to make sure no edge has weight zero
         w = torch.cat((torch.zeros(v_size, 1).long(), torch.tensor(weights).T), 1)
 
     return weights, w
@@ -145,7 +145,7 @@ def generate_edge_obm_data(
         g = nx.bipartite.random_graph
     if graph_family == "ba":
         g = generate_ba_graph
-    for i in tqdm(range(opts.dataset_size)):
+    for i in tqdm(range(dataset_size)):
         g1 = g(u_size, v_size, p=graph_family_parameter, seed=seed + i)
         # d_old = np.array(sorted(g1.degree))[u_size:, 1]
         weights, w = generate_weights(weight_distribution, u_size, v_size, weight_param, g1)
