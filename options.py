@@ -32,6 +32,12 @@ def get_options(args=None):
         "--v_size", type=int, default=10, help="Number of nodes in the V-set"
     )
     parser.add_argument(
+        "--graph_family",
+        type=str,
+        default="er",
+        help="family of graphs to generate (er, ba, etc)",
+    )
+    parser.add_argument(
         "--num_edges",
         type=int,
         default=5,
@@ -199,30 +205,20 @@ def get_options(args=None):
         default=None,
         help="Data distribution to use during training, defaults and options depend on problem.",
     )
-    #parser.add_argument(
-    #    "--weight_distribution",
-    #    type=str,
-    #    default="uniform",
-    #    help="Distributions to generate for problem, default 'uniform' ",
-    #)
     parser.add_argument(
         "--weight_distribution_param",
         nargs="+",
-        default=[5, 4000],
+        default=[5,4000],
         help="parameters of weight distribtion ",
     )
-    #parser.add_argument(
-    #    "--graph_family",
-    #    type=str,
-    #    default="er",
-    #    help="family of graphs to generate (er, ba, etc)",
-    #)
-    #parser.add_argument(
-    #    "--graph_family_parameter",
-    #    type=float,
-    #    default=0.6,
-    #    help="parameter of the graph family distribution",
-    #)
+
+    parser.add_argument(
+       "--graph_family_parameter",
+        type=float,
+        default=0.6,
+        help="parameter of the graph family distribution",
+    )
+
     # Evaluation
 
     parser.add_argument(
@@ -239,6 +235,7 @@ def get_options(args=None):
     )
     parser.add_argument(
         "--eval_dataset",
+        default='dataset/eval',
         type=str,
         help="path to folder containing all evaluation datasets",
     )
