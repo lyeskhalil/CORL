@@ -86,18 +86,16 @@ def run(opts):
     # if not opts.tune:
     model, lr_scheduler, optimizer, val_dataloader, baseline = setup_training_env(opts, model_class, problem, load_data, tb_logger)
 
-    training_dataset = baseline.wrap_dataset(
-        problem.make_dataset(opts.train_dataset, opts.dataset_size, opts.problem)
-    )
-    training_dataloader = DataLoader(
-        training_dataset, batch_size=opts.batch_size, num_workers=1, shuffle=True,
-    )
-
+    training_dataset = problem.make_dataset(opts.train_dataset, opts.dataset_size, opts.problem, seed=None, opts=opts)
+    #training_dataloader = DataLoader(
+    #    baseline.wrap_dataset(training_dataset), batch_size=opts.batch_size, num_workers=1, shuffle=True,
+    #)
+    #training_dataloader = training_dataset
     if opts.eval_only:
         validate(model, val_dataloader, opts)
     elif opts.tune:
         PARAM_GRID = list(product(
-            [0.00001, 0.001, 0.0001],  # learning_rate
+            [0.00001, 0.001, 0.0001, 0.002, 0.0002],  # learning_rate
             [(60, 3)],  # embedding size
             [0.75, 0.85, 0.9],  # baseline exponential decay
             [1.0, 0.99, 0.98, 0.97, 0.96, 0.95]  # lr decay
@@ -134,13 +132,15 @@ def run(opts):
                 )
             load_data = {}
             model, lr_scheduler, optimizer, val_dataloader, baseline = setup_training_env(opts, model_class, problem, load_data, tb_logger)
-            training_dataset = baseline.wrap_dataset(
-                problem.make_dataset(opts.train_dataset, opts.dataset_size, opts.problem)
-            )
-            training_dataloader = DataLoader(
-                training_dataset, batch_size=opts.batch_size, num_workers=1, shuffle=True,
-            )
+            training_dataset = problem.make_dataset(opts.train_dataset, opts.dataset_size, opts.problem, seed=None, opts=opts)
+            
+            #training_dataloader = DataLoader(
+            #    baseline.wrap_dataset(training_dataset), batch_size=opts.batch_size, num_workers=1, shuffle=True,
+            #)
             for epoch in range(opts.epoch_start, opts.epoch_start + opts.n_epochs):
+                training_dataloader = DataLoader(
+                    baseline.wrap_dataset(training_dataset), batch_size=opts.batch_size, num_workers=1, shuffle=True,
+                )
                 avg_reward, min_cr, avg_cr = train_epoch(
                     model,
                     optimizer,
@@ -157,6 +157,9 @@ def run(opts):
                 f.write(f'{",".join(map(str, params + (avg_reward,min_cr,avg_cr)))}\n')
     else:
         for epoch in range(opts.epoch_start, opts.epoch_start + opts.n_epochs):
+            training_dataloader = DataLoader(
+                baseline.wrap_dataset(training_dataset), batch_size=opts.batch_size, num_workers=1, shuffle=True,
+            )
             train_epoch(
                 model,
                 optimizer,
@@ -255,7 +258,7 @@ def setup_training_env(opts, model_class, problem, load_data, tb_logger):
         optimizer, lambda epoch: opts.lr_decay ** epoch
     )
     # Start the actual training loop
-    val_dataset = problem.make_dataset(opts.val_dataset, opts.val_size, opts.problem)
+    val_dataset = problem.make_dataset(opts.val_dataset, opts.val_size, opts.problem, seed=None, opts=opts)
     val_dataloader = DataLoader(
         val_dataset, batch_size=opts.eval_batch_size, num_workers=1
     )

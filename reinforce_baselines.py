@@ -4,7 +4,7 @@ from torch.utils.data import Dataset
 from scipy.stats import ttest_rel
 import copy
 from train import rollout, get_inner_model
-
+from torch.utils.data import DataLoader
 
 class Baseline(object):
     def wrap_dataset(self, dataset):
@@ -49,6 +49,7 @@ class WarmupBaseline(Baseline):
     def unwrap_batch(self, batch):
         if self.alpha > 0:
             return self.baseline.unwrap_batch(batch)
+            #return batch
         return self.warmup_baseline.unwrap_batch(batch)
 
     def eval(self, x, c):
@@ -177,9 +178,9 @@ class RolloutBaseline(Baseline):
                 dataset = None
 
         if dataset is None:
-            self.dataset = self.problem.make_dataset(
-                None, self.opts.val_size, self.opts.problem, self.opts
-            )
+            self.dataset = DataLoader(self.problem.make_dataset(
+                None, self.opts.val_size, self.opts.problem, seed=epoch, opts=self.opts
+            ), batch_size=self.opts.eval_batch_size, num_workers=1)
         else:
             self.dataset = dataset
         print("Evaluating baseline model on evaluation dataset")
@@ -191,9 +192,11 @@ class RolloutBaseline(Baseline):
         print("Evaluating baseline on dataset...")
         # Need to convert baseline to 2D to prevent converting to double, see
         # https://discuss.pytorch.org/t/dataloader-gives-double-instead-of-float/717/3
+        dataloader = DataLoader(dataset, batch_size=self.opts.eval_batch_size, num_workers=1)
         return BaselineDataset(
-            dataset, rollout(self.model, dataset, self.opts)[0].view(-1, 1)
+            dataset, rollout(self.model, dataloader, self.opts)[0].view(-1, 1)
         )
+        #return dataset
 
     def unwrap_batch(self, batch):
         return (
