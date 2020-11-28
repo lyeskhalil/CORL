@@ -123,7 +123,7 @@ def plot_box(opts, data):
     num = len(data)
     plt.xlabel("Graph family parameter")
     plt.ylabel("Optimality ratio")
-    ticks = ["0.01", "0.05", "0.1", "0.15", "0.2"]
+    ticks = opts.eval_set #["0.01", "0.05", "0.1", "0.15", "0.2"]
     colors = ["#d53e4f", "#3288bd", "#7fbf7b", "#fee08b", "#fc8d59", "#e6f598"]
     i = 0
     for d in data:
@@ -361,10 +361,11 @@ def run(opts):
         results = np.array([baseline_results[0], trained_models_results])
         torch.save(
             torch.tensor(results),
-            opts.eval_output
-            + "/{}by{}_{}_test_results.pt".format(
-                opts.graph_family, opts.u_size, opts.v_size
-            ),
+            opts.eval_output + "/{}_{}_{}_{}_{}by{}".format(
+            opts.problem, opts.graph_family, 
+            opts.weight_distribution, opts.weight_distribution_param, 
+            opts.u_size, opts.v_size
+        ).replace(" ",""),
         )
         plot_box(opts, results)
     if opts.eval_family:
