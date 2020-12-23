@@ -66,7 +66,7 @@ class EdgeBipartite(object):
 
 
 class EdgeBipartiteDataset(Dataset):
-    def __init__(self, dataset, size, problem, opts):
+    def __init__(self, dataset, size, problem, seed, opts):
         super(EdgeBipartiteDataset, self).__init__()
 
         # self.data_set = dataset
@@ -83,11 +83,11 @@ class EdgeBipartiteDataset(Dataset):
                 opts.weight_distribution,
                 opts.weight_distribution_param,
                 opts.graph_family_parameter,
-                opts.seed,
+                seed,
                 opts.graph_family,
-                opts.dataset_folder,
+                None,
                 size,
-                opts.save_data
+                False
             )
             self.optimal_size = optimal_size
             self.data_set = D

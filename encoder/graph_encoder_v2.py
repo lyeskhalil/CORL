@@ -333,7 +333,6 @@ class GraphAttentionEncoder(nn.Module):
             h = layer(h, adj=adj, weights=weights)
         h = self._prepare_attentional_mechanism_input(h.view(batch_size, graph_size, self.embed_dim)) * torch.tril(1. - adj.float().unsqueeze(3))
         h = self.last_layer(torch.cat((h, weights.unsqueeze(3)), dim=3)).view(batch_size, graph_size**2, self.embed_dim)
-        print(h)
         return h
     def _prepare_attentional_mechanism_input(self, Wh):
         N = Wh.size()[1]  # number of nodes
