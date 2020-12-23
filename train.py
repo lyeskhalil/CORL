@@ -111,7 +111,6 @@ def rollout(model, dataset, opts):
         c, cr = eval_model_bat(bat, optimal)
         cost.append(c)
         crs.append(cr)
-
     return torch.cat(cost, 0), torch.cat(crs, 0)
 
     # return torch.cat(
