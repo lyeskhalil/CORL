@@ -56,7 +56,7 @@ def validate_many(opts, model, problem):
             dataset_folder, opts.eval_size, opts.problem
         )
         eval_dataloader = DataLoader(
-            eval_dataset, batch_size=opts.eval_batch_size, num_workers=1
+            eval_dataset, batch_size=opts.eval_batch_size, num_workers=0
         )
 
         avg_ratio, cr, avg_cr = validate(model, eval_dataloader, opts)
@@ -97,7 +97,7 @@ def get_op_ratios(opts, model, problem):
             dataset_folder, opts.eval_size, opts.eval_size, opts.problem, opts
         )
         eval_dataloader = DataLoader(
-            eval_dataset, batch_size=opts.eval_batch_size, num_workers=1
+            eval_dataset, batch_size=opts.eval_batch_size, num_workers=0
         )
 
         op = evaluate(model, eval_dataloader, opts)
