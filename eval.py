@@ -37,7 +37,7 @@ def eval_models(opts, models, problem):
     """
     Evaluate the models on a specific set of graph family parameters
     """
-
+    pass
 
 def validate_many(opts, model, problem):
     """
@@ -81,6 +81,7 @@ given the model, run the model on the evaluation dataset and return the optmiali
 """
 def get_op_ratios(opts, model, problem):
 
+    # get the path to the test set dir
     ops = []
     # for i in graph family parameters
     for i in range(len(opts.eval_set)):
@@ -91,12 +92,9 @@ def get_op_ratios(opts, model, problem):
             opts.u_size, opts.v_size
         ).replace(" ","")
         
-        # get the path to the test set dir
-        # dataset_folder = opts.eval_dataset
-
         # get the eval data set as a pytorch dataset object 
         eval_dataset = problem.make_dataset(
-            dataset_folder, opts.eval_size, opts.eval_size, opts.problem
+            dataset_folder, opts.eval_size, opts.eval_size, opts.problem, opts
         )
         eval_dataloader = DataLoader(
             eval_dataset, batch_size=opts.eval_batch_size, num_workers=1
@@ -117,7 +115,7 @@ def set_box_color(bp, color):
 def plot_box(opts, data):
     """
     plots the box data.
-    data is a list of 5 by 1000 (|graph family param| x |training examples|)
+    data is a list of (|graph family param| x |training examples|) arrays
     """
     plt.figure()
     num = len(data)
@@ -184,7 +182,7 @@ def load_ff_models(opts):
     load_data = {}
     load_datas = []
     ff_dir = opts.eval_ff_dir if opts.eval_ff_dir is not None else []
-    print("Loading all the attention models from {}".format(ff_dir))
+    print("Loading all the feed forward models from {}".format(ff_dir))
     for path in os.listdir(ff_dir):
         load_data = torch_load_cpu(path)
         load_datas.append(load_data)
@@ -301,6 +299,8 @@ def run(opts):
         plot_box(opts, np.array(t))
         return
 
+    # load the basline and neural net models and save them in models, attention_models, ff_models, baseline_models 
+
     # load models
     assert (
         opts.load_path is None
@@ -361,7 +361,7 @@ def run(opts):
         results = np.array([baseline_results[0], trained_models_results])
         torch.save(
             torch.tensor(results),
-            opts.eval_output + "/{}_{}_{}_{}_{}by{}".format(
+            opts.eval_output + "/{}_{}_{}_{}_{}by{}_results".format(
             opts.problem, opts.graph_family, 
             opts.weight_distribution, opts.weight_distribution_param, 
             opts.u_size, opts.v_size
@@ -372,8 +372,6 @@ def run(opts):
         validate_many(opts, model, problem)
     if opts.eval_plot:
         plot_box(opts, np.array(torch.load(opts.eval_results_folder)))
-    if opts.eval_family:
-        validate_many(opts, model, problem)
 
     # elif opts.eval_model:
     #     model1 = FeedForwardModel(
