@@ -128,7 +128,7 @@ class AttentionModel(nn.Module):
             embed_dim=embedding_dim,
             n_layers=self.n_encode_layers,
             normalization=normalization,
-            problem=self.problem.NAME,
+            problem=self.problem,
         )
 
         # For each node we compute (glimpse key, glimpse value, logit key) so 3 * embedding_dim
@@ -264,6 +264,7 @@ class AttentionModel(nn.Module):
 
         outputs = []
         sequences = []
+        
         state = self.problem.make_state(input, opts.u_size, opts.v_size, opts.num_edges)
         # Compute keys, values for the glimpse and keys for the logits once as they can be reused in every step
         # fixed = self._precompute(embeddings)
