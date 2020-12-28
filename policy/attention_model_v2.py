@@ -44,7 +44,7 @@ class AttentionModelFixed(NamedTuple):
                 glimpse_val=self.glimpse_val[:, key],  # dim 0 are the heads
                 logit_key=self.logit_key[key],
             )
-        # return super(AttentionModelFixed, self).__getitem__(key)
+        #return super(AttentionModelFixed, self).__getitem__(key)
         return self[key]
 
 
@@ -128,7 +128,7 @@ class AttentionModel(nn.Module):
             embed_dim=embedding_dim,
             n_layers=self.n_encode_layers,
             normalization=normalization,
-            problem=self.problem.NAME,
+            problem=self.problem,
         )
 
         # For each node we compute (glimpse key, glimpse value, logit key) so 3 * embedding_dim
@@ -264,6 +264,7 @@ class AttentionModel(nn.Module):
 
         outputs = []
         sequences = []
+        
         state = self.problem.make_state(input, opts.u_size, opts.v_size, opts.num_edges)
         # Compute keys, values for the glimpse and keys for the logits once as they can be reused in every step
         # fixed = self._precompute(embeddings)
@@ -271,26 +272,26 @@ class AttentionModel(nn.Module):
         # batch_size = state.ids.size(0)
         # Perform decoding steps
         i = 1
-
+        batch_size = state.weights.size(0)
         while not (state.all_finished()):
             step_size = state.i.item() + 1
             node_features = (
                 torch.arange(1, step_size+1, device=opts.device)
                 .unsqueeze(0)
-                .expand(opts.batch_size, step_size)
+                .expand(batch_size, step_size)
                 .unsqueeze(-1)
             )
             if opts.encoder == "attention":
                 embeddings = self.embedder(
                     self._init_embed(  # pass in one-hot encoding to embedder
                         node_features.float()
-                    ).view(opts.batch_size, step_size, -1),
+                    ).view(batch_size, step_size, -1),
                     state.graphs[:, :step_size, :step_size].bool(),
                     weights=state.weights,
                 )
             else:
                 embeddings = self.embedder(
-                    node_features.float().view(opts.batch_size, step_size, -1),
+                    node_features.float().view(batch_size, step_size, -1),
                     state.graphs[:, :step_size, :step_size],
                     weights=state.weights,
                 )
@@ -317,7 +318,6 @@ class AttentionModel(nn.Module):
             selected = self._select_node(
                 log_p.exp()[:, 0, :], mask[:, 0, :].bool()
             )  # Squeeze out steps dimension
-            print(log_p.exp()[:, 0, :])
             #print(selected)
             #print(embeddings)
             #print(state.weights)

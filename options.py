@@ -43,12 +43,12 @@ def get_options(args=None):
         default=5,
         help="Number of edges in the Bipartite graph",
     )
-    parser.add_argument(
-        "--epoch_size",
-        type=int,
-        default=100,
-        help="Number of instances per epoch during training",
-    )
+#    parser.add_argument(
+#        "--epoch_size",
+#        type=int,
+#        default=100,
+#        help="Number of instances per epoch during training",
+#    )
     parser.add_argument(
         "--val_size",
         type=int,
@@ -80,7 +80,7 @@ def get_options(args=None):
         help="Distribution of weights in graphs",
     )
 
- 
+   
     # Model
     parser.add_argument(
         "--model",
@@ -125,7 +125,7 @@ def get_options(args=None):
         default="batch",
         help="Normalization type, 'batch' (default) or 'instance'",
     )
-
+    
     # Training
     parser.add_argument(
         "--lr_model",
@@ -220,7 +220,7 @@ def get_options(args=None):
     )
 
     # Evaluation
-
+    
     parser.add_argument(
         "--eval_num",
         type=int,
@@ -235,7 +235,6 @@ def get_options(args=None):
     )
     parser.add_argument(
         "--eval_dataset",
-        default='dataset/eval',
         type=str,
         help="path to folder containing all evaluation datasets",
     )
@@ -258,8 +257,11 @@ def get_options(args=None):
         nargs="+",
         help="evaluate model over a range of graph family parameters",
     )
+   # parser.add_argument(
+   #     "--eval_model_paths", nargs="+", help="paths to trained models files",
+   # )
     parser.add_argument(
-        "--eval_model_paths", nargs="+", help="paths to trained models files",
+        "--load_path", help="Path to load model parameters and optimizer state from"
     )
     parser.add_argument(
         "--eval_ff_dir", type=str, help="path to the directory containing trained ff neural nets", 
@@ -273,7 +275,7 @@ def get_options(args=None):
     parser.add_argument(
         "--eval_set", nargs="+", help="Set of family parameters to evaluate models on",
     )
-
+    
     parser.add_argument(
         "--eval_num_range",
         type=int,
@@ -289,7 +291,7 @@ def get_options(args=None):
     parser.add_argument(
         "--eval_output", type=str, help="path to output evaulation plots",
     )
-
+    
     # Misc
     parser.add_argument(
         "--tune",
@@ -320,9 +322,7 @@ def get_options(args=None):
         default=0,
         help="Save checkpoint every n epochs (default 1), 0 to save no checkpoints",
     )
-    parser.add_argument(
-        "--load_path", help="Path to load model parameters and optimizer state from"
-    )
+   
     parser.add_argument(
         "--load_path2",
         help="Path to load second model parameters and optimizer state from",
@@ -336,9 +336,9 @@ def get_options(args=None):
     parser.add_argument(
         "--no_progress_bar", action="store_true", help="Disable progress bar"
     )
-
+ 
     opts = parser.parse_args(args)
-
+    
     opts.use_cuda = torch.cuda.is_available() and not opts.no_cuda
     opts.run_name = "{}_{}".format(opts.run_name, time.strftime("%Y%m%dT%H%M%S"))
     opts.save_dir = os.path.join(
@@ -348,6 +348,6 @@ def get_options(args=None):
         opts.bl_warmup_epochs = 1 if opts.baseline == "rollout" else 0
     assert (opts.bl_warmup_epochs == 0) or (opts.baseline == "rollout")
     assert (
-        opts.epoch_size % opts.batch_size == 0
+        opts.dataset_size % opts.batch_size == 0
     ), "Epoch size must be integer multiple of batch size!"
     return opts

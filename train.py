@@ -42,8 +42,6 @@ def validate(model, dataset, opts):
     # Validate
     print("Validating...")
     cost, cr = rollout(model, dataset, opts)
-    print("cost: ", cost)
-    print("competetive ratio: ", cr)
     avg_cost = cost.mean()
     
     min_cr = min(cr)
@@ -107,11 +105,14 @@ def rollout(model, dataset, opts):
 
     cost = []
     crs = []
-    for bat, optimal in tqdm(dataset):
-        c, cr = eval_model_bat(bat, optimal)
+    for batch, optimal in tqdm(dataset):
+        #print('bat[0][0]: ', bat[0][0])
+        #print('bat[1][0]: ', bat[1][0])
+        #print('dataset: ', dataset[0])
+        c, cr = eval_model_bat(batch, optimal)
         cost.append(c)
         crs.append(cr)
-
+        #break
     return torch.cat(cost, 0), torch.cat(crs, 0)
 
     # return torch.cat(
