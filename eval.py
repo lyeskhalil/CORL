@@ -47,8 +47,13 @@ def get_op_ratios(opts, model, problem):
     # for i in graph family parameters
     for i in range(len(opts.eval_set)):
         # get the eval dataset as a pytorch dataset object
+        parameter = opts.eval_set[i]
         eval_dataset = problem.make_dataset(
-            opts.eval_dataset, opts.eval_size, opts.eval_size, opts.problem, opts
+            opts.eval_dataset + "/parameter_{}".format(parameter),
+            opts.eval_size,
+            opts.eval_size,
+            opts.problem,
+            opts,
         )
         eval_dataloader = DataLoader(
             eval_dataset, batch_size=opts.eval_batch_size, num_workers=0
@@ -400,7 +405,7 @@ def run(opts):
             ).replace(" ", ""),
         )
         plot_box(opts, results)
-        line_graph(opts, models + baseline_models, problem)
+        # line_graph(opts, models + baseline_models, problem)
 
     # if opts.eval_plot:
     # plot_box(opts, np.array(torch.load(opts.eval_results_folder)))

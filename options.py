@@ -175,7 +175,7 @@ def get_options(args=None):
         "used for warmup phase), 0 otherwise. Can only be used with rollout baseline.",
     )
     parser.add_argument(
-        "--max_weight", type=int, default=4000, help="Maximum edge weight in the graph"
+        "--max_weight", type=int, default=100, help="Maximum edge weight in the graph"
     )
     parser.add_argument(
         "--eval_batch_size",
@@ -204,7 +204,7 @@ def get_options(args=None):
     parser.add_argument(
         "--weight_distribution_param",
         nargs="+",
-        default=[5, 4000],
+        default=[5, 100],
         help="parameters of weight distribtion ",
     )
 
