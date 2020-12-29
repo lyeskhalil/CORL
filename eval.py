@@ -32,50 +32,6 @@ from functions import move_to
 # from nets.pointer_network import PointerNetwork, CriticNetworkLSTM
 from functions import torch_load_cpu, load_problem
 
-
-def eval_models(opts, models, problem):
-    """
-    Evaluate the models on a specific set of graph family parameters
-    """
-    pass
-
-def validate_many(opts, model, problem):
-    """
-    Evaluate the models on a range of graph family parameters
-    """
-
-    crs = []
-    avg_crs = []
-    min_p, max_p = float(opts.eval_range[0]), float(opts.eval_range[1])
-    for i, j in enumerate(
-        np.arange(min_p, max_p, (min_p + max_p) / opts.eval_num_range)
-    ):
-        dataset_folder = opts.eval_dataset
-
-        eval_dataset = problem.make_dataset(
-            dataset_folder, opts.eval_size, opts.problem
-        )
-        eval_dataloader = DataLoader(
-            eval_dataset, batch_size=opts.eval_batch_size, num_workers=1
-        )
-
-        avg_ratio, cr, avg_cr = validate(model, eval_dataloader, opts)
-        crs.append(cr)
-        avg_crs.append(avg_cr)
-    plt.figure(1)
-    plt.plot(np.arange(min_p, max_p, (min_p + max_p) / opts.eval_num_range), crs)
-    plt.xlabel("Graph family parameter")
-    plt.ylabel("Competitive ratio")
-
-    plt.savefig(opts.eval_output + "/competitive_ratio.png")
-
-    plt.figure(2)
-    plt.plot(np.arange(min_p, max_p, (min_p + max_p) / opts.eval_num_range), avg_crs)
-    plt.xlabel("Graph family parameter")
-    plt.ylabel("Average ratio to optimal")
-
-    plt.savefig(opts.eval_output + "/avg_optim_ratio.png")
-
 """
 given the model, run the model on the evaluation dataset and return the optmiality ratios
 """
@@ -122,8 +78,7 @@ def plot_box(opts, data):
             d.T,
             positions=np.array(range(len(d))) * num + (0.2 * i),
             sym="",
-            widths=0.6,
-            whis=(0, 100),
+            widths=0.6
         )
         set_box_color(bp, colors[i])
         i += 1
@@ -131,9 +86,64 @@ def plot_box(opts, data):
     plt.xlim(-1 * num, len(ticks) * num)
     # plt.ylim(0, 1)
     plt.xticks(range(0, len(ticks) * num, num), ticks)
+
     plt.savefig(
-        opts.eval_output
-        + "/{}_{}by{}.png".format(opts.graph_family, opts.u_size, opts.v_size)
+       opts.eval_output + "/{}_{}_{}_{}_{}by{}_boxplot".format(
+            opts.problem, opts.graph_family, 
+            opts.weight_distribution, opts.weight_distribution_param, 
+            opts.u_size, opts.v_size
+        ).replace(" ","")
+    )
+
+
+def line_graph(opts, models, problem):
+    """
+    Evaluate the models on a range of graph family parameters.
+    Draw the line graph of optimality and competative ratios optimality ratio
+    """
+    plt.figure(1)
+    plt.xlabel("Graph family parameter")
+    plt.ylabel("Competitive ratio")
+
+    plt.figure(2)
+    plt.xlabel("Graph family parameter")
+    plt.ylabel("Average ratio to optimal")
+
+    min_p, max_p = float(opts.eval_range[0]), float(opts.eval_range[1])
+#    for i, j in enumerate(
+#        np.arange(min_p, max_p, (min_p + max_p) / opts.eval_num_range)
+#    ):
+    eval_dataset = problem.make_dataset(
+         opts.eval_dataset, opts.eval_size, opts.problem
+    )
+    eval_dataloader = DataLoader(
+        eval_dataset, batch_size=opts.eval_batch_size, num_workers=1
+    )
+    
+    for model in models:
+        crs = []
+        avg_crs = []
+        avg_ratio, cr, avg_cr = evaluate(model, eval_dataloader, opts)
+        crs.append(cr)
+        avg_crs.append(avg_cr)
+
+        plt.figure(1)
+        plt.plot(np.arange(min_p, max_p, (min_p + max_p) / opts.eval_num_range), crs)
+
+        plt.figure(2)
+        plt.plot(np.arange(min_p, max_p, (min_p + max_p) / opts.eval_num_range), avg_crs)
+    
+    plt.savefig(opts.eval_output + "/{}_{}_{}_{}_{}by{}_competitive_ratio".format(
+            opts.problem, opts.graph_family, 
+            opts.weight_distribution, opts.weight_distribution_param, 
+            opts.u_size, opts.v_size
+        ).replace(" ",""))
+        
+    plt.savefig(opts.eval_output + "/{}_{}_{}_{}_{}by{}_avg_opt_ratio".format(
+            opts.problem, opts.graph_family, 
+            opts.weight_distribution, opts.weight_distribution_param, 
+            opts.u_size, opts.v_size
+        ).replace(" ","")
     )
 
 
@@ -316,8 +326,6 @@ def run(opts):
         load_ff_datas = load_ff_models(opts)
         initialize_ff_models(opts, models, load_ff_datas) # feed forwad models from the directory
     
-    print('models: ', models)
-    
     # Initialize baseline models
     baseline_models = []
     for i in range(len(opts.eval_baselines)):
@@ -366,10 +374,10 @@ def run(opts):
         ).replace(" ",""),
         )
         plot_box(opts, results)
-    if opts.eval_family:
-        validate_many(opts, model, problem)
-    if opts.eval_plot:
-        plot_box(opts, np.array(torch.load(opts.eval_results_folder)))
+        line_graph(opts, models + baseline_models , problem)
+
+    #if opts.eval_plot:
+       # plot_box(opts, np.array(torch.load(opts.eval_results_folder)))
 
     # elif opts.eval_model:
     #     model1 = FeedForwardModel(

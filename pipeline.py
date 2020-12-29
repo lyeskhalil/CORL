@@ -7,26 +7,26 @@ problem = 'e-obm'
 graph_family = 'er'
 weight_distribution = 'uniform'
 weight_distribution_param = [5, 4000]
-graph_family_parameters = [0.05, 0.1, 0.2, 0.5]
-u_size = 10
+graph_family_parameters = [0.05, 0.1]
+u_size = 20
 v_size = 10
 dataset_size = 200
 val_size = 100
 eval_size = 100
 num_edges = 50
-train_dataset = 'dataset/train' + "/{}_{}_{}_{}_{}by{}_results".format(
+train_dataset = 'dataset/train' + "/{}_{}_{}_{}_{}by{}".format(
     problem, graph_family, 
     weight_distribution, weight_distribution_param, 
     u_size, v_size
     ).replace(" ", "")
 
-val_dataset = 'dataset/val' + "/{}_{}_{}_{}_{}by{}_results".format(
+val_dataset = 'dataset/val' + "/{}_{}_{}_{}_{}by{}".format(
     problem, graph_family, 
     weight_distribution, weight_distribution_param, 
     u_size, v_size
     ).replace(" ", "")
 
-eval_dataset = 'dataset/eval' + "/{}_{}_{}_{}_{}by{}_results".format(
+eval_dataset = 'dataset/eval' + "/{}_{}_{}_{}_{}by{}".format(
     problem, graph_family, 
     weight_distribution, weight_distribution_param, 
     u_size, v_size
@@ -37,7 +37,7 @@ eval_dataset = 'dataset/eval' + "/{}_{}_{}_{}_{}by{}_results".format(
 batch_size = 10
 embedding_dim = 16
 n_heads = 1
-n_epochs = 10
+n_epochs = 20
 checkpoint_epochs = 5
 baselines = ['greedy']   #******
 lr_model = 0.001 
@@ -76,45 +76,52 @@ def make_dir(output_dir):
 
 def generate_data():
     for n in graph_family_parameters:
+        train_dir = train_dataset  + '/parameter_{}'.format(n)
+        val_dir = val_dataset + '/parameter_{}'.format(n)
+        eval_dir = eval_dataset + '/parameter_{}'.format(n)
+
         generate_train = """python data/generate_data.py --problem {} --dataset_size {} --dataset_folder {}   
                             --u_size {} --v_size {} --graph_family {} --num_edges {} --weight_distribution {} 
                             --weight_distribution_param {} --graph_family_parameter {}""".format(
-            problem, dataset_size, train_dataset, u_size, v_size, 
+            problem, dataset_size, train_dir , u_size, v_size, 
             graph_family, num_edges, weight_distribution, 
             weight_distribution_param, n)
 
         generate_val = """python data/generate_data.py --problem {} --dataset_size {} --dataset_folder {}  
                             --u_size {} --v_size {} --graph_family {} --num_edges {} --weight_distribution {} 
                             --weight_distribution_param {} --graph_family_parameter {}""".format(
-            problem, val_size, val_dataset, u_size, v_size, 
+            problem, val_size, val_dir, u_size, v_size, 
             graph_family, num_edges, weight_distribution, 
             weight_distribution_param, n)
 
         generate_eval = """python data/generate_data.py --problem {} --dataset_size {} --dataset_folder {}  
                             --u_size {} --v_size {} --graph_family {} --num_edges {} --weight_distribution {} 
                             --weight_distribution_param {} --graph_family_parameter {}""".format(
-            problem, eval_size, eval_dataset, u_size, v_size, 
+            problem, eval_size, eval_dir, u_size, v_size, 
             graph_family, num_edges, weight_distribution, 
             weight_distribution_param, n)
 
         print(generate_train)
+        os.system(generate_train)
+
         print(generate_val)
+        os.system(generate_val)
+
         print(generate_eval)
-        #os.system(generate_train)
-        #os.system(generate_val)
-        #os.system(generate_eval)
+        os.system(generate_eval)
 
 
 def train_model():
+    for n in graph_family_parameters:
         train = """python run.py --problem {} --batch_size {} --embedding_dim {} --n_heads {} --u_size {}  --v_size {} --n_epochs {} 
-            --train_dataset {} --val_dataset {} --dataset_size {} --val_size {} --checkpoint_epochs {} --baseline {} --lr_model {} 
-            --lr_decay {} --output_dir {} --log_dir {} --n_encode_layers {}""".format(
-        problem, batch_size, embedding_dim, n_heads, u_size, v_size, n_epochs, 
-        train_dataset, val_dataset, dataset_size, val_size, checkpoint_epochs, 
-        baselines, lr_model, lr_decay, output_dir, log_dir, n_encode_layers)
+                    --train_dataset {} --val_dataset {} --dataset_size {} --val_size {} --checkpoint_epochs {} --baseline {} --lr_model {} 
+                    --lr_decay {} --output_dir {} --log_dir {} --n_encode_layers {} --graph_family_parameter {}""".format(
+            problem, batch_size, embedding_dim, n_heads, u_size, v_size, n_epochs, 
+            train_dataset, val_dataset, dataset_size, val_size, checkpoint_epochs, 
+            baselines, lr_model, lr_decay, output_dir, log_dir, n_encode_layers, n)
 
         print(train)
-        #os.system(train)
+        os.system(train)
 
 
 def evaluate_model():
@@ -131,7 +138,5 @@ if __name__ == "__main__":
     #make the directories if they do not exist
     make_dir(output_dir)
     generate_data()
-    train_model()
-    evaluate_model()
-
-
+    #train_model()
+    #evaluate_model()
