@@ -19,23 +19,24 @@ def get_inner_model(model):
 
 def evaluate(model, dataset, opts):
     print("Evaluating...")
-    cost, op = rollout(model, dataset, opts)
-    cr = min(op)
-    avg_op = op.mean()
+    cost, cr = rollout(model, dataset, opts)
+    avg_cost = cost.mean()
 
+    min_cr = min(cr)
+    avg_cr = cr.mean()
     print(
-        "Evaluation overall avg_cost: {} +- {}".format(
-            avg_op, torch.std(cost) / math.sqrt(len(cost))
+        "Test overall avg_cost: {} +- {}".format(
+            avg_cost, torch.std(cost) / math.sqrt(len(cost))
         )
     )
     print(
-        "\nEvaluation overall avg ratio to optimal: {} +- {}".format(
-            avg_op, torch.std(op) / math.sqrt(len(op))
+        "\nTest overall avg ratio to optimal: {} +- {}".format(
+            avg_cr, torch.std(cr) / math.sqrt(len(cr))
         )
     )
-    print("\nEvaluation competitive ratio", cr.item())
+    print("\nTest competitive ratio", min_cr.item())
 
-    return op
+    return cr
 
 
 def validate(model, dataset, opts):
@@ -43,7 +44,7 @@ def validate(model, dataset, opts):
     print("Validating...")
     cost, cr = rollout(model, dataset, opts)
     avg_cost = cost.mean()
-    
+
     min_cr = min(cr)
     avg_cr = cr.mean()
     print(
@@ -97,7 +98,11 @@ def rollout(model, dataset, opts):
 
         # print(-cost.data.flatten())
         # print(bat[-1])
-        cr = -cost.data.flatten() * opts.v_size / move_to(optimal + (optimal == 0).float(), opts.device)
+        cr = (
+            -cost.data.flatten()
+            * opts.v_size
+            / move_to(optimal + (optimal == 0).float(), opts.device)
+        )
         # print(
         #     "\nBatch Competitive ratio: ", min(cr).item(),
         # )
@@ -106,13 +111,13 @@ def rollout(model, dataset, opts):
     cost = []
     crs = []
     for batch, optimal in tqdm(dataset):
-        #print('bat[0][0]: ', bat[0][0])
-        #print('bat[1][0]: ', bat[1][0])
-        #print('dataset: ', dataset[0])
+        # print('bat[0][0]: ', bat[0][0])
+        # print('bat[1][0]: ', bat[1][0])
+        # print('dataset: ', dataset[0])
         c, cr = eval_model_bat(batch, optimal)
         cost.append(c)
         crs.append(cr)
-        #break
+        # break
     return torch.cat(cost, 0), torch.cat(crs, 0)
 
     # return torch.cat(
@@ -212,8 +217,10 @@ def train_epoch(
             },
             os.path.join(opts.save_dir, "latest-{}.pt".format(epoch)),
         )
-    elif not opts.tune and (opts.checkpoint_epochs != 0) and (
-        (epoch % opts.checkpoint_epochs == 0) or (epoch == opts.n_epochs - 1)
+    elif (
+        not opts.tune
+        and (opts.checkpoint_epochs != 0)
+        and ((epoch % opts.checkpoint_epochs == 0) or (epoch == opts.n_epochs - 1))
     ):
         print("Saving model and state...")
         torch.save(

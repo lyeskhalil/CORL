@@ -57,9 +57,9 @@ output_dir = "figures"
 log_dir = "logs_dataset"
 
 # model evaluation flags
-eval_models = "attention"
+eval_models = "attention attention attention attention attention"
 # this is the checkpoint. Example: outputs_dataset/e-obm_20/run_20201226T171156/epoch-4.pt
-load_path = "../output_e-obm_er_10by30_p=0.15_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T063254/epoch-79.pt"
+load_path = "../output_e-obm_er_10by30_p=0.15_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T063254/epoch-79.pt ../output_e-obm_er_10by30_p=0.01_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T060349/epoch-79.pt ../output_e-obm_er_10by30_p=0.05_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T060338/epoch-79.pt ../output_e-obm_er_10by30_p=0.1_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T062920/epoch-79.pt ../output_e-obm_er_10by30_p=0.2_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T063830/epoch-79.pt"
 eval_batch_size = 50
 eval_set = graph_family_parameters
 eval_baselines = baselines
@@ -127,7 +127,7 @@ def generate_data():
 
         print(generate_train)
         print(generate_val)
-        # print(generate_eval)
+        print(generate_eval)
         # os.system(generate_train)
         # os.system(generate_val)
         os.system(generate_eval)
@@ -165,7 +165,7 @@ def evaluate_model():
         problem,
         embedding_dim,
         load_path,
-        eval_baselines,
+        eval_baselines[0],
         eval_models,
         eval_dataset,
         u_size,
