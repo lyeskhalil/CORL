@@ -40,7 +40,7 @@ def get_options(args=None):
     parser.add_argument(
         "--num_edges",
         type=int,
-        default=5,
+        default=20,
         help="Number of edges in the Bipartite graph",
     )
 #    parser.add_argument(
@@ -68,7 +68,7 @@ def get_options(args=None):
         default="dataset/train",
         help="Dataset file to use for training",
     )
-
+    
     parser.add_argument(
         "--dataset_size", type=int, default=1000, help="Dataset size for training",
     )
@@ -218,7 +218,7 @@ def get_options(args=None):
         default=0.6,
         help="parameter of the graph family distribution",
     )
-
+    
     # Evaluation
     
     parser.add_argument(
@@ -240,6 +240,7 @@ def get_options(args=None):
     )
     parser.add_argument(
         "--eval_baselines", nargs="+", help="Different models to evaluate on",
+        # Example: ["greedy", "greedy-rt"]
     )
     parser.add_argument(
         "--eval_only",
@@ -283,11 +284,11 @@ def get_options(args=None):
         help="Number of grpah family parameter to evaluate model on over a specific range",
     )
 
-    parser.add_argument(
-        "--eval_family",
-        action="store_true",
-        help="Set this to true if you evaluating the model over a family of graphs",
-    )
+#    parser.add_argument(
+#        "--eval_family",
+#        action="store_true",
+#        help="Set this to true if you evaluating the model over a family of graphs",
+#    )
     parser.add_argument(
         "--eval_output", type=str, help="path to output evaulation plots",
     )
