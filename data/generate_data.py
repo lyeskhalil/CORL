@@ -309,7 +309,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--weight_distribution_param",
         nargs="+",
-        default=[5, 4000],
+        default='5 4000',
         help="parameters of weight distribtion ",
     )
     parser.add_argument(
@@ -340,7 +340,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--graph_family_parameter",
         type=float,
-        default=0.6,
         help="parameter of the graph family distribution",
     )
 

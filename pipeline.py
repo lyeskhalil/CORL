@@ -6,15 +6,15 @@ import os
 problem = "e-obm"
 graph_family = "er"
 weight_distribution = "uniform"
-weight_distribution_param = "5 100"  # seperate by a space
-graph_family_parameters = "0.01 0.05 0.1 0.15 0.2"
-u_size = 10
-v_size = 30
+weight_distribution_param = "5 1000"  # seperate by a space
+graph_family_parameters = '0.05 0.1' #"0.01 0.05 0.1 0.15 0.2"
+u_size = 20 #10
+v_size = 10 #30
 dataset_size = 200
 val_size = 100
-eval_size = 1000
+eval_size = 100
 num_edges = 100
-train_dataset = "dataset/train" + "/{}_{}_{}_{}_{}by{}".format(
+extention = "/{}_{}_{}_{}_{}by{}".format(
     problem,
     graph_family,
     weight_distribution,
@@ -23,29 +23,17 @@ train_dataset = "dataset/train" + "/{}_{}_{}_{}_{}by{}".format(
     v_size,
 ).replace(" ", "")
 
-val_dataset = "dataset/val" + "/{}_{}_{}_{}_{}by{}".format(
-    problem,
-    graph_family,
-    weight_distribution,
-    weight_distribution_param,
-    u_size,
-    v_size,
-).replace(" ", "")
+train_dataset = "dataset/train" + extention
 
-eval_dataset = "dataset/eval" + "/{}_{}_{}_{}_{}by{}".format(
-    problem,
-    graph_family,
-    weight_distribution,
-    weight_distribution_param,
-    u_size,
-    v_size,
-).replace(" ", "")
+val_dataset = "dataset/val" + extention
+
+eval_dataset = "dataset/eval" + extention
 
 # model flags
 batch_size = 10
-embedding_dim = 60
-n_heads = 3
-n_epochs = 20
+embedding_dim = 18 #60
+n_heads = 1 #3
+n_epochs = 10
 checkpoint_epochs = 5
 eval_baselines = "greedy"  # ******
 lr_model = 0.001
@@ -59,12 +47,23 @@ log_dir = "logs_dataset"
 # model evaluation flags
 eval_models = "attention"
 eval_output = "figures"
-# this is the checkpoint. Example: outputs_dataset/e-obm_20/run_20201226T171156/epoch-4.pt
-load_path = "../output_e-obm_er_10by30_p=0.15_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T063254/epoch-79.pt"
+# this is a single checkpoint. Example: outputs_dataset/e-obm_20/run_20201226T171156/epoch-4.pt
+load_path = 'saved_models/e-obm_er_uniform_51000_20by10/parameter_0.1/epoch-9.pt'
+#"../output_e-obm_er_10by30_p=0.15_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T063254/epoch-79.pt"
 # ../output_e-obm_er_10by30_p=0.01_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T060349/epoch-79.pt \
 # ../output_e-obm_er_10by30_p=0.05_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T060338/epoch-79.pt \
 # ../output_e-obm_er_10by30_p=0.1_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T062920/epoch-79.pt \
 # ../output_e-obm_er_10by30_p=0.2_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T063830/epoch-79.pt"
+
+#this is a list of attention model checkpoints seperated by space. The number of checkpoints should be the same as the length of eval_set
+#Note: checkpoints must be in the same order as eval set (i,e. checkpoint1 must be for graph paramter 0.05, etc.)
+attention_models = None
+
+#this is a list of feedforward model checkpoints seperated by space. The number of checkpoints should be the same as the length of eval_set
+#Note: checkpoints must be in the same order as eval set (i,e. checkpoint1 must be for graph paramter 0.05, etc.)
+ff_models = None
+
+
 eval_batch_size = 50
 eval_set = graph_family_parameters
 
@@ -91,6 +90,7 @@ def make_dir():
 
 def generate_data():
     for n in graph_family_parameters.split(" "):
+        # the naming convention here should not be changed!
         train_dir = train_dataset + "/parameter_{}".format(n)
         val_dir = val_dataset + "/parameter_{}".format(n)
         eval_dir = eval_dataset + "/parameter_{}".format(n)
@@ -149,11 +149,13 @@ def generate_data():
 
 def train_model():
     for n in graph_family_parameters.split(" "):
+        # the naming convention here should not be changed!
         train_dir = train_dataset + "/parameter_{}".format(n)
         val_dir = val_dataset + "/parameter_{}".format(n)
+        save_dir = output_dir + extention + "/parameter_{}".format(n)
         train = """python run.py --problem {} --batch_size {} --embedding_dim {} --n_heads {} --u_size {}  --v_size {} --n_epochs {} \
                     --train_dataset {} --val_dataset {} --dataset_size {} --val_size {} --checkpoint_epochs {} --baseline {} \
-                    --lr_model {} --lr_decay {} --output_dir {} --log_dir {} --n_encode_layers {} --num_edges {} --graph_family_parameter {}""".format(
+                    --lr_model {} --lr_decay {} --output_dir {} --log_dir {} --n_encode_layers {} --num_edges {} --save_dir {} --graph_family_parameter {}""".format(
             problem,
             batch_size,
             embedding_dim,
@@ -173,6 +175,7 @@ def train_model():
             log_dir,
             n_encode_layers,
             num_edges,
+            save_dir,
             n,
         )
 
@@ -181,11 +184,14 @@ def train_model():
 
 
 def evaluate_model():
-    evaluate = """python eval.py --problem {} --embedding_dim {} --load_path {} --eval_baselines {} --baseline {} --eval_models  {} --eval_dataset {} \
-    --u_size {} --v_size {} --eval_set {} --eval_size {} --eval_batch_size {} --n_encode_layers {} --n_heads {} --output_dir {}""".format(
+    evaluate = """python eval.py --problem {} --embedding_dim {} --load_path {} --ff_models {} --attention_models {} --eval_baselines {} \
+        --baseline {} --eval_models  {} --eval_dataset {}  --u_size {} --v_size {} --eval_set {} --eval_size {} --eval_batch_size {} \
+        --n_encode_layers {} --n_heads {} --output_dir {}""".format(
         problem,
         embedding_dim,
         load_path,
+        ff_models,
+        attention_models,
         eval_baselines,
         baseline,
         eval_models,
@@ -207,6 +213,6 @@ def evaluate_model():
 if __name__ == "__main__":
     # make the directories if they do not exist
     make_dir()
-    generate_data()
-    # train_model()
+    #generate_data()
+    #train_model()
     evaluate_model()

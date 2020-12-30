@@ -263,14 +263,14 @@ def get_options(args=None):
         "--load_path", help="Path to load model parameters and optimizer state from"
     )
     parser.add_argument(
-        "--eval_ff_dir",
+        "--ff_models",
         type=str,
-        help="path to the directory containing trained ff neural nets",
+        help="list of trained ff models, seperated by space",
     )
     parser.add_argument(
-        "--eval_attention_dir",
+        "--attention_models",
         type=str,
-        help="path to the directory containing trained attention models",
+        help="list of path to trained attention models, seperated by space",
     )
     parser.add_argument(
         "--eval_models", nargs="+", help="type of models to evaluate",
@@ -330,6 +330,13 @@ def get_options(args=None):
         "--load_path2",
         help="Path to load second model parameters and optimizer state from",
     )
+
+    parser.add_argument(
+        "--save_dir",
+        help="Path to save the checkpoints",
+
+    )
+
     parser.add_argument("--resume", help="Resume from previous checkpoint file")
     parser.add_argument(
         "--no_tensorboard",
@@ -343,9 +350,6 @@ def get_options(args=None):
     opts = parser.parse_args(args)
     opts.use_cuda = torch.cuda.is_available() and not opts.no_cuda
     opts.run_name = "{}_{}".format(opts.run_name, time.strftime("%Y%m%dT%H%M%S"))
-    opts.save_dir = os.path.join(
-        opts.output_dir, "{}_{}".format(opts.problem, opts.graph_size), opts.run_name
-    )
     if opts.bl_warmup_epochs is None:
         opts.bl_warmup_epochs = 1 if opts.baseline == "rollout" else 0
     assert (opts.bl_warmup_epochs == 0) or (opts.baseline == "rollout")
