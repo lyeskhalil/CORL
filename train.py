@@ -21,7 +21,7 @@ def evaluate(model, dataset, opts):
     print("Evaluating...")
     cost, cr = rollout(model, dataset, opts)
     avg_cost = cost.mean()
-    
+
     min_cr = min(cr)
     avg_cr = cr.mean()
 
@@ -39,7 +39,7 @@ def evaluate(model, dataset, opts):
     )
     print("\nEvaluation competitive ratio", min_cr.item())
 
-    return avg_cost, min_cr.item(), avg_cr
+    return avg_cost, min_cr.item(), avg_cr, cr
 
 
 def validate(model, dataset, opts):
@@ -184,7 +184,7 @@ def train_epoch(
     # training_dataloader = DataLoader(
     #     training_dataset, batch_size=opts.batch_size, num_workers=1
     # )
-    
+
     # Put model in train mode!
     model.train()
     set_decode_type(model, "sampling")

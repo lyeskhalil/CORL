@@ -6,13 +6,13 @@ import os
 problem = "e-obm"
 graph_family = "er"
 weight_distribution = "uniform"
-weight_distribution_param = "5 1000"  # seperate by a space
-graph_family_parameters = '0.05 0.1' #"0.01 0.05 0.1 0.15 0.2"
-u_size = 20 #10
-v_size = 10 #30
+weight_distribution_param = "5 100"  # seperate by a space
+graph_family_parameters = "0.01 0.05 0.1 0.15 0.2"
+u_size = 10  # 10
+v_size = 30  # 30
 dataset_size = 200
 val_size = 100
-eval_size = 100
+eval_size = 1000
 num_edges = 100
 extention = "/{}_{}_{}_{}_{}by{}".format(
     problem,
@@ -31,15 +31,15 @@ eval_dataset = "dataset/eval" + extention
 
 # model flags
 batch_size = 10
-embedding_dim = 18 #60
-n_heads = 1 #3
+embedding_dim = 60  # 60
+n_heads = 3  # 3
 n_epochs = 10
 checkpoint_epochs = 5
 eval_baselines = "greedy"  # ******
 lr_model = 0.001
 lr_decay = 0.9
 n_encode_layers = 3
-baseline = "rollout"
+baseline = "exponential"
 # directory io flags
 output_dir = "saved_models"
 log_dir = "logs_dataset"
@@ -48,19 +48,24 @@ log_dir = "logs_dataset"
 eval_models = "attention"
 eval_output = "figures"
 # this is a single checkpoint. Example: outputs_dataset/e-obm_20/run_20201226T171156/epoch-4.pt
-load_path = 'saved_models/e-obm_er_uniform_51000_20by10/parameter_0.1/epoch-9.pt'
-#"../output_e-obm_er_10by30_p=0.15_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T063254/epoch-79.pt"
+load_path = "../output_e-obm_er_10by30_p=0.15_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T063254/epoch-79.pt"
+# "../output_e-obm_er_10by30_p=0.15_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T063254/epoch-79.pt"
 # ../output_e-obm_er_10by30_p=0.01_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T060349/epoch-79.pt \
 # ../output_e-obm_er_10by30_p=0.05_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T060338/epoch-79.pt \
 # ../output_e-obm_er_10by30_p=0.1_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T062920/epoch-79.pt \
 # ../output_e-obm_er_10by30_p=0.2_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T063830/epoch-79.pt"
 
-#this is a list of attention model checkpoints seperated by space. The number of checkpoints should be the same as the length of eval_set
-#Note: checkpoints must be in the same order as eval set (i,e. checkpoint1 must be for graph paramter 0.05, etc.)
+# this is a list of attention model checkpoints seperated by space. The number of checkpoints should be the same as the length of eval_set
+# Note: checkpoints must be in the same order as eval set (i,e. checkpoint1 must be for graph paramter 0.05, etc.)
 attention_models = None
+# ["../output_e-obm_er_10by30_p=0.01_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T060349/epoch-79.pt",
+#                     "../output_e-obm_er_10by30_p=0.05_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T060338/epoch-79.pt",
+#                     "../output_e-obm_er_10by30_p=0.1_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T062920/epoch-79.pt",
+#                     "../output_e-obm_er_10by30_p=0.15_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T063254/epoch-79.pt",
+#                     "../output_e-obm_er_10by30_p=0.2_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T063830/epoch-79.pt"]
 
-#this is a list of feedforward model checkpoints seperated by space. The number of checkpoints should be the same as the length of eval_set
-#Note: checkpoints must be in the same order as eval set (i,e. checkpoint1 must be for graph paramter 0.05, etc.)
+# this is a list of feedforward model checkpoints seperated by space. The number of checkpoints should be the same as the length of eval_set
+# Note: checkpoints must be in the same order as eval set (i,e. checkpoint1 must be for graph paramter 0.05, etc.)
 ff_models = None
 
 
@@ -213,6 +218,6 @@ def evaluate_model():
 if __name__ == "__main__":
     # make the directories if they do not exist
     make_dir()
-    #generate_data()
-    #train_model()
+    # generate_data()
+    # train_model()
     evaluate_model()

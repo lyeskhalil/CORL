@@ -33,17 +33,17 @@ from functions import move_to
 # from nets.pointer_network import PointerNetwork, CriticNetworkLSTM
 from functions import torch_load_cpu, load_problem
 
-"""
-given the model, run the model on the evaluation dataset and return the optmiality ratios
-"""
-def get_model_op_ratios(opts, model, problem):
 
+def get_model_op_ratios(opts, model, problem):
+    """
+    given the model, run the model on the evaluation dataset and return the optmiality ratios
+    """
     # get the path to the test set dir
     ops = []
     # for i in graph family parameters
     for i in range(len(opts.eval_set)):
         dataset = opts.eval_dataset + "/parameter_{}".format(opts.eval_set[i])
-        # get the eval dataset as a pytorch dataset object 
+        # get the eval dataset as a pytorch dataset object
         eval_dataset = problem.make_dataset(
             dataset, opts.eval_size, opts.eval_size, opts.problem, opts
         )
@@ -51,23 +51,21 @@ def get_model_op_ratios(opts, model, problem):
             eval_dataset, batch_size=opts.eval_batch_size, num_workers=0
         )
 
-        op, cr, avg_cr= evaluate(model, eval_dataloader, opts)
+        avg_cost, cr, avg_cr, op = evaluate(model, eval_dataloader, opts)
         ops.append(op.cpu().numpy())
     return np.array(ops)
 
 
-
-"""
-given the model, run the model trained on a parameter on the evaluation dataset for that parameter and return the optmiality ratios
-"""
 def get_models_op_ratios(opts, models, problem):
-
+    """
+    given the model, run the model trained on a parameter on the evaluation dataset for that parameter and return the optmiality ratios
+    """
     # get the path to the test set dir
     ops = []
     # for i in graph family parameters
     for i in range(len(opts.eval_set)):
         dataset = opts.eval_dataset + "/parameter_{}".format(opts.eval_set[i])
-        # get the eval dataset as a pytorch dataset object 
+        # get the eval dataset as a pytorch dataset object
         eval_dataset = problem.make_dataset(
             dataset, opts.eval_size, opts.eval_size, opts.problem, opts
         )
@@ -75,7 +73,7 @@ def get_models_op_ratios(opts, models, problem):
             eval_dataset, batch_size=opts.eval_batch_size, num_workers=0
         )
 
-        op, cr, avg_cr= evaluate(models[i], eval_dataloader, opts)
+        avg_cost, cr, avg_cr, op = evaluate(models[i], eval_dataloader, opts)
         ops.append(op.cpu().numpy())
     return np.array(ops)
 
@@ -96,15 +94,13 @@ def plot_box(opts, data):
     num = len(data)
     plt.xlabel("Graph family parameter")
     plt.ylabel("Optimality ratio")
-    ticks = opts.eval_set #["0.01", "0.05", "0.1", "0.15", "0.2"]
+    ticks = opts.eval_set  # ["0.01", "0.05", "0.1", "0.15", "0.2"]
     colors = ["#d53e4f", "#3288bd", "#7fbf7b", "#fee08b", "#fc8d59", "#e6f598"]
     i = 0
     for d in data:
+        print(d.shape)
         bp = plt.boxplot(
-            d.T,
-            positions=np.array(range(len(d))) * num + (0.2 * i),
-            sym="",
-            widths=0.6
+            d.T, positions=np.array(range(len(d))) * num + (0.2 * i), sym="", widths=0.6
         )
         set_box_color(bp, colors[i])
         i += 1
@@ -114,11 +110,15 @@ def plot_box(opts, data):
     plt.xticks(range(0, len(ticks) * num, num), ticks)
 
     plt.savefig(
-       opts.eval_output + "/{}_{}_{}_{}_{}by{}_boxplot".format(
-            opts.problem, opts.graph_family, 
-            opts.weight_distribution, opts.weight_distribution_param, 
-            opts.u_size, opts.v_size
-        ).replace(" ","")
+        opts.eval_output
+        + "/{}_{}_{}_{}_{}by{}_boxplot".format(
+            opts.problem,
+            opts.graph_family,
+            opts.weight_distribution,
+            opts.weight_distribution_param,
+            opts.u_size,
+            opts.v_size,
+        ).replace(" ", "")
     )
 
 
@@ -136,16 +136,14 @@ def line_graph(opts, models, problem):
     plt.ylabel("Average ratio to optimal")
 
     min_p, max_p = float(opts.eval_range[0]), float(opts.eval_range[1])
-#    for i, j in enumerate(
-#        np.arange(min_p, max_p, (min_p + max_p) / opts.eval_num_range)
-#    ):
-    eval_dataset = problem.make_dataset(
-         opts.eval_dataset, opts.eval_size, opts.problem
-    )
+    #    for i, j in enumerate(
+    #        np.arange(min_p, max_p, (min_p + max_p) / opts.eval_num_range)
+    #    ):
+    eval_dataset = problem.make_dataset(opts.eval_dataset, opts.eval_size, opts.problem)
     eval_dataloader = DataLoader(
         eval_dataset, batch_size=opts.eval_batch_size, num_workers=1
     )
-    
+
     for model in models:
         crs = []
         avg_crs = []
@@ -157,25 +155,38 @@ def line_graph(opts, models, problem):
         plt.plot(np.arange(min_p, max_p, (min_p + max_p) / opts.eval_num_range), crs)
 
         plt.figure(2)
-        plt.plot(np.arange(min_p, max_p, (min_p + max_p) / opts.eval_num_range), avg_crs)
-    
-    plt.savefig(opts.eval_output + "/{}_{}_{}_{}_{}by{}_competitive_ratio".format(
-            opts.problem, opts.graph_family, 
-            opts.weight_distribution, opts.weight_distribution_param, 
-            opts.u_size, opts.v_size
-        ).replace(" ",""))
-        
-    plt.savefig(opts.eval_output + "/{}_{}_{}_{}_{}by{}_avg_opt_ratio".format(
-            opts.problem, opts.graph_family, 
-            opts.weight_distribution, opts.weight_distribution_param, 
-            opts.u_size, opts.v_size
-        ).replace(" ","")
+        plt.plot(
+            np.arange(min_p, max_p, (min_p + max_p) / opts.eval_num_range), avg_crs
+        )
+
+    plt.savefig(
+        opts.eval_output
+        + "/{}_{}_{}_{}_{}by{}_competitive_ratio".format(
+            opts.problem,
+            opts.graph_family,
+            opts.weight_distribution,
+            opts.weight_distribution_param,
+            opts.u_size,
+            opts.v_size,
+        ).replace(" ", "")
+    )
+
+    plt.savefig(
+        opts.eval_output
+        + "/{}_{}_{}_{}_{}by{}_avg_opt_ratio".format(
+            opts.problem,
+            opts.graph_family,
+            opts.weight_distribution,
+            opts.weight_distribution_param,
+            opts.u_size,
+            opts.v_size,
+        ).replace(" ", "")
     )
 
 
 def load_model(opts):
     """
-    Load models (here we refer to them as data) from load_path 
+    Load models (here we refer to them as data) from load_path
     """
     load_data = {}
     load_datas = []
@@ -193,8 +204,10 @@ def load_models(opts):
     """
     load_data = {}
     load_datas = []
-    models_paths = opts.attention_models.split(' ')
-    assert len(models_paths) == len(opts.eval_set), "the number of models and the eval_set should be equal"
+    models_paths = opts.attention_models.split(" ")
+    assert len(models_paths) == len(
+        opts.eval_set
+    ), "the number of models and the eval_set should be equal"
     for path in models_paths:
         print(" Loading the model from {}".format(path))
         load_data = torch_load_cpu(path)
@@ -306,7 +319,7 @@ def run(opts):
 
     # Set the device
     opts.device = torch.device("cuda:0" if opts.use_cuda else "cpu")
-    
+
     # Figure out what's the problem
     problem = load_problem(opts.problem)
     if opts.eval_plot:
@@ -314,7 +327,7 @@ def run(opts):
         plot_box(opts, np.array(t))
         return
 
-    # load the basline and neural net models and save them in models, attention_models, ff_models, baseline_models 
+    # load the basline and neural net models and save them in models, attention_models, ff_models, baseline_models
 
     # load models
     assert (
@@ -322,23 +335,27 @@ def run(opts):
         and opts.eval_ff_dir is None
         and opts.eval_attention_dir is None
     ) or opts.resume is None, "either one of load_path, attention_models, ff_models as well as resume should be given"
-    
-    single_model = None if opts.load_path == 'None' else opts.load_path
-    att_models = None if opts.attention_models == 'None' else opts.attention_models
-    ff_models = None if opts.ff_models == 'None' else opts.ff_models
+
+    single_model = None if opts.load_path == "None" else opts.load_path
+    att_models = None if opts.attention_models == "None" else opts.attention_models
+    ff_models = None if opts.ff_models == "None" else opts.ff_models
 
     models = []
     # Initialize models
     if single_model is not None:
         load_datas = load_model(opts)
         initialize_models(opts, models, load_datas)
-    if att_models is not None: 
+    if att_models is not None:
         load_attention_datas = load_models(opts)
-        initialize_attention_models(opts, models, load_attention_datas) # attention models from the directory
-    if ff_models is not None: 
+        initialize_attention_models(
+            opts, models, load_attention_datas
+        )  # attention models from the directory
+    if ff_models is not None:
         load_ff_datas = load_models(opts)
-        initialize_ff_models(opts, models, load_ff_datas) # feed forwad models from the directory
-    
+        initialize_ff_models(
+            opts, models, load_ff_datas
+        )  # feed forwad models from the directory
+
     # Initialize baseline models
     baseline_models = []
     for i in range(len(opts.eval_baselines)):
@@ -376,25 +393,27 @@ def run(opts):
             trained_models_results.append(get_model_op_ratios(opts, models[0], problem))
         if att_models is not None or ff_models is not None:
             # Get the performance of the trained models
-            trained_models_results.append(get_models_op_ratios(opts, models[1:], problem))
-            #print('baseline_results[0]: ', baseline_results[0])
-            #print('trained_models_results ', trained_models_results)
-        print('baseline_results: ', baseline_results)
-        print('trained_models_results ', trained_models_results)
-        results = np.array([baseline_results[0], trained_models_results])
-        #torch.save(
+            trained_models_results.append(
+                get_models_op_ratios(opts, models[1:], problem)
+            )
+            # print('baseline_results[0]: ', baseline_results[0])
+            # print('trained_models_results ', trained_models_results)
+        # print('baseline_results: ', baseline_results)
+        # print('trained_models_results ', trained_models_results)
+        results = [np.array(baseline_results[0]), np.array(trained_models_results[0])]
+        # torch.save(
         #    torch.tensor(results),
         #    opts.eval_output + "/{}_{}_{}_{}_{}by{}_results".format(
-        #    opts.problem, opts.graph_family, 
-        #    opts.weight_distribution, opts.weight_distribution_param, 
+        #    opts.problem, opts.graph_family,
+        #    opts.weight_distribution, opts.weight_distribution_param,
         #    opts.u_size, opts.v_size
-        #).replace(" ",""),
-        #)
+        # ).replace(" ",""),
+        # )
         plot_box(opts, results)
-        #line_graph(opts, models + baseline_models , problem)
+        # line_graph(opts, models + baseline_models , problem)
 
-    #if opts.eval_plot:
-       # plot_box(opts, np.array(torch.load(opts.eval_results_folder)))
+    # if opts.eval_plot:
+    # plot_box(opts, np.array(torch.load(opts.eval_results_folder)))
 
     # elif opts.eval_model:
     #     model1 = FeedForwardModel(
