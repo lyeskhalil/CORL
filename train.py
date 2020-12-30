@@ -25,6 +25,8 @@ def evaluate(model, dataset, opts):
     min_cr = min(cr)
     avg_cr = cr.mean()
 
+    min_cr = min(cr)
+    avg_cr = cr.mean()
     print(
         "Evaluation overall avg_cost: {} +- {}".format(
             avg_cost, torch.std(cost) / math.sqrt(len(cost))
@@ -45,7 +47,7 @@ def validate(model, dataset, opts):
     print("Validating...")
     cost, cr = rollout(model, dataset, opts)
     avg_cost = cost.mean()
-    
+
     min_cr = min(cr)
     avg_cr = cr.mean()
     print(
@@ -99,7 +101,11 @@ def rollout(model, dataset, opts):
 
         # print(-cost.data.flatten())
         # print(bat[-1])
-        cr = -cost.data.flatten() * opts.v_size / move_to(optimal + (optimal == 0).float(), opts.device)
+        cr = (
+            -cost.data.flatten()
+            * opts.v_size
+            / move_to(optimal + (optimal == 0).float(), opts.device)
+        )
         # print(
         #     "\nBatch Competitive ratio: ", min(cr).item(),
         # )
@@ -210,8 +216,10 @@ def train_epoch(
             },
             os.path.join(opts.save_dir, "latest-{}.pt".format(epoch)),
         )
-    elif not opts.tune and (opts.checkpoint_epochs != 0) and (
-        (epoch % opts.checkpoint_epochs == 0) or (epoch == opts.n_epochs - 1)
+    elif (
+        not opts.tune
+        and (opts.checkpoint_epochs != 0)
+        and ((epoch % opts.checkpoint_epochs == 0) or (epoch == opts.n_epochs - 1))
     ):
         print("Saving model and state...")
         torch.save(
