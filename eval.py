@@ -204,7 +204,7 @@ def load_models(opts):
     """
     load_data = {}
     load_datas = []
-    models_paths = opts.attention_models.split(" ")
+    models_paths = opts.attention_models
     assert len(models_paths) == len(
         opts.eval_set
     ), "the number of models and the eval_set should be equal"
@@ -393,9 +393,7 @@ def run(opts):
             trained_models_results.append(get_model_op_ratios(opts, models[0], problem))
         if att_models is not None or ff_models is not None:
             # Get the performance of the trained models
-            trained_models_results.append(
-                get_models_op_ratios(opts, models[1:], problem)
-            )
+            trained_models_results.append(get_models_op_ratios(opts, models, problem))
             # print('baseline_results[0]: ', baseline_results[0])
             # print('trained_models_results ', trained_models_results)
         # print('baseline_results: ', baseline_results)

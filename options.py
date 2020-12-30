@@ -263,13 +263,11 @@ def get_options(args=None):
         "--load_path", help="Path to load model parameters and optimizer state from"
     )
     parser.add_argument(
-        "--ff_models",
-        type=str,
-        help="list of trained ff models, seperated by space",
+        "--ff_models", type=str, help="list of trained ff models, seperated by space",
     )
     parser.add_argument(
         "--attention_models",
-        type=str,
+        nargs="+",
         help="list of path to trained attention models, seperated by space",
     )
     parser.add_argument(
@@ -332,9 +330,7 @@ def get_options(args=None):
     )
 
     parser.add_argument(
-        "--save_dir",
-        help="Path to save the checkpoints",
-
+        "--save_dir", help="Path to save the checkpoints",
     )
 
     parser.add_argument("--resume", help="Resume from previous checkpoint file")
