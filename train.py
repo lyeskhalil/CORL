@@ -19,23 +19,25 @@ def get_inner_model(model):
 
 def evaluate(model, dataset, opts):
     print("Evaluating...")
-    cost, op = rollout(model, dataset, opts)
-    cr = min(op)
-    avg_op = op.mean()
+    cost, cr = rollout(model, dataset, opts)
+    avg_cost = cost.mean()
+    
+    min_cr = min(cr)
+    avg_cr = cr.mean()
 
     print(
         "Evaluation overall avg_cost: {} +- {}".format(
-            avg_op, torch.std(cost) / math.sqrt(len(cost))
+            avg_cost, torch.std(cost) / math.sqrt(len(cost))
         )
     )
     print(
         "\nEvaluation overall avg ratio to optimal: {} +- {}".format(
-            avg_op, torch.std(op) / math.sqrt(len(op))
+            avg_cr, torch.std(cr) / math.sqrt(len(cr))
         )
     )
-    print("\nEvaluation competitive ratio", cr.item())
+    print("\nEvaluation competitive ratio", min_cr.item())
 
-    return op
+    return avg_cost, min_cr.item(), avg_cr
 
 
 def validate(model, dataset, opts):
@@ -106,13 +108,9 @@ def rollout(model, dataset, opts):
     cost = []
     crs = []
     for batch, optimal in tqdm(dataset):
-        #print('bat[0][0]: ', bat[0][0])
-        #print('bat[1][0]: ', bat[1][0])
-        #print('dataset: ', dataset[0])
         c, cr = eval_model_bat(batch, optimal)
         cost.append(c)
         crs.append(cr)
-        #break
     return torch.cat(cost, 0), torch.cat(crs, 0)
 
     # return torch.cat(
@@ -180,7 +178,7 @@ def train_epoch(
     # training_dataloader = DataLoader(
     #     training_dataset, batch_size=opts.batch_size, num_workers=1
     # )
-
+    
     # Put model in train mode!
     model.train()
     set_decode_type(model, "sampling")
