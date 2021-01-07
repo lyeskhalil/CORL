@@ -94,21 +94,27 @@ def plot_box(opts, data):
     num = len(data)
     plt.xlabel("Graph family parameter")
     plt.ylabel("Optimality ratio")
+    plt.title("Bipartite graphs of size {}by{}".format(opts.u_size, opts.v_size))
     ticks = opts.eval_set  # ["0.01", "0.05", "0.1", "0.15", "0.2"]
     colors = ["#d53e4f", "#3288bd", "#7fbf7b", "#fee08b", "#fc8d59", "#e6f598"]
     i = 0
+    bps = []
     for d in data:
-        print(d.shape)
         bp = plt.boxplot(
-            d.T, positions=np.array(range(len(d))) * num + (0.2 * i), sym="", widths=0.6
+            d.T,
+            positions=np.array(range(len(d))) * num + (0.5 * i),
+            sym="",
+            widths=0.6,
+            whis=(0, 100),
         )
+        bps.append(bp["boxes"][0])
         set_box_color(bp, colors[i])
         i += 1
 
     plt.xlim(-1 * num, len(ticks) * num)
     # plt.ylim(0, 1)
     plt.xticks(range(0, len(ticks) * num, num), ticks)
-
+    plt.legend(bps, opts.eval_baselines + opts.eval_models)
     plt.savefig(
         opts.eval_output
         + "/{}_{}_{}_{}_{}by{}_boxplot".format(
@@ -398,7 +404,11 @@ def run(opts):
             # print('trained_models_results ', trained_models_results)
         # print('baseline_results: ', baseline_results)
         # print('trained_models_results ', trained_models_results)
-        results = [np.array(baseline_results[0]), np.array(trained_models_results[0])]
+        results = [
+            np.array(baseline_results[0]),
+            np.array(baseline_results[1]),
+            np.array(trained_models_results[0]),
+        ]
         # torch.save(
         #    torch.tensor(results),
         #    opts.eval_output + "/{}_{}_{}_{}_{}by{}_results".format(

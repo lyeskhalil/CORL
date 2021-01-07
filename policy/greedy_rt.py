@@ -57,7 +57,7 @@ class GreedyRt(nn.Module):
             state = state.update(selected)
 
             sequences.append(selected)
-        return -state.size, torch.stack(sequences, 1)
+        return -state.size / state.v_size.item(), torch.stack(sequences, 1)
 
     def set_decode_type(self, decode_type, temp=None):
         self.decode_type = decode_type
