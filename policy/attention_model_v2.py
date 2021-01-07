@@ -271,32 +271,53 @@ class AttentionModel(nn.Module):
         # Compute keys, values for the glimpse and keys for the logits once as they can be reused in every step
         # fixed = self._precompute(embeddings)
         step_context = 0
+        batch_size = state.weights.size(0)
         # batch_size = state.ids.size(0)
         # Perform decoding steps
+        graph_size = state.u_size.item() + state.v_size.item() + 1
+        node_features = (
+            torch.arange(1, graph_size + 1, device=opts.device)
+            .unsqueeze(0)
+            .expand(batch_size, graph_size)
+            .unsqueeze(-1)
+        )
+        if opts.encoder == "attention":
+            embeddings = self.embedder(
+                self._init_embed(  # pass in one-hot encoding to embedder
+                    node_features.float()
+                ).view(batch_size, graph_size, -1),
+                state.graphs.bool(),
+                weights=state.weights,
+            )
+        else:
+            embeddings = self.embedder(
+                node_features.float().view(batch_size, graph_size, -1),
+                state.graphs,
+                weights=state.weights,
+            )
         i = 1
-        batch_size = state.weights.size(0)
         while not (state.all_finished()):
             step_size = state.i.item() + 1
-            node_features = (
-                torch.arange(1, step_size + 1, device=opts.device)
-                .unsqueeze(0)
-                .expand(batch_size, step_size)
-                .unsqueeze(-1)
-            )
-            if opts.encoder == "attention":
-                embeddings = self.embedder(
-                    self._init_embed(  # pass in one-hot encoding to embedder
-                        node_features.float()
-                    ).view(batch_size, step_size, -1),
-                    state.graphs[:, :step_size, :step_size].bool(),
-                    weights=state.weights,
-                )
-            else:
-                embeddings = self.embedder(
-                    node_features.float().view(batch_size, step_size, -1),
-                    state.graphs[:, :step_size, :step_size],
-                    weights=state.weights,
-                )
+            # node_features = (
+            #     torch.arange(1, step_size + 1, device=opts.device)
+            #     .unsqueeze(0)
+            #     .expand(batch_size, step_size)
+            #     .unsqueeze(-1)
+            # )
+            # if opts.encoder == "attention":
+            #     embeddings = self.embedder(
+            #         self._init_embed(  # pass in one-hot encoding to embedder
+            #             node_features.float()
+            #         ).view(batch_size, step_size, -1),
+            #         state.graphs[:, :step_size, :step_size].bool(),
+            #         weights=state.weights,
+            #     )
+            # else:
+            #     embeddings = self.embedder(
+            #         node_features.float().view(batch_size, step_size, -1),
+            #         state.graphs[:, :step_size, :step_size],
+            #         weights=state.weights,
+            #     )
             # print(embeddings)
             # embeddings = self._init_embed(node_features.float()).view(
             #    opts.batch_size, step_size, -1
