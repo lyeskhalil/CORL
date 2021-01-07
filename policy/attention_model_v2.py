@@ -11,7 +11,6 @@ import torch.nn.functional as F
 from encoder.graph_encoder_v2 import GraphAttentionEncoder
 from encoder.mpnn import MPNN
 from torch.nn import DataParallel
-
 # from utils.functions import sample_many
 
 import time
@@ -21,7 +20,21 @@ def set_decode_type(model, decode_type):
     if isinstance(model, DataParallel):
         model = model.module
     model.set_decode_type(decode_type)
+def train_n_step(cost, ll, x, optimizer, baseline):
+    bl_val, bl_loss = baseline.eval(x, cost)
 
+    # Calculate loss
+    # print("\nCost: " , cost.item())
+    reinforce_loss = ((cost.squeeze(1) - bl_val) * ll).mean()
+    loss = reinforce_loss + bl_loss
+    # print(loss.item())
+    # Perform backward pass and optimization step
+    s = time.time()
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+    print(time.time() - s)
+    return
 
 class AttentionModelFixed(NamedTuple):
     """
@@ -144,7 +157,7 @@ class AttentionModel(nn.Module):
         if temp is not None:  # Do not change temperature if not provided
             self.temp = temp
 
-    def forward(self, input, opts, return_pi=False):
+    def forward(self, input, opts, optimizer, baseline, return_pi=False):
         """
         :param input: (batch_size, graph_size, node_dim) input node features or dictionary with multiple tensors
         :param return_pi: whether to return the output sequences, this is optional as it is not compatible with
@@ -159,7 +172,7 @@ class AttentionModel(nn.Module):
         # # else:
         #     embeddings, _ = self.embedder(self._init_embed(input))
 
-        _log_p, pi, cost = self._inner(input, opts)
+        _log_p, pi, cost = self._inner(input, opts, optimizer, baseline)
 
         # cost, mask = self.problem.get_costs(input, pi)
         # Log likelyhood is calculated within the model since returning it per action does not work well with
@@ -260,7 +273,7 @@ class AttentionModel(nn.Module):
         # bipartite
         return self.init_embed(input)
 
-    def _inner(self, input, opts):
+    def _inner(self, input, opts, optimizer, baseline):
 
         outputs = []
         sequences = []
@@ -364,6 +377,12 @@ class AttentionModel(nn.Module):
             #         : step_size,
             #     ].bool(),
             # )
+            if (optimizer is not None) and opts.n_step and (i % opts.max_steps == 0 or state.all_finished()):
+                _log_p, pi, cost = torch.stack(outputs[i - opts.max_steps:i], 1), torch.stack(sequences[i - opts.max_steps:i], 1), -state.size / i
+                ll = self._calc_log_likelihood(_log_p, pi, None)
+                train_n_step(cost, ll, None, optimizer, baseline)
+                step_context = step_context.detach()
+                #state = state._replace(size=state.size.detach())
             i += 1
         # Collected lists, return Tensor
         return (
