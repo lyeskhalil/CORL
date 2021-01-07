@@ -93,7 +93,7 @@ def rollout(model, dataset, opts):
 
     def eval_model_bat(bat, optimal):
         with torch.no_grad():
-            cost, _ = model(move_to(bat, opts.device), opts)
+            cost, _ = model(move_to(bat, opts.device), opts, None, None)
 
         # print(-cost.data.flatten())
         # print(bat[-1])
@@ -240,6 +240,19 @@ def train_epoch(
 
     return avg_reward, min_cr, avg_cr
 
+def train_n_step(cost, ll, x, optimizer, baseline):
+    bl_val, bl_loss = baseline.eval(x, cost) if bl_val is None else (bl_val, 0)
+
+    # Calculate loss
+    # print("\nCost: " , cost.item())
+    reinforce_loss = ((cost.squeeze(1) - bl_val) * ll).mean()
+    loss = reinforce_loss + bl_loss
+    # print(loss.item())
+    # Perform backward pass and optimization step
+    optimizer.zero_grad()
+    loss.backward()
+    optimizer.step()
+    return
 
 def train_batch(
     model, optimizer, baseline, epoch, batch_id, step, batch, tb_logger, opts
@@ -250,21 +263,25 @@ def train_batch(
 
     # Evaluate model, get costs and log probabilities
 
-    cost, log_likelihood = model(x, opts)
+    cost, log_likelihood = model(x, opts, optimizer, baseline)
     # Evaluate baseline, get baseline loss if any (only for critic)
     bl_val, bl_loss = baseline.eval(x, cost) if bl_val is None else (bl_val, 0)
 
     # Calculate loss
     # print("\nCost: " , cost.item())
-    reinforce_loss = ((cost.squeeze(1) - bl_val) * log_likelihood).mean()
-    loss = reinforce_loss + bl_loss
-    # print(loss.item())
-    # Perform backward pass and optimization step
-    optimizer.zero_grad()
-    loss.backward()
-    # Clip gradient norms and get (clipped) gradient norms for logging
-    grad_norms = clip_grad_norms(optimizer.param_groups, opts.max_grad_norm)
-    optimizer.step()
+    grad_norms = [[0,0], [0,0]]
+    reinforce_loss = 0
+    loss = 0
+    if not opts.n_step:
+        reinforce_loss = ((cost.squeeze(1) - bl_val) * log_likelihood).mean()
+        loss = reinforce_loss + bl_loss
+        # print(loss.item())
+        # Perform backward pass and optimization step
+        optimizer.zero_grad()
+        loss.backward()
+        # Clip gradient norms and get (clipped) gradient norms for logging
+        grad_norms = clip_grad_norms(optimizer.param_groups, opts.max_grad_norm)
+        optimizer.step()
 
     # Logging
     if step % int(opts.log_step) == 0:
