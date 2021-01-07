@@ -178,6 +178,14 @@ def get_options(args=None):
         "--max_weight", type=int, default=100, help="Maximum edge weight in the graph"
     )
     parser.add_argument(
+        "--n_step",
+        action="store_true",
+        help="Set to peform n-step training",
+    )
+    parser.add_argument(
+        "--max_steps", type=int, default=10, help="Maximum number of steps before performing backward pass (used in n-step training)"
+    )
+    parser.add_argument(
         "--eval_batch_size",
         type=int,
         default=10,
