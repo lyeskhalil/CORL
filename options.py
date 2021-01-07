@@ -40,15 +40,15 @@ def get_options(args=None):
     parser.add_argument(
         "--num_edges",
         type=int,
-        default=5,
+        default=20,
         help="Number of edges in the Bipartite graph",
     )
-#    parser.add_argument(
-#        "--epoch_size",
-#        type=int,
-#        default=100,
-#        help="Number of instances per epoch during training",
-#    )
+    #    parser.add_argument(
+    #        "--epoch_size",
+    #        type=int,
+    #        default=100,
+    #        help="Number of instances per epoch during training",
+    #    )
     parser.add_argument(
         "--val_size",
         type=int,
@@ -80,7 +80,6 @@ def get_options(args=None):
         help="Distribution of weights in graphs",
     )
 
-   
     # Model
     parser.add_argument(
         "--model",
@@ -102,10 +101,7 @@ def get_options(args=None):
         help="Dimension of hidden layers in Enc/Dec",
     )
     parser.add_argument(
-        "--n_heads",
-        type=int,
-        default=2,
-        help="Number of heads in Enc",
+        "--n_heads", type=int, default=2, help="Number of heads in Enc",
     )
     parser.add_argument(
         "--n_encode_layers",
@@ -125,7 +121,7 @@ def get_options(args=None):
         default="batch",
         help="Normalization type, 'batch' (default) or 'instance'",
     )
-    
+
     # Training
     parser.add_argument(
         "--lr_model",
@@ -216,19 +212,19 @@ def get_options(args=None):
     parser.add_argument(
         "--weight_distribution_param",
         nargs="+",
-        default=[5,4000],
+        default=[5, 100],
         help="parameters of weight distribtion ",
     )
 
     parser.add_argument(
-       "--graph_family_parameter",
+        "--graph_family_parameter",
         type=float,
         default=0.6,
         help="parameter of the graph family distribution",
     )
 
     # Evaluation
-    
+
     parser.add_argument(
         "--eval_num",
         type=int,
@@ -247,7 +243,10 @@ def get_options(args=None):
         help="path to folder containing all evaluation datasets",
     )
     parser.add_argument(
-        "--eval_baselines", nargs="+", help="Different models to evaluate on",
+        "--eval_baselines",
+        nargs="+",
+        help="Different models to evaluate on",
+        # Example: ["greedy", "greedy-rt"]
     )
     parser.add_argument(
         "--eval_only",
@@ -265,17 +264,19 @@ def get_options(args=None):
         nargs="+",
         help="evaluate model over a range of graph family parameters",
     )
-   # parser.add_argument(
-   #     "--eval_model_paths", nargs="+", help="paths to trained models files",
-   # )
+    # parser.add_argument(
+    #     "--eval_model_paths", nargs="+", help="paths to trained models files",
+    # )
     parser.add_argument(
         "--load_path", help="Path to load model parameters and optimizer state from"
     )
     parser.add_argument(
-        "--eval_ff_dir", type=str, help="path to the directory containing trained ff neural nets", 
+        "--ff_models", type=str, help="list of trained ff models, seperated by space",
     )
     parser.add_argument(
-        "--eval_attention_dir", type=str, help="path to the directory containing trained attention models", 
+        "--attention_models",
+        nargs="+",
+        help="list of path to trained attention models, seperated by space",
     )
     parser.add_argument(
         "--eval_models", nargs="+", help="type of models to evaluate",
@@ -283,7 +284,7 @@ def get_options(args=None):
     parser.add_argument(
         "--eval_set", nargs="+", help="Set of family parameters to evaluate models on",
     )
-    
+
     parser.add_argument(
         "--eval_num_range",
         type=int,
@@ -291,15 +292,15 @@ def get_options(args=None):
         help="Number of grpah family parameter to evaluate model on over a specific range",
     )
 
+    #    parser.add_argument(
+    #        "--eval_family",
+    #        action="store_true",
+    #        help="Set this to true if you evaluating the model over a family of graphs",
+    #    )
     parser.add_argument(
-        "--eval_family",
-        action="store_true",
-        help="Set this to true if you evaluating the model over a family of graphs",
+        "--eval_output", type=str, default=".", help="path to output evaulation plots",
     )
-    parser.add_argument(
-        "--eval_output", type=str, help="path to output evaulation plots",
-    )
-    
+
     # Misc
     parser.add_argument(
         "--tune",
@@ -330,11 +331,16 @@ def get_options(args=None):
         default=0,
         help="Save checkpoint every n epochs (default 1), 0 to save no checkpoints",
     )
-   
+
     parser.add_argument(
         "--load_path2",
         help="Path to load second model parameters and optimizer state from",
     )
+
+    parser.add_argument(
+        "--save_dir", help="Path to save the checkpoints",
+    )
+
     parser.add_argument("--resume", help="Resume from previous checkpoint file")
     parser.add_argument(
         "--no_tensorboard",
@@ -344,14 +350,10 @@ def get_options(args=None):
     parser.add_argument(
         "--no_progress_bar", action="store_true", help="Disable progress bar"
     )
- 
+
     opts = parser.parse_args(args)
-    
     opts.use_cuda = torch.cuda.is_available() and not opts.no_cuda
     opts.run_name = "{}_{}".format(opts.run_name, time.strftime("%Y%m%dT%H%M%S"))
-    opts.save_dir = os.path.join(
-        opts.output_dir, "{}_{}".format(opts.problem, opts.graph_size), opts.run_name
-    )
     if opts.bl_warmup_epochs is None:
         opts.bl_warmup_epochs = 1 if opts.baseline == "rollout" else 0
     assert (opts.bl_warmup_epochs == 0) or (opts.baseline == "rollout")
