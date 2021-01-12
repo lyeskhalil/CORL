@@ -311,29 +311,29 @@ class AttentionModel(nn.Module):
         i = 1
         while not (state.all_finished()):
             step_size = state.i.item() + 1
-            # node_features = (
-            #     torch.arange(1, step_size + 1, device=opts.device)
-            #     .unsqueeze(0)
-            #     .expand(batch_size, step_size)
-            #     .unsqueeze(-1)
-            # )
-            # if opts.encoder == "attention":
-            #     embeddings = self.embedder(
-            #         self._init_embed(  # pass in one-hot encoding to embedder
-            #             node_features.float()
-            #         ).view(batch_size, step_size, -1),
-            #         state.graphs[:, :step_size, :step_size].bool(),
-            #         weights=state.weights,
-            #     )
-            # else:
-            #     embeddings = self.embedder(
-            #         node_features.float().view(batch_size, step_size, -1),
-            #         state.graphs[:, :step_size, :step_size],
-            #         weights=state.weights,
-            #     )
-            # print(embeddings)
-            # embeddings = self._init_embed(node_features.float()).view(
-            #    opts.batch_size, step_size, -1
+            node_features = (
+                 torch.arange(1, step_size + 1, device=opts.device)
+                 .unsqueeze(0)
+                 .expand(batch_size, step_size)
+                 .unsqueeze(-1)
+            )
+            if opts.encoder == "attention":
+                 embeddings = self.embedder(
+                     self._init_embed(  # pass in one-hot encoding to embedder
+                         node_features.float()
+                     ).view(batch_size, step_size, -1),
+                     state.graphs[:, :step_size, :step_size].bool(),
+                     weights=state.weights,
+                 )
+            else:
+                 embeddings = self.embedder(
+                     node_features.float().view(batch_size, step_size, -1),
+                     state.graphs[:, :step_size, :step_size],
+                     weights=state.weights,
+                 )
+            #print(embeddings)
+            #embeddings = self._init_embed(node_features.float()).view(
+            #   opts.batch_size, step_size, -1
             # )
             fixed = self._precompute(embeddings, step_size, opts, state)
             # if self.shrink_size is not None:
