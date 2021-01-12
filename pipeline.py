@@ -8,8 +8,8 @@ graph_family = "er"
 weight_distribution = "uniform"
 weight_distribution_param = "5 100"  # seperate by a space
 graph_family_parameters = "0.01 0.05 0.1 0.15 0.2"
-u_size = 10  # 10
-v_size = 30  # 30
+u_size = 5  # 10
+v_size = 15  # 30
 dataset_size = 200
 val_size = 100
 eval_size = 1000
@@ -30,12 +30,12 @@ val_dataset = "dataset/val" + extention
 eval_dataset = "dataset/eval" + extention
 
 # model flags
-batch_size = 10
+batch_size = 50
 embedding_dim = 60  # 60
 n_heads = 3  # 3
 n_epochs = 10
 checkpoint_epochs = 5
-eval_baselines = "greedy"  # ******
+eval_baselines = "greedy greedy-rt"  # ******
 lr_model = 0.001
 lr_decay = 0.9
 n_encode_layers = 3
@@ -49,20 +49,25 @@ eval_models = "attention"
 eval_output = "figures"
 # this is a single checkpoint. Example: outputs_dataset/e-obm_20/run_20201226T171156/epoch-4.pt
 load_path = None
-# load_path = "../output_e-obm_er_10by30_p=0.15_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T063254/epoch-79.pt"
-# "../output_e-obm_er_10by30_p=0.15_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T063254/epoch-79.pt"
-# ../output_e-obm_er_10by30_p=0.01_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T060349/epoch-79.pt \
-# ../output_e-obm_er_10by30_p=0.05_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T060338/epoch-79.pt \
-# ../output_e-obm_er_10by30_p=0.1_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T062920/epoch-79.pt \
-# ../output_e-obm_er_10by30_p=0.2_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T063830/epoch-79.pt"
+# load_path = "../output_e-obm_er_5by15_p=0.01_uniform_m=5_v=100_a=3/e-obm_20/run_20201222T163026/epoch-69.pt"
+# ../output_e-obm_er_5by15_p=0.05_uniform_m=5_v=100_a=3/e-obm_20/run_20201222T163107/epoch-69.pt \
+# ../output_e-obm_er_5by15_p=0.1_uniform_m=5_v=100_a=3/e-obm_20/run_20201222T163157/epoch-69.pt \
+# ../output_e-obm_er_5by15_p=0.15_uniform_m=5_v=100_a=3/e-obm_20/run_20201222T163441/epoch-69.pt \
+# ../output_e-obm_er_5by15_p=0.2_uniform_m=5_v=100_a=3/outputs_e-obm_er_5by15_p=0.2_uniform_m=5_v=100_a=3/e-obm_20/run_20201222T170215/epoch-79.pt"
 
 # this is a list of attention model checkpoints seperated by space. The number of checkpoints should be the same as the length of eval_set
 # Note: checkpoints must be in the same order as eval set (i,e. checkpoint1 must be for graph paramter 0.05, etc.)
-attention_models = "../output_e-obm_er_10by30_p=0.01_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T060349/epoch-79.pt \
-../output_e-obm_er_10by30_p=0.05_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T060338/epoch-79.pt \
-../output_e-obm_er_10by30_p=0.1_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T062920/epoch-79.pt \
-../output_e-obm_er_10by30_p=0.15_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T063254/epoch-79.pt \
-../output_e-obm_er_10by30_p=0.2_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T063830/epoch-79.pt"
+# attention_models = "../output_e-obm_er_10by30_p=0.01_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T060349/epoch-79.pt \
+# ../output_e-obm_er_10by30_p=0.05_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T060338/epoch-79.pt \
+# ../output_e-obm_er_10by30_p=0.1_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T062920/epoch-79.pt \
+# ../output_e-obm_er_10by30_p=0.15_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T063254/epoch-79.pt \
+# ../output_e-obm_er_10by30_p=0.2_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T063830/epoch-79.pt"
+
+attention_models = "../output_e-obm_er_5by15_p=0.01_uniform_m=5_v=100_a=3/e-obm_20/run_20201222T163026/epoch-69.pt \
+../output_e-obm_er_5by15_p=0.05_uniform_m=5_v=100_a=3/e-obm_20/run_20201222T163107/epoch-69.pt \
+../output_e-obm_er_5by15_p=0.1_uniform_m=5_v=100_a=3/e-obm_20/run_20201222T163157/epoch-69.pt \
+../output_e-obm_er_5by15_p=0.15_uniform_m=5_v=100_a=3/e-obm_20/run_20201222T163441/epoch-69.pt \
+../output_e-obm_er_5by15_p=0.2_uniform_m=5_v=100_a=3/outputs_e-obm_er_5by15_p=0.2_uniform_m=5_v=100_a=3/e-obm_20/run_20201222T170215/epoch-69.pt"
 
 # this is a list of feedforward model checkpoints seperated by space. The number of checkpoints should be the same as the length of eval_set
 # Note: checkpoints must be in the same order as eval set (i,e. checkpoint1 must be for graph paramter 0.05, etc.)
@@ -191,7 +196,7 @@ def train_model():
 def evaluate_model():
     evaluate = """python eval.py --problem {} --embedding_dim {} --load_path {} --ff_models {} --attention_models {} --eval_baselines {} \
         --baseline {} --eval_models {} --eval_dataset {}  --u_size {} --v_size {} --eval_set {} --eval_size {} --eval_batch_size {} \
-        --n_encode_layers {} --n_heads {} --output_dir {}""".format(
+        --n_encode_layers {} --n_heads {} --output_dir {} --batch_size {}""".format(
         problem,
         embedding_dim,
         load_path,
@@ -209,6 +214,7 @@ def evaluate_model():
         n_encode_layers,
         n_heads,
         output_dir,
+        eval_batch_size,
     )
 
     # print(evaluate)
