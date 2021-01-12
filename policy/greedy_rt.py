@@ -12,6 +12,7 @@ class GreedyRt(nn.Module):
         embedding_dim,
         hidden_dim,
         problem,
+        opts,
         tanh_clipping=None,
         mask_inner=None,
         mask_logits=None,

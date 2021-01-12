@@ -44,8 +44,8 @@ class AttentionModelFixed(NamedTuple):
                 glimpse_val=self.glimpse_val[:, key],  # dim 0 are the heads
                 logit_key=self.logit_key[key],
             )
-        return super(AttentionModelFixed, self).__getitem__(key)
-        # return self[key]
+        # return super(AttentionModelFixed, self).__getitem__(key)
+        return self[key]
 
 
 class AttentionModel(nn.Module):
@@ -54,6 +54,7 @@ class AttentionModel(nn.Module):
         embedding_dim,
         hidden_dim,
         problem,
+        opts,
         n_encode_layers=2,
         tanh_clipping=10.0,
         mask_inner=True,
@@ -80,6 +81,7 @@ class AttentionModel(nn.Module):
         self.n_heads = n_heads
         self.checkpoint_encoder = checkpoint_encoder
         self.shrink_size = shrink_size
+        self.opts = opts
         # Problem specific context parameters (placeholder and step context dimension)
         # if self.is_vrp or self.is_orienteering or self.is_pctsp:
         #     # Embedding of last node + remaining_capacity / remaining length / remaining prize to collect
@@ -131,6 +133,7 @@ class AttentionModel(nn.Module):
             n_layers=self.n_encode_layers,
             normalization=normalization,
             problem=self.problem,
+            opts=self.opts,
         )
 
         # For each node we compute (glimpse key, glimpse value, logit key) so 3 * embedding_dim

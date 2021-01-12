@@ -7,6 +7,7 @@ import pprint as pp
 import torch
 import torch.optim as optim
 from itertools import product
+
 # from tensorboard_logger import Logger as TbLogger
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
@@ -46,12 +47,18 @@ def run(opts):
         tb_logger = SummaryWriter(
             os.path.join(
                 opts.log_dir,
-                "{}_{}_{}_{}_{}".format(opts.problem, opts.u_size, opts.v_size, opts.lr_model, opts.embedding_dim),
+                "{}_{}_{}_{}_{}".format(
+                    opts.problem,
+                    opts.u_size,
+                    opts.v_size,
+                    opts.lr_model,
+                    opts.embedding_dim,
+                ),
                 opts.run_name,
             )
         )
-
-    os.makedirs(opts.save_dir)
+    if not os.path.exists(opts.save_dir):
+        os.makedirs(opts.save_dir)
     # Save arguments so exact configuration can always be found
     with open(os.path.join(opts.save_dir, "args.json"), "w") as f:
         json.dump(vars(opts), f, indent=True)
@@ -84,31 +91,37 @@ def run(opts):
     }.get(opts.model, None)
     assert model_class is not None, "Unknown model: {}".format(model_class)
     # if not opts.tune:
-    model, lr_scheduler, optimizer, val_dataloader, baseline = setup_training_env(opts, model_class, problem, load_data, tb_logger)
+    model, lr_scheduler, optimizer, val_dataloader, baseline = setup_training_env(
+        opts, model_class, problem, load_data, tb_logger
+    )
 
-    training_dataset = problem.make_dataset(opts.train_dataset, opts.dataset_size, opts.problem, seed=None, opts=opts)
-    #training_dataloader = DataLoader(
+    training_dataset = problem.make_dataset(
+        opts.train_dataset, opts.dataset_size, opts.problem, seed=None, opts=opts
+    )
+    # training_dataloader = DataLoader(
     #    baseline.wrap_dataset(training_dataset), batch_size=opts.batch_size, num_workers=1, shuffle=True,
-    #)
-    #training_dataloader = training_dataset
+    # )
+    # training_dataloader = training_dataset
     if opts.eval_only:
         validate(model, val_dataloader, opts)
     elif opts.tune:
-        PARAM_GRID = list(product(
-            [0.00001, 0.001, 0.0001, 0.002, 0.0002],  # learning_rate
-            [(60, 3)],  # embedding size
-            [0.75, 0.85, 0.9],  # baseline exponential decay
-            [1.0, 0.99, 0.98, 0.97, 0.96, 0.95]  # lr decay
-        ))
+        PARAM_GRID = list(
+            product(
+                [0.00001, 0.001, 0.0001, 0.002, 0.0002],  # learning_rate
+                [(60, 3)],  # embedding size
+                [0.75, 0.85, 0.9],  # baseline exponential decay
+                [1.0, 0.99, 0.98, 0.97, 0.96, 0.95],  # lr decay
+            )
+        )
 
         # total number of slurm workers detected
         # defaults to 1 if not running under SLURM
-        N_WORKERS = int(os.getenv('SLURM_ARRAY_TASK_COUNT', 1))
+        N_WORKERS = int(os.getenv("SLURM_ARRAY_TASK_COUNT", 1))
 
         # this worker's array index. Assumes slurm array job is zero-indexed
         # defaults to zero if not running under SLURM
-        this_worker = int(os.getenv('SLURM_ARRAY_TASK_ID', 0))
-        SCOREFILE = os.path.expanduser('./val_rewards.csv')
+        this_worker = int(os.getenv("SLURM_ARRAY_TASK_ID", 0))
+        SCOREFILE = os.path.expanduser("./val_rewards.csv")
         for param_ix in range(this_worker, len(PARAM_GRID), N_WORKERS):
             torch.manual_seed(opts.seed)
             params = PARAM_GRID[param_ix]
@@ -126,20 +139,41 @@ def run(opts):
                 tb_logger = SummaryWriter(
                     os.path.join(
                         opts.log_dir,
-                        "{}_{}_{}_{}_{}".format(opts.lr_decay, opts.exp_beta, opts.lr_model, opts.embedding_dim, opts.n_heads),
+                        "{}_{}_{}_{}_{}".format(
+                            opts.lr_decay,
+                            opts.exp_beta,
+                            opts.lr_model,
+                            opts.embedding_dim,
+                            opts.n_heads,
+                        ),
                         opts.run_name,
                     )
                 )
             load_data = {}
-            model, lr_scheduler, optimizer, val_dataloader, baseline = setup_training_env(opts, model_class, problem, load_data, tb_logger)
-            training_dataset = problem.make_dataset(opts.train_dataset, opts.dataset_size, opts.problem, seed=None, opts=opts)
-            
-            #training_dataloader = DataLoader(
+            (
+                model,
+                lr_scheduler,
+                optimizer,
+                val_dataloader,
+                baseline,
+            ) = setup_training_env(opts, model_class, problem, load_data, tb_logger)
+            training_dataset = problem.make_dataset(
+                opts.train_dataset,
+                opts.dataset_size,
+                opts.problem,
+                seed=None,
+                opts=opts,
+            )
+
+            # training_dataloader = DataLoader(
             #    baseline.wrap_dataset(training_dataset), batch_size=opts.batch_size, num_workers=1, shuffle=True,
-            #)
+            # )
             for epoch in range(opts.epoch_start, opts.epoch_start + opts.n_epochs):
                 training_dataloader = DataLoader(
-                    baseline.wrap_dataset(training_dataset), batch_size=opts.batch_size, num_workers=1, shuffle=True,
+                    baseline.wrap_dataset(training_dataset),
+                    batch_size=opts.batch_size,
+                    num_workers=1,
+                    shuffle=True,
                 )
                 avg_reward, min_cr, avg_cr = train_epoch(
                     model,
@@ -153,12 +187,15 @@ def run(opts):
                     tb_logger,
                     opts,
                 )
-            with open(SCOREFILE, 'a') as f:
+            with open(SCOREFILE, "a") as f:
                 f.write(f'{",".join(map(str, params + (avg_reward,min_cr,avg_cr)))}\n')
     else:
         for epoch in range(opts.epoch_start, opts.epoch_start + opts.n_epochs):
             training_dataloader = DataLoader(
-                baseline.wrap_dataset(training_dataset), batch_size=opts.batch_size, num_workers=0, shuffle=True,
+                baseline.wrap_dataset(training_dataset),
+                batch_size=opts.batch_size,
+                num_workers=0,
+                shuffle=True,
             )
             train_epoch(
                 model,
@@ -189,6 +226,7 @@ def setup_training_env(opts, model_class, problem, load_data, tb_logger):
         num_actions=opts.u_size + 1,
         n_heads=opts.n_heads,
         encoder=opts.encoder,
+        opts=opts,
     ).to(opts.device)
 
     if opts.use_cuda and torch.cuda.device_count() > 1:
@@ -258,7 +296,9 @@ def setup_training_env(opts, model_class, problem, load_data, tb_logger):
         optimizer, lambda epoch: opts.lr_decay ** epoch
     )
     # Start the actual training loop
-    val_dataset = problem.make_dataset(opts.val_dataset, opts.val_size, opts.problem, seed=None, opts=opts)
+    val_dataset = problem.make_dataset(
+        opts.val_dataset, opts.val_size, opts.problem, seed=None, opts=opts
+    )
     val_dataloader = DataLoader(
         val_dataset, batch_size=opts.eval_batch_size, num_workers=0
     )

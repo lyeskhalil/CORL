@@ -7,7 +7,7 @@ problem = "e-obm"
 graph_family = "er"
 weight_distribution = "uniform"
 weight_distribution_param = "5 100"  # seperate by a space
-graph_family_parameters = "0.01 0.05 0.1 0.15 0.2"
+graph_family_parameters = "0.2"
 u_size = 5  # 10
 v_size = 15  # 30
 dataset_size = 200
@@ -35,7 +35,7 @@ embedding_dim = 60  # 60
 n_heads = 3  # 3
 n_epochs = 10
 checkpoint_epochs = 5
-eval_baselines = "greedy greedy-rt"  # ******
+eval_baselines = "greedy"  # ******
 lr_model = 0.001
 lr_decay = 0.9
 n_encode_layers = 3
@@ -147,14 +147,14 @@ def generate_data():
             n,
         )
 
-        print(generate_train)
-        # os.system(generate_train)
+        # print(generate_train)
+        os.system(generate_train)
 
-        print(generate_val)
-        # os.system(generate_val)
+        # print(generate_val)
+        os.system(generate_val)
 
-        # print(generate_eval)
-        os.system(generate_eval)
+        print(generate_eval)
+        # os.system(generate_eval)
 
 
 def train_model():
@@ -224,6 +224,6 @@ def evaluate_model():
 if __name__ == "__main__":
     # make the directories if they do not exist
     make_dir()
-    # generate_data()
-    # train_model()
-    evaluate_model()
+    generate_data()
+    train_model()
+    # evaluate_model()

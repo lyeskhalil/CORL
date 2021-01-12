@@ -275,6 +275,7 @@ class GraphAttentionEncoder(nn.Module):
         embed_dim,
         n_layers,
         problem,
+        opts,
         dropout=0.0,
         alpha=0.01,
         node_dim=1,
@@ -286,6 +287,7 @@ class GraphAttentionEncoder(nn.Module):
         super(GraphAttentionEncoder, self).__init__()
         self.n_heads = n_heads
         self.dropout = dropout
+        self.opts = opts
         self.embed_dim = embed_dim
         self.last_layer = nn.Linear(2 * embed_dim + 1, embed_dim, bias=False)
         # assert embed_dim % n_heads == 0, "embeddings dimenions must be a multiple of number of heads"
@@ -293,6 +295,7 @@ class GraphAttentionEncoder(nn.Module):
             [
                 *(
                     MultiHeadAttentionLayer(
+                        opts,
                         n_heads,
                         int(embed_dim / n_heads),
                         dropout=dropout,
@@ -309,34 +312,43 @@ class GraphAttentionEncoder(nn.Module):
 
         h = x
         batch_size, graph_size, input_dim = h.size()
-        v = graph_size - weights.size(2)
-        u = weights.size(2)
-        if weights is not None:
-            weights1 = torch.cat(
-                (
-                    torch.zeros((batch_size, u, u), device=weights.device),
-                    weights[:, :v, :].transpose(1, 2).float(),
-                ),
-                dim=2,
-            )
-            weights2 = torch.cat(
-                (
-                    weights[:, :v, :].float(),
-                    torch.zeros((batch_size, v, v), device=weights.device),
-                ),
-                dim=2,
-            )
-            weights = torch.cat((weights1, weights2), dim=1)
-        h = h.view(batch_size, self.n_heads, graph_size, int(self.embed_dim / self.n_heads))
+        v = self.opts.v_size
+        u = self.opts.u_size + 1
+        # if weights is not None:
+        #     weights1 = torch.cat(
+        #         (
+        #             torch.zeros((batch_size, u, u), device=weights.device),
+        #             weights[:, :v, :].transpose(1, 2).float(),
+        #         ),
+        #         dim=2,
+        #     )
+        #     weights2 = torch.cat(
+        #         (
+        #             weights[:, :v, :].float(),
+        #             torch.zeros((batch_size, v, v), device=weights.device),
+        #         ),
+        #         dim=2,
+        #     )
+        #     weights = torch.cat((weights1, weights2), dim=1)
+        h = h.view(
+            batch_size, self.n_heads, graph_size, int(self.embed_dim / self.n_heads)
+        )
         # h = h[:, None, :, :].repeat(1, self.n_heads, 1, 1)
         for layer in self.layers:
             h = layer(h, adj=adj, weights=weights)
-        h = self._prepare_attentional_mechanism_input(h.view(batch_size, graph_size, self.embed_dim)) * torch.tril(1. - adj.float().unsqueeze(3))
-        h = self.last_layer(torch.cat((h, weights.unsqueeze(3)), dim=3)).view(batch_size, graph_size**2, self.embed_dim)
+        h = self._prepare_attentional_mechanism_input(
+            h.view(batch_size, graph_size, self.embed_dim)
+        ) * (1.0 - adj.float().unsqueeze(3))
+        h = self.last_layer(torch.cat((h, weights.unsqueeze(3)), dim=3)).view(
+            batch_size, u * v, self.embed_dim
+        )
         return h
 
     def _prepare_attentional_mechanism_input(self, Wh):
-        N = Wh.size()[1]  # number of nodes
+        # N = Wh.size()[1]  # number of nodes
+        u = self.opts.u_size + 1
+        v = self.opts.v_size
+
         batch_size = Wh.size()[0]
         # Below, two matrices are created that contain embeddings in their rows in different orders.
         # (e stands for embedding)
@@ -349,8 +361,8 @@ class GraphAttentionEncoder(nn.Module):
         # '----------------------------------------------------' -> N times
         #
 
-        Wh_repeated_in_chunks = Wh.repeat_interleave(N, dim=1)
-        Wh_repeated_alternating = Wh.repeat(1, N, 1)
+        Wh_repeated_in_chunks = Wh[:, :u, :].repeat_interleave(v, dim=1)
+        Wh_repeated_alternating = Wh.repeat(1, u, 1)
         # Wh_repeated_in_chunks.shape == Wh_repeated_alternating.shape == (N * N, out_features)
 
         # The all_combination_matrix, created below, will look like this (|| denotes concatenation):
@@ -373,15 +385,20 @@ class GraphAttentionEncoder(nn.Module):
 
         all_combinations_matrix = torch.cat(
             [Wh_repeated_in_chunks, Wh_repeated_alternating], dim=2
-        )
-        # all_combinations_matrix.shape == (N * N, 2 * out_features)
+        ).view(batch_size, u, v, 2 * self.out_features)
 
-        return all_combinations_matrix.view(batch_size, N, N, 2 * self.embed_dim)
+        # self_combination_matrix = torch.cat([Wh, Wh], dim=2)
+
+        # all_combinations_matrix = torch.cat([all_combinations_matrix, self_combination_matrix[:, : u, :]], dim=2)
+        # all_combinations_matrix = torch.cat([all_combinations_matrix, self_combination_matrix[:, u :, :]], dim=1)
+        # all_combinations_matrix.shape == (N * N, 2 * out_features)
+        return all_combinations_matrix
 
 
 class MultiHeadAttentionLayer(nn.Module):
     def __init__(
         self,
+        opts,
         n_heads,
         embed_dim,
         problem,
@@ -395,10 +412,10 @@ class MultiHeadAttentionLayer(nn.Module):
         """Multi-Head attention Layer"""
         super(MultiHeadAttentionLayer, self).__init__()
         self.dropout = dropout
-
+        self.opts = opts
         self.attentions = [
             GraphAttentionLayer(
-                embed_dim, embed_dim, dropout=dropout, alpha=alpha, concat=True
+                opts, embed_dim, embed_dim, dropout=dropout, alpha=alpha, concat=True
             )
             for _ in range(n_heads)
         ]
@@ -411,7 +428,13 @@ class MultiHeadAttentionLayer(nn.Module):
 
     def forward(self, x, adj, weights):
         x = F.dropout(x, self.dropout, training=self.training)
-        x = torch.cat([att(x[:, i, :, :], adj, weights)[:, None, :, :] for i, att in enumerate(self.attentions)], dim=1)
+        x = torch.cat(
+            [
+                att(x[:, i, :, :], adj, weights)[:, None, :, :]
+                for i, att in enumerate(self.attentions)
+            ],
+            dim=1,
+        )
         x = F.dropout(x, self.dropout, training=self.training)
         # x = F.elu(self.out_att(x, adj))
         # return F.log_softmax(x, dim=1)
@@ -423,12 +446,13 @@ class GraphAttentionLayer(nn.Module):
     Simple GAT layer, similar to https://arxiv.org/abs/1710.10903
     """
 
-    def __init__(self, in_features, out_features, dropout, alpha, concat=True):
+    def __init__(self, opts, in_features, out_features, dropout, alpha, concat=True):
         super(GraphAttentionLayer, self).__init__()
         self.dropout = dropout
         self.in_features = in_features
         self.out_features = out_features
         self.alpha = alpha
+        self.opts = opts
         self.concat = concat
         # self.W = nn.Parameter(torch.empty(size=(in_features, out_features)))
         self.W = nn.Linear(in_features, out_features, bias=False)
@@ -451,12 +475,14 @@ class GraphAttentionLayer(nn.Module):
         # u = weights.size(2)
         # zero_vec = -9e15 * torch.ones_like(e)
         # attention = torch.where(adj > 0, e, zero_vec)
-        adj = (adj.float() - torch.diag_embed(torch.ones(batch_size, graph_size, device=adj.device))).bool()
-        e[adj] = -9e15
+        # adj = (adj.float() - torch.diag_embed(torch.ones(batch_size, graph_size, device=adj.device))).bool()
+        e[:, 1:, 1:, :][adj] = -9e15
         # attention = e.exp() * (weights + (weights == 0).float())
         # attention = e.exp()
         # attention = F.normalize(attention, dim=2, p=1)
-        attention = F.softmax(e, dim=2)
+        attentionU = F.softmax(e[:, :, 1:, :], dim=2)
+        attentionV = F.softmax(e[:, 1:, :, :], dim=1)
+        attention = torch.cat([attentionU, attentionV], dim=1)
         attention = F.dropout(attention, self.dropout, training=self.training)
         h_prime = torch.matmul(attention, Wh)
 
@@ -466,7 +492,10 @@ class GraphAttentionLayer(nn.Module):
             return h_prime
 
     def _prepare_attentional_mechanism_input(self, Wh):
-        N = Wh.size()[1]  # number of nodes
+        # N = Wh.size()[1]  # number of nodes
+        u = self.opts.u_size + 1
+        v = self.opts.v_size
+
         batch_size = Wh.size()[0]
         # Below, two matrices are created that contain embeddings in their rows in different orders.
         # (e stands for embedding)
@@ -479,8 +508,8 @@ class GraphAttentionLayer(nn.Module):
         # '----------------------------------------------------' -> N times
         #
 
-        Wh_repeated_in_chunks = Wh.repeat_interleave(N, dim=1)
-        Wh_repeated_alternating = Wh.repeat(1, N, 1)
+        Wh_repeated_in_chunks = Wh[:, :u, :].repeat_interleave(v, dim=1)
+        Wh_repeated_alternating = Wh.repeat(1, u, 1)
         # Wh_repeated_in_chunks.shape == Wh_repeated_alternating.shape == (N * N, out_features)
 
         # The all_combination_matrix, created below, will look like this (|| denotes concatenation):
@@ -503,9 +532,20 @@ class GraphAttentionLayer(nn.Module):
 
         all_combinations_matrix = torch.cat(
             [Wh_repeated_in_chunks, Wh_repeated_alternating], dim=2
+        ).view(batch_size, u, v, 2 * self.out_features)
+
+        self_combination_matrix = torch.cat([Wh, Wh], dim=2)
+
+        all_combinations_matrix = torch.cat(
+            [all_combinations_matrix, self_combination_matrix[:, :u, :]], dim=2
+        )
+        all_combinations_matrix = torch.cat(
+            [all_combinations_matrix, self_combination_matrix[:, u:, :]], dim=1
         )
         # all_combinations_matrix.shape == (N * N, 2 * out_features)
-        return all_combinations_matrix.view(batch_size, N, N, 2 * self.out_features)
+        return all_combinations_matrix.view(
+            batch_size, u + 1, v + 1, 2 * self.out_features
+        )
 
     def __repr__(self):
         return (
