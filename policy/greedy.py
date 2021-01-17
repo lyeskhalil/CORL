@@ -11,6 +11,7 @@ class Greedy(nn.Module):
         embedding_dim,
         hidden_dim,
         problem,
+        opts,
         tanh_clipping=None,
         mask_inner=None,
         mask_logits=None,
@@ -45,7 +46,7 @@ class Greedy(nn.Module):
 
             state = state.update(selected[:, None])
             sequences.append(selected)
-        return -state.size/state.v_size.item(), torch.stack(sequences, 1)
+        return -state.size / state.v_size.item(), torch.stack(sequences, 1)
 
     def set_decode_type(self, decode_type, temp=None):
         self.decode_type = decode_type

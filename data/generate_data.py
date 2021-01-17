@@ -186,8 +186,7 @@ def generate_edge_obm_data(
         m = 1 - nx.convert_matrix.to_numpy_array(g1, s)
         if save_data:
             torch.save(
-                [torch.tensor(m).clone(), torch.tensor(w).clone()],
-                "{}/graphs/{}.pt".format(dataset_folder, i),
+                [w], "{}/graphs/{}.pt".format(dataset_folder, i),
             )
         else:
             D.append([torch.tensor(m).clone(), torch.tensor(w).clone()])
@@ -309,7 +308,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--weight_distribution_param",
         nargs="+",
-        default='5 4000',
+        default="5 4000",
         help="parameters of weight distribtion ",
     )
     parser.add_argument(

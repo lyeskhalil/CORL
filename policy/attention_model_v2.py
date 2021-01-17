@@ -11,6 +11,7 @@ import torch.nn.functional as F
 from encoder.graph_encoder_v2 import GraphAttentionEncoder
 from encoder.mpnn import MPNN
 from torch.nn import DataParallel
+
 # from utils.functions import sample_many
 
 import time
@@ -20,6 +21,8 @@ def set_decode_type(model, decode_type):
     if isinstance(model, DataParallel):
         model = model.module
     model.set_decode_type(decode_type)
+
+
 def train_n_step(cost, ll, x, optimizer, baseline):
     bl_val, bl_loss = baseline.eval(x, cost)
 
@@ -35,6 +38,7 @@ def train_n_step(cost, ll, x, optimizer, baseline):
     optimizer.step()
     print(time.time() - s)
     return
+
 
 class AttentionModelFixed(NamedTuple):
     """
@@ -57,8 +61,8 @@ class AttentionModelFixed(NamedTuple):
                 glimpse_val=self.glimpse_val[:, key],  # dim 0 are the heads
                 logit_key=self.logit_key[key],
             )
-        return super(AttentionModelFixed, self).__getitem__(key)
-        # return self[key]
+        # return super(AttentionModelFixed, self).__getitem__(key)
+        return self[key]
 
 
 class AttentionModel(nn.Module):
@@ -67,6 +71,7 @@ class AttentionModel(nn.Module):
         embedding_dim,
         hidden_dim,
         problem,
+        opts,
         n_encode_layers=2,
         tanh_clipping=10.0,
         mask_inner=True,
@@ -93,6 +98,7 @@ class AttentionModel(nn.Module):
         self.n_heads = n_heads
         self.checkpoint_encoder = checkpoint_encoder
         self.shrink_size = shrink_size
+        self.opts = opts
         # Problem specific context parameters (placeholder and step context dimension)
         # if self.is_vrp or self.is_orienteering or self.is_pctsp:
         #     # Embedding of last node + remaining_capacity / remaining length / remaining prize to collect
@@ -144,6 +150,7 @@ class AttentionModel(nn.Module):
             n_layers=self.n_encode_layers,
             normalization=normalization,
             problem=self.problem,
+            opts=self.opts,
         )
 
         # For each node we compute (glimpse key, glimpse value, logit key) so 3 * embedding_dim
@@ -294,45 +301,44 @@ class AttentionModel(nn.Module):
             .expand(batch_size, graph_size)
             .unsqueeze(-1)
         )
-        if opts.encoder == "attention":
-            embeddings = self.embedder(
-                self._init_embed(  # pass in one-hot encoding to embedder
-                    node_features.float()
-                ).view(batch_size, graph_size, -1),
-                state.graphs.bool(),
-                weights=state.weights,
-            )
-        else:
-            embeddings = self.embedder(
-                node_features.float().view(batch_size, graph_size, -1),
-                state.graphs,
-                weights=state.weights,
-            )
+        # if opts.encoder == "attention":
+        #     embeddings = self.embedder(
+        #         self._init_embed(  # pass in one-hot encoding to embedder
+        #             node_features.float()
+        #         ).view(batch_size, graph_size, -1),
+        #         state.graphs.bool(),
+        #         weights=state.weights,
+        #     )
+        # else:
+        #     embeddings = self.embedder(
+        #         node_features.float().view(batch_size, graph_size, -1),
+        #         state.graphs,
+        #         weights=state.weights,
+        #     )
         i = 1
         while not (state.all_finished()):
             step_size = state.i.item() + 1
             node_features = (
-                 torch.arange(1, step_size + 1, device=opts.device)
-                 .unsqueeze(0)
-                 .expand(batch_size, step_size)
-                 .unsqueeze(-1)
+                torch.arange(1, step_size + 1, device=opts.device)
+                .unsqueeze(0)
+                .expand(batch_size, step_size)
+                .unsqueeze(-1)
             )
             if opts.encoder == "attention":
-                 embeddings = self.embedder(
-                     self._init_embed(  # pass in one-hot encoding to embedder
-                         node_features.float()
-                     ).view(batch_size, step_size, -1),
-                     state.graphs[:, :step_size, :step_size].bool(),
-                     weights=state.weights,
-                 )
+                embeddings = self.embedder(
+                    self._init_embed(  # pass in one-hot encoding to embedder
+                        node_features.float()
+                    ).view(batch_size, step_size, -1),
+                    state.graphs[:, :i, :].bool().transpose(1, 2),
+                    weights=state.weights[:, :i, :].transpose(1, 2),
+                )
             else:
-                 embeddings = self.embedder(
-                     node_features.float().view(batch_size, step_size, -1),
-                     state.graphs[:, :step_size, :step_size],
-                     weights=state.weights,
-                 )
-            #print(embeddings)
-            #embeddings = self._init_embed(node_features.float()).view(
+                embeddings = self.embedder(
+                    node_features.float().view(batch_size, step_size, -1),
+                    state.graphs[:, :i, :].T,
+                    weights=state.weights,
+                )
+            # embeddings = self._init_embed(node_features.float()).view(
             #   opts.batch_size, step_size, -1
             # )
             fixed = self._precompute(embeddings, step_size, opts, state)
@@ -390,12 +396,20 @@ class AttentionModel(nn.Module):
             #         : step_size,
             #     ].bool(),
             # )
-            if (optimizer is not None) and opts.n_step and (i % opts.max_steps == 0 or state.all_finished()):
-                _log_p, pi, cost = torch.stack(outputs[i - opts.max_steps:i], 1), torch.stack(sequences[i - opts.max_steps:i], 1), -state.size / i
+            if (
+                (optimizer is not None)
+                and opts.n_step
+                and (i % opts.max_steps == 0 or state.all_finished())
+            ):
+                _log_p, pi, cost = (
+                    torch.stack(outputs[i - opts.max_steps : i], 1),
+                    torch.stack(sequences[i - opts.max_steps : i], 1),
+                    -state.size / i,
+                )
                 ll = self._calc_log_likelihood(_log_p, pi, None)
                 train_n_step(cost, ll, None, optimizer, baseline)
                 step_context = step_context.detach()
-                #state = state._replace(size=state.size.detach())
+                # state = state._replace(size=state.size.detach())
             i += 1
         # Collected lists, return Tensor
         return (
@@ -448,7 +462,7 @@ class AttentionModel(nn.Module):
         graph_embed = embeddings.mean(1)
         # fixed context = (batch_size, 1, embed_dim) to make broadcastable with parallel timesteps
         fixed_context = self.project_fixed_context(graph_embed)[:, None, :]
-        offset = (step_size - 1) * (step_size)
+        offset = (opts.u_size + 1) * (step_size - (opts.u_size + 1) - 1)
         # The projection of the node embeddings for the attention is calculated once up front
         (
             glimpse_key_fixed,
@@ -505,7 +519,6 @@ class AttentionModel(nn.Module):
 
         mask = state.get_mask()[:, None, :]
         # mask = torch.cat((mask, torch.zeros(mask.size(0), 1, 1, device=mask.device).long()), dim=2)
-
         # Compute logits (unnormalized log_p)
         log_p, glimpse = self._one_to_many_logits(
             query, glimpse_K, glimpse_V, logit_K, mask
@@ -623,7 +636,6 @@ class AttentionModel(nn.Module):
 
     def _make_heads(self, v, num_steps=None):
         assert num_steps is None or v.size(1) == 1 or v.size(1) == num_steps
-
         return (
             v.contiguous()
             .view(v.size(0), v.size(1), v.size(2), self.n_heads, -1)
