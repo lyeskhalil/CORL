@@ -10,7 +10,7 @@ from itertools import product
 # from tensorboard_logger import Logger as TbLogger
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
-
+import torch.autograd.profiler as profiler
 # from nets.critic_network import CriticNetwork
 from options import get_options
 from train import train_epoch, validate, get_inner_model, eval_model
@@ -39,7 +39,7 @@ def run(opts):
 
     # Set the random seed
     torch.manual_seed(opts.seed)
-
+    #torch.autograd.set_detect_anomaly(True)
     # Optionally configure tensorboard
     tb_logger = None
     if not opts.no_tensorboard:
@@ -95,9 +95,9 @@ def run(opts):
         validate(model, val_dataloader, opts)
     elif opts.tune:
         PARAM_GRID = list(product(
-            [0.00001, 0.001, 0.0001, 0.002, 0.0002],  # learning_rate
-            [(60, 3)],  # embedding size
-            [0.75, 0.85, 0.9],  # baseline exponential decay
+            [0.001, 0.0001, 0.002, 0.0002, 0.003, 0.0003, 0.00001, 0.00002, 0.00003],  # learning_rate
+            [(60, 3), (60, 6), (80, 8), (80, 4), (80, 2)],  # embedding size
+            [0.75, 0.85, 0.9, 0.95],  # baseline exponential decay
             [1.0, 0.99, 0.98, 0.97, 0.96, 0.95]  # lr decay
         ))
 
@@ -153,10 +153,14 @@ def run(opts):
                     tb_logger,
                     opts,
                 )
+                avg_reward, min_cr, avg_cr = avg_reward.item(), min_cr, avg_cr.item()
             with open(SCOREFILE, 'a') as f:
                 f.write(f'{",".join(map(str, params + (avg_reward,min_cr,avg_cr)))}\n')
     else:
         for epoch in range(opts.epoch_start, opts.epoch_start + opts.n_epochs):
+            #with profiler.profile() as prof:
+            #    with profiler.record_function("model_inference"):
+           
             training_dataloader = DataLoader(
                 baseline.wrap_dataset(training_dataset), batch_size=opts.batch_size, num_workers=0, shuffle=True,
             )
@@ -172,6 +176,7 @@ def run(opts):
                 tb_logger,
                 opts,
             )
+            #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=20))
 
 
 def setup_training_env(opts, model_class, problem, load_data, tb_logger):
