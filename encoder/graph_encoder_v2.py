@@ -312,8 +312,8 @@ class GraphAttentionEncoder(nn.Module):
 
         h = x
         batch_size, graph_size, input_dim = h.size()
-        v = self.opts.v_size
         u = self.opts.u_size + 1
+        v = graph_size - u
         # if weights is not None:
         #     weights1 = torch.cat(
         #         (
@@ -339,15 +339,15 @@ class GraphAttentionEncoder(nn.Module):
         h = self._prepare_attentional_mechanism_input(
             h.view(batch_size, graph_size, self.embed_dim)
         ) * (1.0 - adj.float().unsqueeze(3))
-        h = self.last_layer(torch.cat((h, weights.unsqueeze(3)), dim=3)).view(
+        h = self.last_layer(torch.cat((h, weights.float().unsqueeze(3)), dim=3)).view(
             batch_size, u * v, self.embed_dim
         )
         return h
 
     def _prepare_attentional_mechanism_input(self, Wh):
-        # N = Wh.size()[1]  # number of nodes
+        N = Wh.size()[1]  # number of nodes
         u = self.opts.u_size + 1
-        v = self.opts.v_size
+        v = N - u
 
         batch_size = Wh.size()[0]
         # Below, two matrices are created that contain embeddings in their rows in different orders.
@@ -362,7 +362,7 @@ class GraphAttentionEncoder(nn.Module):
         #
 
         Wh_repeated_in_chunks = Wh[:, :u, :].repeat_interleave(v, dim=1)
-        Wh_repeated_alternating = Wh.repeat(1, u, 1)
+        Wh_repeated_alternating = Wh[:, u:, :].repeat(1, u, 1)
         # Wh_repeated_in_chunks.shape == Wh_repeated_alternating.shape == (N * N, out_features)
 
         # The all_combination_matrix, created below, will look like this (|| denotes concatenation):
@@ -385,12 +385,16 @@ class GraphAttentionEncoder(nn.Module):
 
         all_combinations_matrix = torch.cat(
             [Wh_repeated_in_chunks, Wh_repeated_alternating], dim=2
-        ).view(batch_size, u, v, 2 * self.out_features)
+        ).view(batch_size, u, v, 2 * self.embed_dim)
 
         # self_combination_matrix = torch.cat([Wh, Wh], dim=2)
 
-        # all_combinations_matrix = torch.cat([all_combinations_matrix, self_combination_matrix[:, : u, :]], dim=2)
-        # all_combinations_matrix = torch.cat([all_combinations_matrix, self_combination_matrix[:, u :, :]], dim=1)
+        # all_combinations_matrix = torch.cat(
+        #     [all_combinations_matrix, self_combination_matrix[:, :u, None, :]], dim=2
+        # )
+        # all_combinations_matrix = torch.cat(
+        #     [all_combinations_matrix, self_combination_matrix[:, None, u:, :]], dim=1
+        # )
         # all_combinations_matrix.shape == (N * N, 2 * out_features)
         return all_combinations_matrix
 
@@ -467,34 +471,48 @@ class GraphAttentionLayer(nn.Module):
         # Wh = torch.mm(
         #     h, self.W
         # )  # h.shape: (N, in_features), Wh.shape: (N, out_features)
+        u = self.opts.u_size + 1
         Wh = self.W(h)
-        a_input = self._prepare_attentional_mechanism_input(Wh)
-        e = self.leakyrelu(self.a(a_input).squeeze(3))
+        a_input, self_a_input = self._prepare_attentional_mechanism_input(Wh)
+        e, e_self = (
+            self.leakyrelu(self.a(a_input).squeeze(3)),
+            self.leakyrelu(self.a(self_a_input).squeeze(2)),
+        )
         batch_size, graph_size, input_dim = h.size()
         # v = graph_size - weights.size(2)
         # u = weights.size(2)
         # zero_vec = -9e15 * torch.ones_like(e)
         # attention = torch.where(adj > 0, e, zero_vec)
         # adj = (adj.float() - torch.diag_embed(torch.ones(batch_size, graph_size, device=adj.device))).bool()
-        e[:, 1:, 1:, :][adj] = -9e15
+        e[adj] = -9e15
         # attention = e.exp() * (weights + (weights == 0).float())
         # attention = e.exp()
         # attention = F.normalize(attention, dim=2, p=1)
-        attentionU = F.softmax(e[:, :, 1:, :], dim=2)
-        attentionV = F.softmax(e[:, 1:, :, :], dim=1)
-        attention = torch.cat([attentionU, attentionV], dim=1)
-        attention = F.dropout(attention, self.dropout, training=self.training)
-        h_prime = torch.matmul(attention, Wh)
-
+        attentionU = F.softmax(torch.cat([e, e_self[:, :u, None]], dim=2), dim=2)
+        attentionV = F.softmax(
+            torch.cat([e, e_self[:, None, u:]], dim=1), dim=1
+        ).transpose(1, 2)
+        # print(attentionU.shape, attentionV.shape)
+        # attention = torch.cat([attentionU, attentionV], dim=1)
+        attentionU = F.dropout(attentionU, self.dropout, training=self.training)
+        attentionV = F.dropout(attentionV, self.dropout, training=self.training)
+        hu_prime = torch.matmul(attentionU[:, :, :-1], Wh[:, u:, :]) + Wh[
+            :, :u, :
+        ] * attentionU[:, :, -1].unsqueeze(2)
+        hv_prime = (
+            torch.matmul(attentionV[:, :, :-1], Wh[:, :u, :])
+            + attentionV[:, :, -1].unsqueeze(2) * Wh[:, u:, :]
+        )
+        h_prime = torch.cat((hu_prime, hv_prime), dim=1)
         if self.concat:
             return F.elu(h_prime)
         else:
             return h_prime
 
     def _prepare_attentional_mechanism_input(self, Wh):
-        # N = Wh.size()[1]  # number of nodes
+        N = Wh.size()[1]  # number of nodes
         u = self.opts.u_size + 1
-        v = self.opts.v_size
+        v = N - u
 
         batch_size = Wh.size()[0]
         # Below, two matrices are created that contain embeddings in their rows in different orders.
@@ -509,9 +527,8 @@ class GraphAttentionLayer(nn.Module):
         #
 
         Wh_repeated_in_chunks = Wh[:, :u, :].repeat_interleave(v, dim=1)
-        Wh_repeated_alternating = Wh.repeat(1, u, 1)
+        Wh_repeated_alternating = Wh[:, u:, :].repeat(1, u, 1)
         # Wh_repeated_in_chunks.shape == Wh_repeated_alternating.shape == (N * N, out_features)
-
         # The all_combination_matrix, created below, will look like this (|| denotes concatenation):
         # e1 || e1
         # e1 || e2
@@ -536,16 +553,14 @@ class GraphAttentionLayer(nn.Module):
 
         self_combination_matrix = torch.cat([Wh, Wh], dim=2)
 
-        all_combinations_matrix = torch.cat(
-            [all_combinations_matrix, self_combination_matrix[:, :u, :]], dim=2
-        )
-        all_combinations_matrix = torch.cat(
-            [all_combinations_matrix, self_combination_matrix[:, u:, :]], dim=1
-        )
+        # all_combinations_matrix = torch.cat(
+        #     [all_combinations_matrix, self_combination_matrix[:, :u, None, :]], dim=2
+        # )
+        # all_combinations_matrix = torch.cat(
+        #     [all_combinations_matrix, self_combination_matrix[:, None, u:, :]], dim=1
+        # )
         # all_combinations_matrix.shape == (N * N, 2 * out_features)
-        return all_combinations_matrix.view(
-            batch_size, u + 1, v + 1, 2 * self.out_features
-        )
+        return all_combinations_matrix, self_combination_matrix
 
     def __repr__(self):
         return (

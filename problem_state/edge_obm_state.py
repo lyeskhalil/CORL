@@ -53,12 +53,14 @@ class StateEdgeBipartite(NamedTuple):
 
         batch_size = len(input[0])
         # size = torch.zeros(batch_size, 1, dtype=torch.long, device=graphs.device)
+        adj = (input[0] == 0).float()
+        adj[:, :, 0] = 0
         return StateEdgeBipartite(
-            graphs=torch.tensor(input[0]),
-            u_size=torch.tensor([u_size]),
-            v_size=torch.tensor([v_size]),
-            weights=torch.tensor(input[1]),
-            batch_size=torch.tensor([batch_size]),
+            graphs=adj,
+            u_size=torch.tensor([u_size], device=input[0].device),
+            v_size=torch.tensor([v_size], device=input[0].device),
+            weights=input[0],
+            batch_size=torch.tensor([batch_size], device=input[0].device),
             ids=torch.arange(batch_size, dtype=torch.int64, device=input[0].device)[
                 :, None
             ],  # Add steps dimension
@@ -99,11 +101,12 @@ class StateEdgeBipartite(NamedTuple):
         Returns a mask vector which includes only nodes in U that can matched.
         That is, neighbors of the incoming node that have not been matched already.
         """
-        mask = self.graphs[:, self.i.item(), : self.u_size.item() + 1]
-
+        v = self.i.item() - (self.u_size.item() + 1)
+        mask = self.graphs[:, v, :]
         self.matched_nodes[
             :, 0
         ] = 0  # node that represents not being matched to anything can be matched to more than once
+
         return (
             self.matched_nodes.squeeze(1) + mask > 0
         ).long()  # Hacky way to return bool or uint8 depending on pytorch version
