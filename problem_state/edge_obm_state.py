@@ -54,7 +54,7 @@ class StateEdgeBipartite(NamedTuple):
         batch_size = len(input[0])
         # size = torch.zeros(batch_size, 1, dtype=torch.long, device=graphs.device)
         adj = (input[0] == 0).float()
-        adj[:, :, 0] = 0
+        adj[:, 0, :] = 0
         return StateEdgeBipartite(
             graphs=adj,
             u_size=torch.tensor([u_size], device=input[0].device),
@@ -86,7 +86,7 @@ class StateEdgeBipartite(NamedTuple):
         # Update the state
         nodes = self.matched_nodes.squeeze(1).scatter_(-1, selected, 1)
         v = self.i.item() - (self.u_size.item() + 1)
-        total_weights = self.size + self.weights[:, v, :].gather(1, selected)
+        total_weights = self.size + self.weights[:, :, v].gather(1, selected)
         return self._replace(matched_nodes=nodes, size=total_weights, i=self.i + 1,)
 
     def all_finished(self):
@@ -102,7 +102,7 @@ class StateEdgeBipartite(NamedTuple):
         That is, neighbors of the incoming node that have not been matched already.
         """
         v = self.i.item() - (self.u_size.item() + 1)
-        mask = self.graphs[:, v, :]
+        mask = self.graphs[:, :, v]
         self.matched_nodes[
             :, 0
         ] = 0  # node that represents not being matched to anything can be matched to more than once
