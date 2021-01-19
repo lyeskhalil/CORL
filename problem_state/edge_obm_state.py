@@ -54,7 +54,7 @@ class StateEdgeBipartite(NamedTuple):
         batch_size = len(input[0])
         # size = torch.zeros(batch_size, 1, dtype=torch.long, device=graphs.device)
         adj = (input[0] == 0).float()
-        adj[:, :, 0] = 0.
+        adj[:, :, 0] = 0.0
         return StateEdgeBipartite(
             graphs=adj,
             u_size=torch.tensor([u_size], device=input[0].device),
