@@ -36,7 +36,7 @@ def train_n_step(cost, ll, x, optimizer, baseline):
     optimizer.zero_grad()
     loss.backward()
     optimizer.step()
-    print(time.time() - s)
+    #print(time.time() - s)
     return
 
 
@@ -61,8 +61,8 @@ class AttentionModelFixed(NamedTuple):
                 glimpse_val=self.glimpse_val[:, key],  # dim 0 are the heads
                 logit_key=self.logit_key[key],
             )
-        # return super(AttentionModelFixed, self).__getitem__(key)
-        return self[key]
+        return super(AttentionModelFixed, self).__getitem__(key)
+        # return self[key]
 
 
 class AttentionModel(nn.Module):
@@ -324,6 +324,7 @@ class AttentionModel(nn.Module):
                 .expand(batch_size, step_size)
                 .unsqueeze(-1)
             )
+            s = time.time()
             if opts.encoder == "attention":
                 embeddings = self.embedder(
                     self._init_embed(  # pass in one-hot encoding to embedder
