@@ -57,8 +57,8 @@ class StateEdgeBipartite(NamedTuple):
         adj[:, :, 0] = 0.0
         return StateEdgeBipartite(
             graphs=adj,
-            u_size=torch.tensor([u_size], device=input[0].device),
-            v_size=torch.tensor([v_size], device=input[0].device),
+            u_size=u_size,
+            v_size=v_size,
             weights=input[0],
             batch_size=torch.tensor([batch_size], device=input[0].device),
             ids=torch.arange(batch_size, dtype=torch.int64, device=input[0].device)[
@@ -70,9 +70,8 @@ class StateEdgeBipartite(NamedTuple):
                     batch_size, 1, u_size + 1, dtype=torch.uint8, device=input[0].device
                 )
             ),
-            size=torch.zeros(batch_size, 1, device=input[0].device),
-            i=torch.ones(1, dtype=torch.int64, device=input[0].device)
-            * (u_size + 1),  # Vector with length num_steps
+            size=batch_size,
+            i=u_size + 1,
         )
 
     def get_final_cost(self):
@@ -85,23 +84,23 @@ class StateEdgeBipartite(NamedTuple):
     def update(self, selected):
         # Update the state
         nodes = self.matched_nodes.squeeze(1).scatter_(-1, selected, 1)
-        v = self.i.item() - (self.u_size.item() + 1)
+        v = self.i - (self.u_size + 1)
         total_weights = self.size + self.weights[:, v, :].gather(1, selected)
         return self._replace(matched_nodes=nodes, size=total_weights, i=self.i + 1,)
 
     def all_finished(self):
         # Exactly v_size steps
-        return (self.i.item() - (self.u_size.item() + 1)) >= self.v_size
+        return (self.i - (self.u_size + 1)) >= self.v_size
 
     def get_current_node(self):
-        return self.i.item()
+        return self.i
 
     def get_mask(self):
         """
         Returns a mask vector which includes only nodes in U that can matched.
         That is, neighbors of the incoming node that have not been matched already.
         """
-        v = self.i.item() - (self.u_size.item() + 1)
+        v = self.i - (self.u_size + 1)
         mask = self.graphs[:, v, :]
         self.matched_nodes[
             :, 0

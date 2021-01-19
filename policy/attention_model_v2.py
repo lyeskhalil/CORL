@@ -207,13 +207,13 @@ class AttentionModel(nn.Module):
         batch_size = state.weights.size(0)
         # batch_size = state.ids.size(0)
         # Perform decoding steps
-        graph_size = state.u_size.item() + state.v_size.item() + 1
-        node_features = (
-            torch.arange(1, graph_size + 1, device=opts.device)
-            .unsqueeze(0)
-            .expand(batch_size, graph_size)
-            .unsqueeze(-1)
-        )
+        # graph_size = state.u_size + state.v_size + 1
+        # node_features = (
+        #     torch.arange(1, graph_size + 1, device=opts.device)
+        #     .unsqueeze(0)
+        #     .expand(batch_size, graph_size)
+        #     .unsqueeze(-1)
+        # )
         # if opts.encoder == "attention":
         #     embeddings = self.embedder(
         #         self._init_embed(  # pass in one-hot encoding to embedder
@@ -230,7 +230,7 @@ class AttentionModel(nn.Module):
         #     )
         i = 1
         while not (state.all_finished()):
-            step_size = state.i.item() + 1
+            step_size = state.i + 1
             node_features = (
                 torch.arange(1, step_size + 1, device=opts.device)
                 .unsqueeze(0)
@@ -299,7 +299,7 @@ class AttentionModel(nn.Module):
         return (
             torch.stack(outputs, 1),
             torch.stack(sequences, 1),
-            state.size / state.v_size.item(),
+            state.size / state.v_size,
         )
 
     def _select_node(self, probs, mask):
@@ -404,7 +404,7 @@ class AttentionModel(nn.Module):
             if (
                 num_steps == 1
             ):  # We need to special case if we have only 1 step, may be the first or not
-                if state.i.item() == state.u_size.item() + 1:
+                if state.i == state.u_size + 1:
                     # First and only step, ignore prev_a (this is a placeholder)
                     # return torch.cat(
                     #    (
