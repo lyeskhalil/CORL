@@ -11,6 +11,7 @@ from itertools import product
 # from tensorboard_logger import Logger as TbLogger
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
+from torch_geometric.data import geoDataLoader
 
 # from nets.critic_network import CriticNetwork
 from options import get_options
@@ -169,7 +170,7 @@ def run(opts):
             #    baseline.wrap_dataset(training_dataset), batch_size=opts.batch_size, num_workers=1, shuffle=True,
             # )
             for epoch in range(opts.epoch_start, opts.epoch_start + opts.n_epochs):
-                training_dataloader = DataLoader(
+                training_dataloader = geoDataLoader(
                     baseline.wrap_dataset(training_dataset),
                     batch_size=opts.batch_size,
                     num_workers=1,
@@ -191,7 +192,7 @@ def run(opts):
                 f.write(f'{",".join(map(str, params + (avg_reward,min_cr,avg_cr)))}\n')
     else:
         for epoch in range(opts.epoch_start, opts.epoch_start + opts.n_epochs):
-            training_dataloader = DataLoader(
+            training_dataloader = geoDataLoader(
                 baseline.wrap_dataset(training_dataset),
                 batch_size=opts.batch_size,
                 num_workers=0,
@@ -299,7 +300,7 @@ def setup_training_env(opts, model_class, problem, load_data, tb_logger):
     val_dataset = problem.make_dataset(
         opts.val_dataset, opts.val_size, opts.problem, seed=None, opts=opts
     )
-    val_dataloader = DataLoader(
+    val_dataloader = geoDataLoader(
         val_dataset, batch_size=opts.eval_batch_size, num_workers=0
     )
     if opts.resume:

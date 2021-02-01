@@ -104,7 +104,7 @@ def rollout(model, dataset, opts):
         cr = (
             -cost.data.flatten()
             * opts.v_size
-            / move_to(optimal + (optimal == 0).float(), opts.device)
+            / move_to(batch.y + (batch.y == 0).float(), opts.device)
         )
         # print(
         #     "\nBatch Competitive ratio: ", min(cr).item(),
@@ -113,8 +113,8 @@ def rollout(model, dataset, opts):
 
     cost = []
     crs = []
-    for batch, optimal in tqdm(dataset):
-        c, cr = eval_model_bat(batch, optimal)
+    for batch in tqdm(dataset):
+        c, cr = eval_model_bat(batch)
         cost.append(c)
         crs.append(cr)
     return torch.cat(cost, 0), torch.cat(crs, 0)
@@ -246,8 +246,9 @@ def train_epoch(
 
     return avg_reward, min_cr, avg_cr
 
+
 def train_n_step(cost, ll, x, optimizer, baseline):
-    bl_val, bl_loss = baseline.eval(x, cost) if bl_val is None else (bl_val, 0)
+    bl_val, bl_loss = baseline.eval(x, cost)
 
     # Calculate loss
     # print("\nCost: " , cost.item())
@@ -259,6 +260,7 @@ def train_n_step(cost, ll, x, optimizer, baseline):
     loss.backward()
     optimizer.step()
     return
+
 
 def train_batch(
     model, optimizer, baseline, epoch, batch_id, step, batch, tb_logger, opts
@@ -275,7 +277,7 @@ def train_batch(
 
     # Calculate loss
     # print("\nCost: " , cost.item())
-    grad_norms = [[0,0], [0,0]]
+    grad_norms = [[0, 0], [0, 0]]
     reinforce_loss = 0
     loss = 0
     if not opts.n_step:
