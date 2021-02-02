@@ -6,7 +6,7 @@ from torch_geometric.nn import NNConv
 import torch.nn.functional as F
 
 
-class MPNN(torch.nn.Module):
+class MPNN(nn.Module):
     def __init__(
         self,
         n_heads,
