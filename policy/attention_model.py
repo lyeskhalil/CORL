@@ -10,6 +10,7 @@ import torch.nn.functional as F
 
 from encoder.graph_encoder_v2 import GraphAttentionEncoder
 
+
 from encoder.graph_encoder import MPNN
 from torch.nn import DataParallel
 from torch_geometric.utils import subgraph
@@ -83,7 +84,7 @@ class AttentionModel(nn.Module):
         checkpoint_encoder=False,
         shrink_size=None,
         num_actions=None,
-        encoder="attention",
+        encoder="MPNN",
     ):
         super(AttentionModel, self).__init__()
 
@@ -206,7 +207,7 @@ class AttentionModel(nn.Module):
         # Compute keys, values for the glimpse and keys for the logits once as they can be reused in every step
         # fixed = self._precompute(embeddings)
         step_context = 0
-        batch_size = state.weights.size(0)
+        batch_size = state.batch_size
 
         i = 1
         while not (state.all_finished()):
@@ -216,13 +217,13 @@ class AttentionModel(nn.Module):
                 .unsqueeze(0)
                 .expand(batch_size, step_size)
                 .reshape(batch_size * step_size, 1)
-            )  # Collecting node features up until the ith incoming node
+            ).float()  # Collecting node features up until the ith incoming node
             subgraphs = (
                 (torch.arange(0, step_size).unsqueeze(0).expand(batch_size, step_size))
                 + torch.arange(0, batch_size * step_size, step_size).unsqueeze(1)
             ).flatten()  # The nodes of the current subgraphs
             edge_i, weights = subgraph(
-                subgraphs, self.input.edge_index, self.input.weight.unsqueeze(1)
+                subgraphs, state.graphs.edge_index, state.graphs.weight.unsqueeze(1)
             )
             embeddings = self.embedder(node_features, edge_i, weights.float()).reshape(
                 batch_size, step_size, -1
@@ -457,7 +458,7 @@ class AttentionModel(nn.Module):
         logits = torch.matmul(final_Q, logit_K.transpose(-2, -1)).squeeze(
             -2
         ) / math.sqrt(final_Q.size(-1))
-
+        print(logits.shape)
         # From the logits compute the probabilities by clipping, masking and softmax
         if self.tanh_clipping > 0:
             logits = torch.tanh(logits) * self.tanh_clipping

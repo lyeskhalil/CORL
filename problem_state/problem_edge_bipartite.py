@@ -4,7 +4,7 @@ import torch
 import os
 import pickle
 from problem_state.edge_obm_state import StateEdgeBipartite
-from problem_state.edge_obm_old import StateEdgeBipartiteGeo
+from problem_state.edge_obm_old import StateEdgeBipartite as StateEdgeBipartiteGeo
 from data.generate_data import generate_edge_obm_data, generate_edge_obm_data_geometric
 
 

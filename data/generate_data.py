@@ -108,7 +108,7 @@ def generate_obm_data(
 
 
 def generate_weights(distribution, u_size, v_size, parameters, g1):
-    weights, w = 0
+    weights, w = 0, 0
     if distribution == "uniform":
         weights = nx.bipartite.biadjacency_matrix(
             g1, range(0, u_size), range(u_size, u_size + v_size)
@@ -187,7 +187,7 @@ def from_networkx(G):
 
 
 def generate_weights_geometric(distribution, u_size, v_size, parameters, g1):
-    weights, w = 0
+    weights, w = 0, 0
     if distribution == "uniform":
         weights = nx.bipartite.biadjacency_matrix(
             g1, range(0, u_size), range(u_size, u_size + v_size)
@@ -255,7 +255,7 @@ def generate_edge_obm_data_geometric(
     for i in tqdm(range(dataset_size)):
         g1 = g(u_size, v_size, p=graph_family_parameter, seed=seed + i)
         # d_old = np.array(sorted(g1.degree))[u_size:, 1]
-        weights, w = generate_weights(
+        weights, w = generate_weights_geometric(
             weight_distribution, u_size, v_size, weight_param, g1
         )
         # s = sorted(list(g1.nodes))
@@ -534,7 +534,7 @@ if __name__ == "__main__":
             True,
         )
     elif opts.problem == "e-obm":
-        dataset = generate_edge_obm_data(
+        dataset = generate_edge_obm_data_geometric(
             opts.u_size,
             opts.v_size,
             opts.weight_distribution,

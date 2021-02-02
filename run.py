@@ -11,7 +11,7 @@ from itertools import product
 # from tensorboard_logger import Logger as TbLogger
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
-from torch_geometric.data import geoDataLoader
+from torch_geometric.data import DataLoader as geoDataloader
 
 # from nets.critic_network import CriticNetwork
 from options import get_options
@@ -25,6 +25,7 @@ from reinforce_baselines import (
     GreedyBaseline,
 )
 from policy.attention_model_v2 import AttentionModel
+from policy.attention_model import AttentionModel as AttentionModelgeo
 from policy.ff_model_v2 import FeedForwardModel
 from policy.greedy import Greedy
 from policy.greedy_rt import GreedyRt
@@ -84,7 +85,7 @@ def run(opts):
     #     load_data2 = torch_load_cpu(opts.load_path2)
     # Initialize model
     model_class = {
-        "attention": AttentionModel,
+        "attention": AttentionModelgeo,
         "ff": FeedForwardModel,
         "greedy": Greedy,
         "greedy-rt": GreedyRt,
@@ -170,7 +171,7 @@ def run(opts):
             #    baseline.wrap_dataset(training_dataset), batch_size=opts.batch_size, num_workers=1, shuffle=True,
             # )
             for epoch in range(opts.epoch_start, opts.epoch_start + opts.n_epochs):
-                training_dataloader = geoDataLoader(
+                training_dataloader = geoDataloader(
                     baseline.wrap_dataset(training_dataset),
                     batch_size=opts.batch_size,
                     num_workers=1,
@@ -192,7 +193,7 @@ def run(opts):
                 f.write(f'{",".join(map(str, params + (avg_reward,min_cr,avg_cr)))}\n')
     else:
         for epoch in range(opts.epoch_start, opts.epoch_start + opts.n_epochs):
-            training_dataloader = geoDataLoader(
+            training_dataloader = geoDataloader(
                 baseline.wrap_dataset(training_dataset),
                 batch_size=opts.batch_size,
                 num_workers=0,
@@ -300,7 +301,7 @@ def setup_training_env(opts, model_class, problem, load_data, tb_logger):
     val_dataset = problem.make_dataset(
         opts.val_dataset, opts.val_size, opts.problem, seed=None, opts=opts
     )
-    val_dataloader = geoDataLoader(
+    val_dataloader = geoDataloader(
         val_dataset, batch_size=opts.eval_batch_size, num_workers=0
     )
     if opts.resume:
