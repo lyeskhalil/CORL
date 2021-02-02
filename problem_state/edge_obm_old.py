@@ -1,22 +1,16 @@
 import torch
 from typing import NamedTuple
+from torch_geometric.utils import to_dense_adj, subgraph
 
 # from utils.boolmask import mask_long2bool, mask_long_scatter
-import numpy as np
-import networkx as nx
-
-"""
-THIS IS THE OLD VERSION: PLEASE DO NOT READ
-"""
 
 
-class StateBipartite(NamedTuple):
+class StateEdgeBipartite(NamedTuple):
     # Fixed input
-    graphs: torch.Tensor  # full adjacency matrix of all line graphs in a batch
+    graphs: torch.Tensor  # full adjacency matrix of all graphs in a batch
     # adj: torch.Tensor # full adjacency matrix of all graphs in a batch
     weights: torch.Tensor  # weights of all edges of each graph in a batch
-    edges: torch.Tensor  # edges of each graph in a batch
-    degree: torch.Tensor  # degree of each node in the V set
+    # edges: torch.Tensor  # edges of each graph in a batch
     u_size: torch.Tensor
     v_size: torch.Tensor
     batch_size: torch.Tensor
@@ -46,64 +40,41 @@ class StateBipartite(NamedTuple):
                 graphs=self.graphs[key],
                 weights=self.weights[key],
                 matched_nodes=self.matched_nodes[key],
-                picked_edges=self.picked_edges[key],
                 size=self.size[key],
-                edges=self.edges[key],
-                degree=self.degree[key],
                 u_size=self.u_size[key],
                 v_size=self.v_size[key],
             )
-        # return super(StateBipartite, self).__getitem__(key)
+        # return super(StateEdgeBipartite, self).__getitem__(key)
         return self[key]
 
     @staticmethod
     def initialize(
         input, u_size, v_size, num_edges, visited_dtype=torch.uint8,
     ):
-
-        batch_size = len(input[0])
+        graph_size = u_size + v_size + 1
+        batch_size = int(input.batch.size(0) / graph_size)
         # size = torch.zeros(batch_size, 1, dtype=torch.long, device=graphs.device)
-        return StateBipartite(
-            graphs=torch.tensor(input[0]),
-            u_size=torch.tensor([u_size]),
-            v_size=torch.tensor([v_size]),
-            weights=torch.tensor(input[1]),
-            edges=torch.tensor(input[3]),
-            degree=torch.tensor(input[2]),
-            batch_size=torch.tensor([batch_size]),
-            ids=torch.arange(batch_size, dtype=torch.int64, device=input[0].device)[
-                :, None
-            ],  # Add steps dimension
+        # adj = (input[0] == 0).float()
+        # adj[:, :, 0] = 0.0
+        return StateEdgeBipartite(
+            graphs=input,
+            u_size=u_size,
+            v_size=v_size,
+            weights=None,
+            batch_size=batch_size,
+            ids=None,
             # Keep visited with depot so we can scatter efficiently (if there is an action for depot)
             matched_nodes=(  # Visited as mask is easier to understand, as long more memory efficient
                 torch.zeros(
-                    batch_size, 1, u_size + 1, dtype=torch.uint8, device=input[0].device
+                    batch_size,
+                    1,
+                    u_size + 1,
+                    dtype=torch.uint8,
+                    device=input.batch.device,
                 )
-                # if visited_dtype == torch.uint8
-                # else torch.zeros(
-                #     batch_size,
-                #     1,
-                #     (n_loc + 63) // 64,
-                #     dtype=torch.int64,
-                #     device=graphs.device,
-                # )  # Ceil
             ),
-            # picked_edges=(  # Visited as mask is easier to understand, as long more memory efficient
-            #     torch.zeros(
-            #         batch_size, 1, num_edges, dtype=torch.uint8, device=input[0].device
-            #     )
-            #     # if visited_dtype == torch.uint8
-            #     # else torch.zeros(
-            #     #     batch_size,
-            #     #     1,
-            #     #     (n_loc + 63) // 64,
-            #     #     dtype=torch.int64,
-            #     #     device=graphs.device,
-            #     # )  # Ceil
-            # ),
-            size=torch.zeros(batch_size, 1, device=input[0].device),
-            i=torch.ones(1, dtype=torch.int64, device=input[0].device)
-            * u_size,  # Vector with length num_steps
+            size=torch.zeros(batch_size, 1, device=input.batch.device),
+            i=u_size + 1,
         )
 
     def get_final_cost(self):
@@ -115,30 +86,49 @@ class StateBipartite(NamedTuple):
 
     def update(self, selected):
         # Update the state
-        s = (self.i.item() - self.u_size.item()) * (self.u_size.item() + 1)
-        nodes = self.matched_nodes.squeeze(1).scatter_(-1, selected - s, 1)
-        # selected_u = (selected - s - 1).expand(self.batch_size, self.edges.shape[1])
-        # # state.edges.shape
-        # selected_v = (self.i).T.expand(selected_u.shape)
-        # mask = (selected_u == self.edges[:, :, 0]) & (selected_v == self.edges[:, :, 1])
-        total_weights = self.size + self.weights.gather(1, selected)
-        # total_weights = self.size + torch.sum(self.weights * mask.long(), dim=1)[:, None]
-        # edges = self.picked_edges.squeeze(1) + mask.long()
-        # edges = self.picked_edges.squeeze(1).scatter_(-1, selected, 1)
-        # nodes = self.matched_nodes.squeeze(1).scatter_(-1, selected, 1)
-        # selected_u = selected.T.expand(self.edges.shape[1], -1)
-        # selected_v = (self.i).T.expand(self.edges.shape[1], -1)
-        # mask = (selected_u == self.edges[:, :, 0].T) & (selected_v == self.edges[:, :, 1].T)
-        # total_weights = self.size + torch.sum(self.weights * mask.T.long(), dim=1)
-        # print(self.picked_edges)
-        # print(mask.long())
-        # edges = self.picked_edges + mask.long()
-        # mask = edges.scatter_(-1, self.edges[:, :, 0] == )
+        nodes = self.matched_nodes.squeeze(1).scatter_(-1, selected, 1)
+        # v = self.i - (self.u_size + 1)
+        graph_size = self.u_size + self.v_size + 1
+        offset = torch.arange(
+            0,
+            self.batch_size * (graph_size),
+            graph_size,
+            device=self.graphs.batch.device,
+        ).unsqueeze(1)
+        subgraphs = torch.cat(
+            (
+                (
+                    torch.arange(0, self.u_size + 1, device=self.graphs.batch.device)
+                    .unsqueeze(0)
+                    .expand(self.batch_size, self.u_size + 1)
+                )
+                + offset,
+                torch.tensor(self.i, device=self.graphs.batch.device).expand(
+                    self.batch_size, 1
+                )
+                + offset,
+            ),
+            dim=1,
+        ).flatten()
+        edge_i, weights = subgraph(
+            subgraphs,
+            self.graphs.edge_index,
+            self.graphs.weight.unsqueeze(1),
+            relabel_nodes=True,
+        )
+        adj = to_dense_adj(
+            edge_i,
+            self.graphs.batch.reshape(self.batch_size, graph_size)[
+                :, : self.u_size + 2
+            ].flatten(),
+            weights,
+        )[:, -1, : self.u_size + 1].squeeze(-1)
+        total_weights = self.size + adj.gather(1, selected)
         return self._replace(matched_nodes=nodes, size=total_weights, i=self.i + 1,)
 
     def all_finished(self):
-        # Exactly n steps
-        return (self.i.item() - self.u_size.item()) >= self.degree.size(-1)
+        # Exactly v_size steps
+        return (self.i - (self.u_size + 1)) >= self.v_size
 
     def get_current_node(self):
         return self.i
@@ -148,58 +138,48 @@ class StateBipartite(NamedTuple):
         Returns a mask vector which includes only nodes in U that can matched.
         That is, neighbors of the incoming node that have not been matched already.
         """
-
-        self.matched_nodes[:, 0] = 0
-        a = self.edges.reshape(
-            self.edges.size(0) * self.edges.size(1), 2
-        ) == self.i.expand_as(
-            self.edges.reshape(self.edges.size(0) * self.edges.size(1), 2)
-        )
-        b = self.edges.reshape(self.edges.size(0) * self.edges.size(1), 2)[:, 0]
-
-        c = b[a[:, 1].nonzero()]
-
-        m = torch.zeros(
-            c.size(0), self.matched_nodes.squeeze(1).size(1), device=self.graphs.device
-        ).scatter_(-1, c + 1, 1)
-
-        f = torch.index_select(
-            m.cumsum(0),
+        # v = self.i - (self.u_size + 1)
+        graph_size = self.u_size + self.v_size + 1
+        offset = torch.arange(
             0,
-            (self.degree[:, self.i.item() - self.u_size.item()]).cumsum(0) - 1,
+            self.batch_size * (graph_size),
+            graph_size,
+            device=self.graphs.batch.device,
+        ).unsqueeze(1)
+        subgraphs = torch.cat(
+            (
+                (
+                    torch.arange(0, self.u_size + 1, device=self.graphs.batch.device)
+                    .unsqueeze(0)
+                    .expand(self.batch_size, self.u_size + 1)
+                )
+                + offset,
+                torch.tensor(self.i, device=self.graphs.batch.device).expand(
+                    self.batch_size, 1
+                )
+                + offset,
+            ),
+            dim=1,
+        ).flatten()
+        edge_i, weights = subgraph(
+            subgraphs,
+            self.graphs.edge_index,
+            self.graphs.weight.unsqueeze(1),
+            relabel_nodes=True,
         )
         mask = (
-            torch.cat((f, torch.zeros(1, f.size(1), device=self.graphs.device)), dim=0)
-            - torch.cat(
-                (torch.zeros(1, f.size(1), device=self.graphs.device), f), dim=0
-            )
-        )[:-1, :]
-        # print(mask)
+            1.0
+            - to_dense_adj(
+                edge_i,
+                self.graphs.batch.reshape(self.batch_size, graph_size)[
+                    :, : self.u_size + 2
+                ].flatten(),
+            )[:, -1, : self.u_size + 1]
+        )
+        self.matched_nodes[
+            :, 0
+        ] = 0  # node that represents not being matched to anything can be matched to more than once
+
         return (
-            self.matched_nodes.squeeze(1) + (1 - mask) > 0
+            self.matched_nodes.squeeze(1) + mask > 0
         ).long()  # Hacky way to return bool or uint8 depending on pytorch version
-
-    # def get_nn(self, k=None):
-    #     # Insert step dimension
-    #     # Nodes already visited get inf so they do not make it
-    #     if k is None:
-    #         k = self.loc.size(-2) - self.i.item()  # Number of remaining
-    #     return (
-    #         self.dist[self.ids, :, :] + self.visited.float()[:, :, None, :] * 1e6
-    #     ).topk(k, dim=-1, largest=False)[1]
-
-    # def get_nn_current(self, k=None):
-    #     assert (
-    #         False
-    #     ), "Currently not implemented, look into which neighbours to use in step 0?"
-    #     # Note: if this is called in step 0, it will have k nearest neighbours to node 0, which may not be desired
-    #     # so it is probably better to use k = None in the first iteration
-    #     if k is None:
-    #         k = self.loc.size(-2)
-    #     k = min(k, self.loc.size(-2) - self.i.item())  # Number of remaining
-    #     return (self.dist[self.ids, self.prev_a] + self.visited.float() * 1e6).topk(
-    #         k, dim=-1, largest=False
-    #     )[1]
-
-    def construct_solutions(self, actions):
-        return actions

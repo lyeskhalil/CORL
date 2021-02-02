@@ -1,5 +1,6 @@
 import argparse
 import os
+from networkx.classes.function import number_of_edges
 import numpy as np
 from data.data_utils import check_extension, save_dataset
 import networkx as nx
@@ -8,6 +9,9 @@ import torch
 import pickle as pk
 from tqdm import tqdm
 from scipy.stats import powerlaw
+import torch_geometric
+
+# from torch_geometric.utils import from_networkx
 
 
 def _add_nodes_with_bipartite_label(G, lena, lenb):
@@ -104,6 +108,7 @@ def generate_obm_data(
 
 
 def generate_weights(distribution, u_size, v_size, parameters, g1):
+    weights, w = 0, 0
     if distribution == "uniform":
         weights = nx.bipartite.biadjacency_matrix(
             g1, range(0, u_size), range(u_size, u_size + v_size)
@@ -144,6 +149,143 @@ def generate_weights(distribution, u_size, v_size, parameters, g1):
         )
 
     return weights, w
+
+
+def from_networkx(G):
+    r"""Converts a :obj:`networkx.Graph` or :obj:`networkx.DiGraph` to a
+    :class:`torch_geometric.data.Data` instance.
+
+    Args:
+        G (networkx.Graph or networkx.DiGraph): A networkx graph.
+    """
+
+    G = nx.convert_node_labels_to_integers(G, ordering="sorted")
+    G = G.to_directed() if not nx.is_directed(G) else G
+    edge_index = torch.LongTensor(list(G.edges)).t().contiguous()
+
+    data = {}
+
+    for i, (_, feat_dict) in enumerate(G.nodes(data=True)):
+        for key, value in feat_dict.items():
+            data[str(key)] = [value] if i == 0 else data[str(key)] + [value]
+
+    for i, (_, _, feat_dict) in enumerate(G.edges(data=True)):
+        for key, value in feat_dict.items():
+            data[str(key)] = [value] if i == 0 else data[str(key)] + [value]
+
+    for key, item in data.items():
+        try:
+            data[key] = torch.tensor(item)
+        except ValueError:
+            pass
+
+    data["edge_index"] = edge_index.view(2, -1)
+    data = torch_geometric.data.Data.from_dict(data)
+    data.num_nodes = G.number_of_nodes()
+
+    return data
+
+
+def generate_weights_geometric(distribution, u_size, v_size, parameters, g1):
+    weights, w = 0, 0
+    if distribution == "uniform":
+        weights = nx.bipartite.biadjacency_matrix(
+            g1, range(0, u_size), range(u_size, u_size + v_size)
+        ).toarray() * np.random.randint(
+            int(parameters[0]), int(parameters[1]), (u_size, v_size)
+        )
+        w = torch.cat(
+            (torch.zeros(v_size, 1).long(), torch.tensor(weights).T.long()), 1
+        )
+    elif distribution == "normal":
+        weights = nx.bipartite.biadjacency_matrix(
+            g1, range(0, u_size), range(u_size, u_size + v_size)
+        ).toarray() * (
+            np.abs(
+                np.random.normal(
+                    int(parameters[0]), int(parameters[1]), (u_size, v_size)
+                )
+            )
+            + 5
+        )  # to make sure no edge has weight zero
+        w = torch.cat(
+            (torch.zeros(v_size, 1).long(), torch.tensor(weights).T.long()), 1
+        )
+    elif distribution == "power":
+        weights = nx.bipartite.biadjacency_matrix(
+            g1, range(0, u_size), range(u_size, u_size + v_size)
+        ).toarray() * (
+            powerlaw.rvs(
+                int(parameters[0]),
+                int(parameters[1]),
+                int(parameters[2]),
+                (u_size, v_size),
+            )
+            + 5
+        )  # to make sure no edge has weight zero
+        w = torch.cat(
+            (torch.zeros(v_size, 1).long(), torch.tensor(weights).T.long()), 1
+        )
+    w = np.delete(weights.flatten(), weights.flatten() == 0)
+    return weights, w
+
+
+def generate_edge_obm_data_geometric(
+    u_size,
+    v_size,
+    weight_distribution,
+    weight_param,
+    graph_family_parameter,
+    seed,
+    graph_family,
+    dataset_folder,
+    dataset_size,
+    save_data,
+):
+    """
+    Generates edge weighted bipartite graphs using the ER/BA schemes in pytorch geometric format
+
+    Supports unifrom, normal, and power distributions.
+    """
+    D, M = [], []
+    if graph_family == "er":
+        g = nx.bipartite.random_graph
+    if graph_family == "ba":
+        g = generate_ba_graph
+    for i in tqdm(range(dataset_size)):
+        g1 = g(u_size, v_size, p=graph_family_parameter, seed=seed + i)
+        # d_old = np.array(sorted(g1.degree))[u_size:, 1]
+        weights, w = generate_weights_geometric(
+            weight_distribution, u_size, v_size, weight_param, g1
+        )
+        # s = sorted(list(g1.nodes))
+        # c = nx.convert_matrix.to_numpy_array(g1, s)
+        d = [dict(weight=int(i)) for i in list(w)]
+        nx.set_edge_attributes(g1, dict(zip(list(g1.edges), d)))
+        g1.add_node(
+            -1, bipartite=0
+        )  # add extra node in U that represents not matching the current node to anything
+        g1.add_edges_from(
+            list(zip([-1] * v_size, range(u_size, u_size + v_size))), weight=0
+        )
+        i1, i2 = linear_sum_assignment(weights, maximize=True)
+        optimal = weights[i1, i2].sum()
+        # s = sorted(list(g1.nodes))
+        # m = 1 - nx.convert_matrix.to_numpy_array(g1, s)
+        data = from_networkx(g1)
+        data.y = torch.tensor(optimal)
+        if save_data:
+            torch.save(
+                data, "{}/data_{}.pt".format(dataset_folder, i),
+            )
+        else:
+            D.append(data)
+            M.append(optimal)
+        # ordered_m = np.take(np.take(m, order, axis=1), order, axis=0)
+    return (
+        list(D),
+        torch.tensor(M),
+    )
 
 
 def generate_edge_obm_data(
@@ -392,7 +534,7 @@ if __name__ == "__main__":
             True,
         )
     elif opts.problem == "e-obm":
-        dataset = generate_edge_obm_data(
+        dataset = generate_edge_obm_data_geometric(
             opts.u_size,
             opts.v_size,
             opts.weight_distribution,
