@@ -107,7 +107,7 @@ class AttentionModel(nn.Module):
         node_dim = 0
         if self.is_bipartite:  # online bipartite matching
             step_context_dim = (
-                embedding_dim * 1
+                embedding_dim * 2
             )  # Embedding of edges chosen and current node
             node_dim = 1  # edge weight
 
@@ -250,13 +250,15 @@ class AttentionModel(nn.Module):
             step_context = (
                 step_context
                 + (
-                    (torch.gather(fixed.node_embeddings, 1, s) + embeddings[:, -1, :])
+                    (
+                        torch.gather(fixed.node_embeddings, 1, s)
+                        + embeddings[:, -1, :].unsqueeze(1)
+                    )
                     / 2
                     - step_context
                 )
                 / i
             )  # Incremental averaging of selected edges
-
             # Collect output of step
             # step_size = ((state.i.item() - state.u_size.item() + 1) * (state.u_size + 1))
             outputs.append(log_p[:, 0, :])
@@ -402,25 +404,24 @@ class AttentionModel(nn.Module):
             ):  # We need to special case if we have only 1 step, may be the first or not
                 if state.i == state.u_size + 1:
                     # First and only step, ignore prev_a (this is a placeholder)
-                    # return torch.cat(
-                    #    (
-                    #    	self.W_placeholder[None, None, :].expand(
-                    #           		batch_size, 1, self.W_placeholder.size(-1)
-                    # ),
-                    #    	curr_node.unsqueeze(1),
-                    #   	),
-                    #   	dim=2,
-                    # )
-                    return self.W_placeholder[None, None, :].expand(
-                        batch_size, 1, self.W_placeholder.size(-1)
+                    return torch.cat(
+                        (
+                            self.W_placeholder[None, None, :].expand(
+                                batch_size, 1, self.W_placeholder.size(-1)
+                            ),
+                            curr_node.unsqueeze(1),
+                        ),
+                        dim=2,
                     )
+                    # return self.W_placeholder[None, None, :].expand(
+                    #     batch_size, 1, self.W_placeholder.size(-1)
+                    # )
                 #        return (curr_node.unsqueeze(1))
                 else:
-                    # return torch.cat(
-                    #    (step_context, curr_node.unsqueeze(1)), dim=2
-                    return step_context
-                    # , dim=2
-                    # )  # add embedding of arriving node to context
+                    return torch.cat(
+                        (step_context, curr_node.unsqueeze(1)), dim=2
+                    )  # add embedding of arriving node to context
+                    # return step_context
 
     def _one_to_many_logits(self, query, glimpse_K, glimpse_V, logit_K, mask):
         batch_size, num_steps, embed_dim = query.size()
@@ -458,7 +459,6 @@ class AttentionModel(nn.Module):
         logits = torch.matmul(final_Q, logit_K.transpose(-2, -1)).squeeze(
             -2
         ) / math.sqrt(final_Q.size(-1))
-        print(logits.shape)
         # From the logits compute the probabilities by clipping, masking and softmax
         if self.tanh_clipping > 0:
             logits = torch.tanh(logits) * self.tanh_clipping
