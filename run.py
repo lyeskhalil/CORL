@@ -40,6 +40,7 @@ def run(opts):
 
     # Set the random seed
     torch.manual_seed(opts.seed)
+    #torch.backends.cudnn.benchmark = True
     #torch.autograd.set_detect_anomaly(True)
     # Optionally configure tensorboard
     tb_logger = None
@@ -105,24 +106,12 @@ def run(opts):
     if opts.eval_only:
         validate(model, val_dataloader, opts)
     elif opts.tune:
-<<<<<<< HEAD
         PARAM_GRID = list(product(
             [0.001, 0.0001, 0.002, 0.0002, 0.003, 0.0003, 0.00001, 0.00002, 0.00003],  # learning_rate
             [(60, 3), (60, 6), (80, 8), (80, 4), (80, 2)],  # embedding size
             [0.75, 0.85, 0.9, 0.95],  # baseline exponential decay
             [1.0, 0.99, 0.98, 0.97, 0.96, 0.95]  # lr decay
         ))
-=======
-        PARAM_GRID = list(
-            product(
-                [0.00001, 0.001, 0.0001, 0.002, 0.0002],  # learning_rate
-                [(60, 3)],  # embedding size
-                [0.75, 0.85, 0.9],  # baseline exponential decay
-                [1.0, 0.99, 0.98, 0.97, 0.96, 0.95],  # lr decay
-            )
-        )
->>>>>>> 6cc5ada0e97b8a735183405b50dbd31a24a5d3c8
-
         # total number of slurm workers detected
         # defaults to 1 if not running under SLURM
         N_WORKERS = int(os.getenv("SLURM_ARRAY_TASK_COUNT", 1))

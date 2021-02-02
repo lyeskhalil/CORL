@@ -233,8 +233,8 @@ def train_epoch(
             os.path.join(opts.save_dir, "epoch-{}.pt".format(epoch)),
         )
 
-    avg_reward, min_cr, avg_cr = validate(model, val_dataset, opts)
-
+    #avg_reward, min_cr, avg_cr = validate(model, val_dataset, opts)
+    avg_reward, min_cr, avg_cr = 0,0,0
     if not opts.no_tensorboard:
         tb_logger.add_scalar("val_avg_reward", -avg_reward, step)
         tb_logger.add_scalar("min_competitive_ratio", min_cr, step)
@@ -276,7 +276,7 @@ def train_batch(
     # Calculate loss
     # print("\nCost: " , cost.item())
     grad_norms = [[0,0], [0,0]]
-    reinforce_loss = 0
+    reinforce_loss = torch.tensor(0)
     loss = 0
     if not opts.n_step:
         reinforce_loss = ((cost.squeeze(1) - bl_val) * log_likelihood).mean()
