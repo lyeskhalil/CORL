@@ -209,7 +209,7 @@ class AttentionModel(nn.Module):
         # fixed = self._precompute(embeddings)
         step_context = 0
         batch_size = state.batch_size
-
+        graph_size = state.u_size + state.v_size + 1
         i = 1
         while not (state.all_finished()):
             step_size = state.i + 1
@@ -220,8 +220,8 @@ class AttentionModel(nn.Module):
                 .reshape(batch_size * step_size, 1)
             ).float()  # Collecting node features up until the ith incoming node
             subgraphs = (
-                (torch.arange(0, step_size, device=opts.device, requires_grad=False).unsqueeze(0).expand(batch_size, step_size))
-                + torch.arange(0, batch_size * step_size, step_size, device=opts.device, requires_grad=False).unsqueeze(1)
+                (torch.arange(0, step_size).unsqueeze(0).expand(batch_size, step_size))
+                + torch.arange(0, batch_size * graph_size, graph_size).unsqueeze(1)
             ).flatten()  # The nodes of the current subgraphs
             edge_i, weights = subgraph(
                 subgraphs, state.graphs.edge_index, state.graphs.weight.unsqueeze(1)
