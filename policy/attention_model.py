@@ -35,11 +35,12 @@ def train_n_step(cost, ll, x, optimizer, baseline):
     loss = reinforce_loss + bl_loss
     # print(loss.item())
     # Perform backward pass and optimization step
-    # s = time.time()
+    #s = time.time()
     optimizer.zero_grad()
     loss.backward()
+    #print(time.time() - s)
     optimizer.step()
-    # print(time.time() - s)
+    #print(time.time() - s)
     return
 
 
@@ -64,8 +65,8 @@ class AttentionModelFixed(NamedTuple):
                 glimpse_val=self.glimpse_val[:, key],  # dim 0 are the heads
                 logit_key=self.logit_key[key],
             )
-        # return super(AttentionModelFixed, self).__getitem__(key)
-        return self[key]
+        return super(AttentionModelFixed, self).__getitem__(key)
+        #return self[key]
 
 
 class AttentionModel(nn.Module):
@@ -158,9 +159,9 @@ class AttentionModel(nn.Module):
         #     embeddings, _ = checkpoint(self.embedder, self._init_embed(input))
         # # else:
         #     embeddings, _ = self.embedder(self._init_embed(input))
-
+        s = time.time()
         _log_p, pi, cost = self._inner(input, opts, optimizer, baseline)
-
+        #print(time.time() - s)
         # cost, mask = self.problem.get_costs(input, pi)
         # Log likelyhood is calculated within the model since returning it per action does not work well with
         # DataParallel since sequences can be of different lengths
@@ -213,21 +214,23 @@ class AttentionModel(nn.Module):
         while not (state.all_finished()):
             step_size = state.i + 1
             node_features = (
-                torch.arange(1, step_size + 1, device=opts.device)
+                torch.arange(1, step_size + 1, device=opts.device, requires_grad=False)
                 .unsqueeze(0)
                 .expand(batch_size, step_size)
                 .reshape(batch_size * step_size, 1)
             ).float()  # Collecting node features up until the ith incoming node
             subgraphs = (
-                (torch.arange(0, step_size).unsqueeze(0).expand(batch_size, step_size))
-                + torch.arange(0, batch_size * step_size, step_size).unsqueeze(1)
+                (torch.arange(0, step_size, device=opts.device, requires_grad=False).unsqueeze(0).expand(batch_size, step_size))
+                + torch.arange(0, batch_size * step_size, step_size, device=opts.device, requires_grad=False).unsqueeze(1)
             ).flatten()  # The nodes of the current subgraphs
             edge_i, weights = subgraph(
                 subgraphs, state.graphs.edge_index, state.graphs.weight.unsqueeze(1)
             )
+            #s = time.time()
             embeddings = self.embedder(node_features, edge_i, weights.float()).reshape(
                 batch_size, step_size, -1
             )
+            #print(time.time() - s)
             # embeddings = self._init_embed(node_features.float()).view(
             #   opts.batch_size, step_size, -1
             # )
@@ -247,6 +250,7 @@ class AttentionModel(nn.Module):
             s = (selected[:, None].repeat(1, fixed.node_embeddings.size(-1)))[
                 :, None, :
             ]
+            #with torch.no_grad():
             step_context = (
                 step_context
                 + (
@@ -263,7 +267,7 @@ class AttentionModel(nn.Module):
             # step_size = ((state.i.item() - state.u_size.item() + 1) * (state.u_size + 1))
             outputs.append(log_p[:, 0, :])
             sequences.append(selected)
-
+    
             if (
                 (optimizer is not None)
                 and opts.n_step
