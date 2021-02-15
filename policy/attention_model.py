@@ -76,7 +76,7 @@ class AttentionModel(nn.Module):
         hidden_dim,
         problem,
         opts,
-        n_encode_layers=2,
+        n_encode_layers=1,
         tanh_clipping=10.0,
         mask_inner=True,
         mask_logits=True,
@@ -117,7 +117,7 @@ class AttentionModel(nn.Module):
             self.W_placeholder.data.uniform_(
                 -1, 1
             )  # Placeholder should be in range of activations
-        self.init_embed = nn.Linear(node_dim, embedding_dim)
+        #self.init_embed = nn.Linear(node_dim, embedding_dim)
 
         encoder_class = {"attention": GraphAttentionEncoder, "mpnn": MPNN}.get(
             encoder, None
@@ -136,10 +136,15 @@ class AttentionModel(nn.Module):
         self.project_node_embeddings = nn.Linear(embedding_dim, 3 * embedding_dim)
         self.project_fixed_context = nn.Linear(embedding_dim, embedding_dim)
         self.project_step_context = nn.Linear(step_context_dim, embedding_dim)
+        self.get_edge_embed = nn.Linear(2 * embedding_dim, embedding_dim)
         assert embedding_dim % n_heads == 0
         # Note n_heads * val_dim == embedding_dim so input to project_out is embedding_dim
         self.project_out = nn.Linear(embedding_dim, embedding_dim)
-
+        nn.init.xavier_uniform_(self.project_node_embeddings.weight)
+        nn.init.xavier_uniform_(self.project_fixed_context.weight)
+        nn.init.xavier_uniform_(self.project_step_context.weight)
+        nn.init.xavier_uniform_(self.get_edge_embed.weight)
+        nn.init.xavier_uniform_(self.project_out.weight)
     def set_decode_type(self, decode_type, temp=None):
         self.decode_type = decode_type
         if temp is not None:  # Do not change temperature if not provided
@@ -187,11 +192,9 @@ class AttentionModel(nn.Module):
         # Optional: mask out actions irrelevant to objective so they do not get reinforced
         if mask is not None:
             log_p[mask] = 0
-
         assert (
             log_p > -1000
         ).data.all(), "Logprobs should not be -inf, check sampling procedure!"
-
         # Calculate log_likelihood
         return log_p.sum(1)
 
@@ -214,17 +217,17 @@ class AttentionModel(nn.Module):
         while not (state.all_finished()):
             step_size = state.i + 1
             node_features = (
-                torch.arange(1, step_size + 1, device=opts.device, requires_grad=False)
+                torch.arange(1, step_size + 1, device=opts.device)
                 .unsqueeze(0)
                 .expand(batch_size, step_size)
                 .reshape(batch_size * step_size, 1)
             ).float()  # Collecting node features up until the ith incoming node
             subgraphs = (
-                (torch.arange(0, step_size).unsqueeze(0).expand(batch_size, step_size))
-                + torch.arange(0, batch_size * graph_size, graph_size).unsqueeze(1)
+                (torch.arange(0, step_size, device=opts.device).unsqueeze(0).expand(batch_size, step_size))
+                + torch.arange(0, batch_size * graph_size, graph_size, device=opts.device).unsqueeze(1)
             ).flatten()  # The nodes of the current subgraphs
             edge_i, weights = subgraph(
-                subgraphs, state.graphs.edge_index, state.graphs.weight.unsqueeze(1)
+                subgraphs, state.graphs.edge_index, state.graphs.weight.unsqueeze(1), relabel_nodes=True
             )
             #s = time.time()
             embeddings = self.embedder(node_features, edge_i, weights.float()).reshape(
@@ -235,34 +238,34 @@ class AttentionModel(nn.Module):
             #   opts.batch_size, step_size, -1
             # )
             fixed = self._precompute(embeddings, step_size, opts, state)
-
+            #print(fixed.node_embeddings) 
             log_p, mask = self._get_log_p(
                 fixed, state, step_context, opts, embeddings[:, -1, :]
             )
+            # print(embeddings[:, : state.u_size + 1, :])
             # Select the indices of the next nodes in the sequences, result (batch_size) long
             selected = self._select_node(
                 log_p.exp()[:, 0, :], mask[:, 0, :].bool()
             )  # Squeeze out steps dimension
-            # print(selected)
-            # print(embeddings)
+            #print(selected)
             # print(state.weights)
             state = state.update(selected[:, None])
             s = (selected[:, None].repeat(1, fixed.node_embeddings.size(-1)))[
                 :, None, :
             ]
-            #with torch.no_grad():
-            step_context = (
-                step_context
-                + (
-                    (
-                        torch.gather(fixed.node_embeddings, 1, s)
-                        + embeddings[:, -1, :].unsqueeze(1)
+            with torch.no_grad():
+                step_context = (
+                    step_context
+                    + (
+#                    self.get_edge_embed(torch.cat(
+                        (torch.gather(fixed.node_embeddings, 1, s) + 
+                        embeddings[:, -1, :].unsqueeze(1))
+#                    , dim=2))
+                        / 2
+                        - step_context
                     )
-                    / 2
-                    - step_context
-                )
-                / i
-            )  # Incremental averaging of selected edges
+                    / i
+                )  # Incremental averaging of selected edges
             # Collect output of step
             # step_size = ((state.i.item() - state.u_size.item() + 1) * (state.u_size + 1))
             outputs.append(log_p[:, 0, :])
@@ -332,7 +335,7 @@ class AttentionModel(nn.Module):
             torch.cat(
                 (
                     embeddings[:, None, : opts.u_size + 1, :],
-                    embeddings[:, None, step_size - 1, :].unsqueeze(2),
+                    embeddings[:, None, -1, :].unsqueeze(2),
                 ),
                 dim=2,
             )
@@ -351,7 +354,7 @@ class AttentionModel(nn.Module):
             torch.cat(
                 (
                     embeddings[:, : opts.u_size + 1, :],
-                    embeddings[:, step_size - 1, :].unsqueeze(1),
+                    embeddings[:, -1, :].unsqueeze(1),
                 ),
                 dim=1,
             ),
