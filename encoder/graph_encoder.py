@@ -44,6 +44,11 @@ class MPNN(nn.Module):
         nn.init.xavier_uniform_(self.l1.weight)
         #nn.init.xavier_uniform_(self.l2.weight)
         #nn.init.xavier_uniform_(self.l3.weight)
+        self.init_parameters()
+    def init_parameters(self):
+        for name, param in self.named_parameters():
+            stdv = 1. / math.sqrt(param.size(-1))
+            param.data.uniform_(-stdv, stdv)
     def forward(self, x, edge_index, edge_attribute, i):
         if i < self.n_layers:
             n_encode_layers = i
@@ -57,9 +62,9 @@ class MPNN(nn.Module):
             #x = F.relu(x)
         #    x = self.norm(x.view(-1, x.size(-1))).view(*x.size())
         
-        # print(x)
-        #x = F.relu(x)
-        #x = self.norm(x.view(-1, x.size(-1))).view(*x.size())
+        x = F.relu(x)
+        x = self.norm(x.view(-1, x.size(-1))).view(*x.size())
+        #print(x)
         #x = F.dropout(x, p=self.dropout, training=self.training)
         #x = self.conv2(x, edge_index, edge_attribute)
         #x = F.leaky_relu(x)
