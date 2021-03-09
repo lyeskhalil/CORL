@@ -47,11 +47,11 @@ class MPNN(nn.Module):
         x = self.node_embed(x)
         for i in range(self.n_layers):
             x = F.leaky_relu(x)
-            x = self.conv1(x, edge_index, edge_attribute)
+            x = self.conv1(x, edge_index, edge_attribute.float() / 100.)
         
 
-        x = F.leaky_relu(x)
-        x = self.norm(x.view(-1, x.size(-1))).view(*x.size())
+        #x = F.leaky_relu(x)
+        #x = self.norm(x.view(-1, x.size(-1))).view(*x.size())
         #x = F.dropout(x, p=self.dropout, training=self.training)
         #x = self.conv2(x, edge_index, edge_attribute)
         #x = F.leaky_relu(x)

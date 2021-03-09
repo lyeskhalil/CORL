@@ -25,3 +25,8 @@ tensorboard-plugin-wit>=1.7.0
 torch>=1.5.1
 torchvision>=0.6.1
 tqdm>=4.47.0
+torch-scatter
+torch-sparse
+torch-cluster
+torch-spline-conv
+torch-geometric

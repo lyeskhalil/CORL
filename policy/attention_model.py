@@ -257,11 +257,11 @@ class AttentionModel(nn.Module):
                 step_context = (
                     step_context
                     + (
-#                    self.get_edge_embed(torch.cat(
-                        (torch.gather(fixed.node_embeddings, 1, s) + 
+                    self.get_edge_embed(torch.cat(
+                        (torch.gather(fixed.node_embeddings, 1, s),
                         embeddings[:, -1, :].unsqueeze(1))
-#                    , dim=2))
-                        / 2
+                    , dim=2))
+#                        / 2
                         - step_context
                     )
                     / i
@@ -290,7 +290,7 @@ class AttentionModel(nn.Module):
         return (
             torch.stack(outputs, 1),
             torch.stack(sequences, 1),
-            state.size / state.v_size,
+            state.size / (state.v_size * 100),
         )
 
     def _select_node(self, probs, mask):

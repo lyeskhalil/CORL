@@ -3,8 +3,8 @@
 #SBATCH --time=00:10:00
 #SBATCH --output=%N-%j.out
 
-U_SIZE=5
-V_SIZE=15
+U_SIZE=10
+V_SIZE=60
 GRAPH_FAMILY="er"
 FAMILY_PARAMETER=0.15
 PROBLEM="e-obm"
