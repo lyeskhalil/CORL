@@ -9,7 +9,7 @@ import torch.nn.functional as F
 # from utils.tensor_functions import compute_in_batches
 
 from encoder.graph_encoder_v2 import GraphAttentionEncoder
-
+from train import clip_grad_norms
 
 from encoder.graph_encoder import MPNN
 from torch.nn import DataParallel
@@ -26,7 +26,7 @@ def set_decode_type(model, decode_type):
     model.set_decode_type(decode_type)
 
 
-def train_n_step(cost, ll, x, optimizer, baseline):
+def train_n_step(cost, ll, x, optimizers, baseline, opts):
     bl_val, bl_loss = baseline.eval(x, cost)
 
     # Calculate loss
@@ -36,10 +36,12 @@ def train_n_step(cost, ll, x, optimizer, baseline):
     # print(loss.item())
     # Perform backward pass and optimization step
     #s = time.time()
-    optimizer.zero_grad()
+    optimizers[0].zero_grad()
     loss.backward()
     #print(time.time() - s)
-    optimizer.step()
+    grad_norms = clip_grad_norms(optimizers[0].param_groups, opts.max_grad_norm)
+    optimizers[0].step()
+    #optimizers[1].step()
     #print(time.time() - s)
     return
 
@@ -137,10 +139,12 @@ class AttentionModel(nn.Module):
         self.project_fixed_context = nn.Linear(embedding_dim, embedding_dim)
         self.project_step_context = nn.Linear(step_context_dim, embedding_dim)
         self.get_edge_embed = nn.Linear(2 * embedding_dim, embedding_dim)
+        # self.project_node_features = nn.Linear(1, embedding_dim)
         assert embedding_dim % n_heads == 0
         # Note n_heads * val_dim == embedding_dim so input to project_out is embedding_dim
         self.project_out = nn.Linear(embedding_dim, embedding_dim)
         nn.init.xavier_uniform_(self.project_node_embeddings.weight)
+        # nn.init.xavier_uniform_(self.project_node_features.weight)
         nn.init.xavier_uniform_(self.project_fixed_context.weight)
         nn.init.xavier_uniform_(self.project_step_context.weight)
         nn.init.xavier_uniform_(self.get_edge_embed.weight)
@@ -214,6 +218,13 @@ class AttentionModel(nn.Module):
         batch_size = state.batch_size
         graph_size = state.u_size + state.v_size + 1
         i = 1
+        #node_features = (
+        #    torch.arange(1, graph_size + 1, device=opts.device)
+        #    .unsqueeze(0)
+        #    .expand(batch_size, graph_size)
+        #    .reshape(batch_size * graph_size, 1)
+        #).float()
+        #initial_embeddings = checkpoint(self.project_node_features, node_features).reshape(batch_size, graph_size, -1)
         while not (state.all_finished()):
             step_size = state.i + 1
             node_features = (
@@ -229,10 +240,14 @@ class AttentionModel(nn.Module):
             edge_i, weights = subgraph(
                 subgraphs, state.graphs.edge_index, state.graphs.weight.unsqueeze(1), relabel_nodes=True
             )
-            #s = time.time()
-            embeddings = self.embedder(node_features, edge_i, weights.float()).reshape(
-                batch_size, step_size, -1
-            )
+            if (i % opts.checkpoint_every == 0):
+                embeddings = checkpoint(self.embedder, node_features, edge_i, weights.float(), i).reshape(
+                    batch_size, step_size, -1
+                )
+            else:
+                embeddings = self.embedder(node_features, edge_i, weights.float()).reshape(
+                    batch_size, step_size, -1
+                )
             #print(time.time() - s)
             # embeddings = self._init_embed(node_features.float()).view(
             #   opts.batch_size, step_size, -1
@@ -248,24 +263,24 @@ class AttentionModel(nn.Module):
                 log_p.exp()[:, 0, :], mask[:, 0, :].bool()
             )  # Squeeze out steps dimension
             #print(selected)
-            # print(state.weights)
+            #print(state.matched_nodes)
             state = state.update(selected[:, None])
             s = (selected[:, None].repeat(1, fixed.node_embeddings.size(-1)))[
                 :, None, :
             ]
-            with torch.no_grad():
-                step_context = (
-                    step_context
-                    + (
-                    self.get_edge_embed(torch.cat(
-                        (torch.gather(fixed.node_embeddings, 1, s),
-                        embeddings[:, -1, :].unsqueeze(1))
-                    , dim=2))
-#                        / 2
-                        - step_context
-                    )
-                    / i
-                )  # Incremental averaging of selected edges
+#            with torch.no_grad():
+            step_context = (
+                step_context
+                + (
+                   self.get_edge_embed(torch.cat(
+                    (torch.gather(fixed.node_embeddings, 1, s), 
+                    embeddings[:, -1, :].unsqueeze(1))
+                   , dim=2))
+#                    / 2
+                    - step_context
+                )
+                / i
+            )  # Incremental averaging of selected edges
             # Collect output of step
             # step_size = ((state.i.item() - state.u_size.item() + 1) * (state.u_size + 1))
             outputs.append(log_p[:, 0, :])
@@ -282,15 +297,20 @@ class AttentionModel(nn.Module):
                     -state.size / i,
                 )
                 ll = self._calc_log_likelihood(_log_p, pi, None)
-                train_n_step(cost, ll, None, optimizer, baseline)
+                train_n_step(cost, ll, None, optimizer, baseline, opts)
                 step_context = step_context.detach()
+                # initial_embeddings = self.project_node_features(node_features).reshape(batch_size, graph_size, -1)
                 # state = state._replace(size=state.size.detach())
             i += 1
         # Collected lists, return Tensor
         return (
             torch.stack(outputs, 1),
             torch.stack(sequences, 1),
+<<<<<<< HEAD
             state.size / (state.v_size * 100),
+=======
+            state.size / (state.v_size*100),
+>>>>>>> 17ae038aa02479600e7861720d35b2ae42e42da4
         )
 
     def _select_node(self, probs, mask):

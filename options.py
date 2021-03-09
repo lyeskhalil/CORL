@@ -195,6 +195,13 @@ def get_options(args=None):
         "--checkpoint_encoder",
         action="store_true",
         help="Set to decrease memory usage by checkpointing encoder",
+    
+    )
+    parser.add_argument(
+        "--checkpoint_every",
+        type=int,
+        default=1,
+        help="checkpoint encoder every x epochs. NOTE: checkpointing here does not mean saving model.",
     )
     parser.add_argument(
         "--shrink_size",

@@ -7,7 +7,7 @@ import pprint as pp
 import torch
 import torch.optim as optim
 from itertools import product
-
+import torch.autograd.profiler as profiler
 # from tensorboard_logger import Logger as TbLogger
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
@@ -50,21 +50,15 @@ def run(opts):
         tb_logger = SummaryWriter(
             os.path.join(
                 opts.log_dir,
-                "{}_{}_{}_{}_{}".format(
-                    opts.problem,
-                    opts.u_size,
-                    opts.v_size,
-                    opts.lr_model,
-                    opts.embedding_dim,
-                ),
+                opts.model,
                 opts.run_name,
             )
         )
-    if not os.path.exists(opts.save_dir):
+    if not opts.eval_only and not os.path.exists(opts.save_dir):
         os.makedirs(opts.save_dir)
     # Save arguments so exact configuration can always be found
-    with open(os.path.join(opts.save_dir, "args.json"), "w") as f:
-        json.dump(vars(opts), f, indent=True)
+        with open(os.path.join(opts.save_dir, "args.json"), "w") as f:
+            json.dump(vars(opts), f, indent=True)
 
     # Set the device
     opts.device = torch.device("cuda:0" if opts.use_cuda else "cpu")
@@ -94,7 +88,7 @@ def run(opts):
     }.get(opts.model, None)
     assert model_class is not None, "Unknown model: {}".format(model_class)
     # if not opts.tune:
-    model, lr_scheduler, optimizer, val_dataloader, baseline = setup_training_env(
+    model, lr_schedulers, optimizers, val_dataloader, baseline = setup_training_env(
         opts, model_class, problem, load_data, tb_logger
     )
 
@@ -109,10 +103,10 @@ def run(opts):
         validate(model, val_dataloader, opts)
     elif opts.tune:
         PARAM_GRID = list(product(
-            [0.001, 0.0001, 0.002, 0.0002, 0.003, 0.0003, 0.00001, 0.00002, 0.00003],  # learning_rate
-            [(60, 3), (60, 6), (80, 8), (80, 4), (80, 2)],  # embedding size
+            [0.0001, 0.00001],  # learning_rate
+            [(20, 1), (30, 1), (40, 1)],  # embedding size
             [0.75, 0.85, 0.9, 0.95],  # baseline exponential decay
-            [1.0, 0.99, 0.98, 0.97, 0.96, 0.95]  # lr decay
+            [0.99, 0.98, 0.97]  # lr decay
         ))
         # total number of slurm workers detected
         # defaults to 1 if not running under SLURM
@@ -152,8 +146,8 @@ def run(opts):
             load_data = {}
             (
                 model,
-                lr_scheduler,
-                optimizer,
+                lr_schedulers,
+                optimizers,
                 val_dataloader,
                 baseline,
             ) = setup_training_env(opts, model_class, problem, load_data, tb_logger)
@@ -172,14 +166,14 @@ def run(opts):
                 training_dataloader = geoDataloader(
                     baseline.wrap_dataset(training_dataset),
                     batch_size=opts.batch_size,
-                    num_workers=1,
+                    num_workers=0,
                     shuffle=True,
                 )
                 avg_reward, min_cr, avg_cr = train_epoch(
                     model,
-                    optimizer,
+                    optimizers,
                     baseline,
-                    lr_scheduler,
+                    lr_schedulers,
                     epoch,
                     val_dataloader,
                     training_dataloader,
@@ -197,15 +191,15 @@ def run(opts):
            
             training_dataloader = geoDataloader(
                 baseline.wrap_dataset(training_dataset),
-                batch_size=opts.batch_size,
-                num_workers=0,
-                shuffle=True,
-            )
+                    batch_size=opts.batch_size,
+                    num_workers=0,
+                    shuffle=True,
+                )
             train_epoch(
                 model,
-                optimizer,
+                optimizers,
                 baseline,
-                lr_scheduler,
+                lr_schedulers,
                 epoch,
                 val_dataloader,
                 training_dataloader,
@@ -276,16 +270,19 @@ def setup_training_env(opts, model_class, problem, load_data, tb_logger):
     # Load baseline from data, make sure script is called with same type of baseline
     if "baseline" in load_data:
         baseline.load_state_dict(load_data["baseline"])
-
+    init_node_embedding_weights = ("project_node_features.weight", "project_node_features.bias")
+    parameters = (p for name, p in model.named_parameters() if name not in init_node_embedding_weights)
+    parameters1 = (p for name, p in model.named_parameters() if name in init_node_embedding_weights)
     # Initialize optimizer
     optimizer = optim.Adam(
-        [{"params": model.parameters(), "lr": opts.lr_model}]
+        [{"params": parameters, "lr": opts.lr_model}]
         + (
             [{"params": baseline.get_learnable_parameters(), "lr": opts.lr_critic}]
             if len(baseline.get_learnable_parameters()) > 0
             else []
         )
     )
+    optimizer1 = optim.Adam([{"params": parameters1, "lr": opts.lr_model}])
 
     # Load optimizer state
     if "optimizer" in load_data:
@@ -300,14 +297,17 @@ def setup_training_env(opts, model_class, problem, load_data, tb_logger):
     lr_scheduler = optim.lr_scheduler.LambdaLR(
         optimizer, lambda epoch: opts.lr_decay ** epoch
     )
+    lr_scheduler1 = optim.lr_scheduler.LambdaLR(
+        optimizer1, lambda epoch: opts.lr_decay ** epoch
+    )
     # Start the actual training loop
     val_dataset = problem.make_dataset(
         opts.val_dataset, opts.val_size, opts.problem, seed=None, opts=opts
     )
     val_dataloader = geoDataloader(
-        val_dataset, batch_size=opts.eval_batch_size, num_workers=0
+        val_dataset, batch_size=opts.eval_batch_size, num_workers=1
     )
-    if opts.resume:
+    if opts.resume: #TODO: This does not resume both optimizers
         epoch_resume = int(
             os.path.splitext(os.path.split(opts.resume)[-1])[0].split("-")[1]
         )
@@ -320,7 +320,7 @@ def setup_training_env(opts, model_class, problem, load_data, tb_logger):
         baseline.epoch_callback(model, epoch_resume)
         print("Resuming after {}".format(epoch_resume))
         opts.epoch_start = epoch_resume + 1
-    return model, lr_scheduler, optimizer, val_dataloader, baseline
+    return model, [lr_scheduler, lr_scheduler1], [optimizer, optimizer1], val_dataloader, baseline
 
 
 if __name__ == "__main__":
