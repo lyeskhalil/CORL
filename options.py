@@ -195,6 +195,13 @@ def get_options(args=None):
         "--checkpoint_encoder",
         action="store_true",
         help="Set to decrease memory usage by checkpointing encoder",
+    
+    )
+    parser.add_argument(
+        "--checkpoint_every",
+        type=int,
+        default=1,
+        help="checkpoint encoder every x epochs. NOTE: checkpointing here does not mean saving model.",
     )
     parser.add_argument(
         "--shrink_size",
@@ -354,6 +361,7 @@ def get_options(args=None):
     opts = parser.parse_args(args)
     opts.use_cuda = torch.cuda.is_available() and not opts.no_cuda
     opts.run_name = "{}_{}".format(opts.run_name, time.strftime("%Y%m%dT%H%M%S"))
+    opts.save_dir = os.path.join(opts.output_dir, opts.model, opts.run_name)
     if opts.bl_warmup_epochs is None:
         opts.bl_warmup_epochs = 1 if opts.baseline == "rollout" else 0
     assert (opts.bl_warmup_epochs == 0) or (opts.baseline == "rollout")
