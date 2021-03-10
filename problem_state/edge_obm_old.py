@@ -17,7 +17,7 @@ class StateEdgeBipartite(NamedTuple):
     # If this state contains multiple copies (i.e. beam search) for the same instance, then for memory efficiency
     # the loc and dist tensors are not kept multiple times, so we need to use the ids to index the correct rows.
     ids: torch.Tensor  # Keeps track of original fixed data index of rows
-
+    adj: torch.Tensor
     # State
     # curr_edge: torch.Tensor  # current edge number
     matched_nodes: torch.Tensor  # Keeps track of nodes that have been matched
@@ -45,7 +45,6 @@ class StateEdgeBipartite(NamedTuple):
                 v_size=self.v_size[key],
             )
         return super(StateEdgeBipartite, self).__getitem__(key)
-        # return self[key]
 
     @staticmethod
     def initialize(
@@ -53,11 +52,13 @@ class StateEdgeBipartite(NamedTuple):
     ):
         graph_size = u_size + v_size + 1
         batch_size = int(input.batch.size(0) / graph_size)
+        adj = to_dense_adj(input.edge_index, input.batch, input.weight.unsqueeze(1))[:, u_size + 1 :, : u_size + 1].squeeze(-1) 
         # size = torch.zeros(batch_size, 1, dtype=torch.long, device=graphs.device)
         # adj = (input[0] == 0).float()
-        # adj[:, :, 0] = 0.0
+        #adj[:, :, 0] = 0.0
         return StateEdgeBipartite(
             graphs=input,
+            adj=adj,
             u_size=u_size,
             v_size=v_size,
             weights=None,
@@ -89,42 +90,44 @@ class StateEdgeBipartite(NamedTuple):
         nodes = self.matched_nodes.squeeze(1).scatter_(-1, selected, 1)
         # v = self.i - (self.u_size + 1)
         graph_size = self.u_size + self.v_size + 1
-        offset = torch.arange(
-            0,
-            self.batch_size * (graph_size),
-            graph_size,
-            device=self.graphs.batch.device,
-        ).unsqueeze(1)
-        subgraphs = torch.cat(
-            (
-                (
-                    torch.arange(0, self.u_size + 1, device=self.graphs.batch.device)
-                    .unsqueeze(0)
-                    .expand(self.batch_size, self.u_size + 1)
-                )
-                + offset,
-                torch.tensor(self.i, device=self.graphs.batch.device).expand(
-                    self.batch_size, 1
-                )
-                + offset,
-            ),
-            dim=1,
-        ).flatten()
-        edge_i, weights = subgraph(
-            subgraphs,
-            self.graphs.edge_index,
-            self.graphs.weight.unsqueeze(1),
-            relabel_nodes=True,
-        )
-        adj = to_dense_adj(
-            edge_i,
-            self.graphs.batch.reshape(self.batch_size, graph_size)[
-                :, : self.u_size + 2
-            ].flatten(),
-            weights,
-        )[:, -1, : self.u_size + 1].squeeze(-1)
-        total_weights = self.size + adj.gather(1, selected)
-        return self._replace(matched_nodes=nodes, size=total_weights, i=self.i + 1,)
+        #offset = torch.arange(
+        #    0,
+        #    self.batch_size * (graph_size),
+        #    graph_size,
+        #    device=self.graphs.batch.device,
+        #).unsqueeze(1)
+        #subgraphs = torch.cat(
+        #    (
+        #        (
+        #            torch.arange(0, self.u_size + 1, device=self.graphs.batch.device)
+        #            .unsqueeze(0)
+        #            .expand(self.batch_size, self.u_size + 1)
+        #        )
+        #        + offset,
+        #        torch.tensor(self.i, device=self.graphs.batch.device).expand(
+        #            self.batch_size, 1
+        #        )
+        #        + offset,
+        #    ),
+        #    dim=1,
+        #).flatten()
+        #edge_i, weights = subgraph(
+        #    subgraphs,
+        #    self.graphs.edge_index,
+        #    self.graphs.weight.unsqueeze(1),
+        #    relabel_nodes=True,
+        #)
+        #adj = to_dense_adj(
+        #    edge_i,
+        #    self.graphs.batch.reshape(self.batch_size, graph_size)[
+        #        :, : self.u_size + 2
+        #    ].flatten(),
+        #    weights,
+        #)[:, -1, : self.u_size + 1].squeeze(-1)
+        v = self.i - (self.u_size + 1)
+        total_weights = self.size + self.adj[:, 0, :].gather(1, selected)
+        #total_weights = self.size + adj.gather(1, selected)
+        return self._replace(matched_nodes=nodes, size=total_weights, i=self.i + 1,adj=self.adj[:, 1 :, :])
 
     def all_finished(self):
         # Exactly v_size steps
@@ -138,48 +141,49 @@ class StateEdgeBipartite(NamedTuple):
         Returns a mask vector which includes only nodes in U that can matched.
         That is, neighbors of the incoming node that have not been matched already.
         """
-        # v = self.i - (self.u_size + 1)
+        v = self.i - (self.u_size + 1)
         graph_size = self.u_size + self.v_size + 1
-        offset = torch.arange(
-            0,
-            self.batch_size * (graph_size),
-            graph_size,
-            device=self.graphs.batch.device,
-        ).unsqueeze(1)
-        subgraphs = torch.cat(
-            (
-                (
-                    torch.arange(0, self.u_size + 1, device=self.graphs.batch.device)
-                    .unsqueeze(0)
-                    .expand(self.batch_size, self.u_size + 1)
-                )
-                + offset,
-                torch.tensor(self.i, device=self.graphs.batch.device).expand(
-                    self.batch_size, 1
-                )
-                + offset,
-            ),
-            dim=1,
-        ).flatten()
-        edge_i, weights = subgraph(
-            subgraphs,
-            self.graphs.edge_index,
-            self.graphs.weight.unsqueeze(1),
-            relabel_nodes=True,
-        )
-        mask = (
-            1.0
-            - to_dense_adj(
-                edge_i,
-                self.graphs.batch.reshape(self.batch_size, graph_size)[
-                    :, : self.u_size + 2
-                ].flatten(),
-            )[:, -1, : self.u_size + 1]
-        )
+        #offset = torch.arange(
+        #    0,
+        #    self.batch_size * (graph_size),
+        #    graph_size,
+        #    device=self.graphs.batch.device,
+        #).unsqueeze(1)
+        #subgraphs = torch.cat(
+        #    (
+        #        (
+        #            torch.arange(0, self.u_size + 1, device=self.graphs.batch.device)
+        #            .unsqueeze(0)
+        #            .expand(self.batch_size, self.u_size + 1)
+        #        )
+        #        + offset,
+       #         torch.tensor(self.i, device=self.graphs.batch.device).expand(
+        #            self.batch_size, 1
+        #        )
+        #        + offset,
+        #    ),
+        #    dim=1,
+        #).flatten()
+        #edge_i, weights = subgraph(
+        #    subgraphs,
+         #   self.graphs.edge_index,
+        #    self.graphs.weight.unsqueeze(1),
+        #    relabel_nodes=True,
+        #)
+        #mask = (
+        #    1.0
+        #    - to_dense_adj(
+        #        edge_i,
+        #        self.graphs.batch.reshape(self.batch_size, graph_size)[
+        #            :, : self.u_size + 2
+        #        ].flatten(),
+        #    )[:, -1, : self.u_size + 1]
+        #)
+        mask = (self.adj[:, 0, :] == 0).float()
+        mask[:, 0] = 0
         self.matched_nodes[
             :, 0
         ] = 0  # node that represents not being matched to anything can be matched to more than once
-
         return (
             self.matched_nodes.squeeze(1) + mask > 0
         ).long()  # Hacky way to return bool or uint8 depending on pytorch version
