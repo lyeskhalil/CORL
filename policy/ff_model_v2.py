@@ -49,7 +49,7 @@ class FeedForwardModel(nn.Module):
 
         self.ff.apply(init_weights)
 
-    def forward(self, x, opts):
+    def forward(self, x, opts, optimizer, baseline, return_pi=False):
 
         _log_p, pi, cost = self._inner(x, opts)
 
@@ -93,9 +93,9 @@ class FeedForwardModel(nn.Module):
             #    state.u_size.item() + 1
             # )
             # step_size = state.i.item() + 1
-            v = state.i.item() - (state.u_size.item() + 1)
+            v = state.i - (state.u_size + 1)
             # su = (state.weights[:, v, :]).float().sum(1)
-            w = (state.weights[:, v, :]).float()
+            w = (state.adj[:, 0, :]).float()
             mask = state.get_mask()
             s = torch.cat((w, mask.float()), dim=1)
             # s = w
@@ -111,7 +111,7 @@ class FeedForwardModel(nn.Module):
             sequences.append(selected)
             i += 1
         # Collected lists, return Tensor
-        return torch.stack(outputs, 1), torch.stack(sequences, 1), state.size
+        return torch.stack(outputs, 1), torch.stack(sequences, 1), state.size / (opts.v_size*100)
 
     def _select_node(self, probs, mask):
         assert (probs == probs).all(), "Probs should not contain any nans"
