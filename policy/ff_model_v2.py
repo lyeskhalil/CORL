@@ -28,18 +28,18 @@ class FeedForwardModel(nn.Module):
 
         self.embedding_dim = embedding_dim
         self.decode_type = None
-        self.num_actions = num_actions
+        self.num_actions = 2 * (opts.u_size + 1)
         self.is_bipartite = problem.NAME == "bipartite"
         self.problem = problem
         self.shrink_size = None
         self.ff = nn.Sequential(
-            nn.Linear(self.embedding_dim, 500),
+            nn.Linear(self.num_actions, 500),
             nn.ReLU(),
             nn.Linear(500, 500),
             nn.ReLU(),
             nn.Linear(500, 500),
             nn.ReLU(),
-            nn.Linear(500, self.num_actions),
+            nn.Linear(500, opts.u_size + 1),
         )
 
         def init_weights(m):
