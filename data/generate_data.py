@@ -182,8 +182,8 @@ def generate_edge_obm_data(
             weight_distribution, u_size, v_size, weight_param, g1
         )
 
-        print('weights: ', weights)
-        print('w: ', w)
+        # print('weights: ', weights)
+        # print('w: ', w)
         # s = sorted(list(g1.nodes))
         # c = nx.convert_matrix.to_numpy_array(g1, s)
 
@@ -193,10 +193,10 @@ def generate_edge_obm_data(
         g1.add_edges_from(list(zip([-1] * v_size, range(u_size, u_size + v_size))))
 
         s = sorted(list(g1.nodes))
-        print('s: ', s)
+        # print('s: ', s)
         
         m = 1 - nx.convert_matrix.to_numpy_array(g1, s)
-        print('m: ', m)
+        # print('m: ', m)
         if save_data:
             torch.save(
                 [torch.tensor(m).clone(), torch.tensor(w).clone()],
