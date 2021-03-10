@@ -43,8 +43,8 @@ class StateEdgeBipartite(NamedTuple):
                 u_size=self.u_size[key],
                 v_size=self.v_size[key],
             )
-        # return super(StateEdgeBipartite, self).__getitem__(key)
-        return self[key]
+        return super(StateEdgeBipartite, self).__getitem__(key)
+        # return self[key]
 
     @staticmethod
     def initialize(
@@ -53,12 +53,14 @@ class StateEdgeBipartite(NamedTuple):
 
         batch_size = len(input[0])
         # size = torch.zeros(batch_size, 1, dtype=torch.long, device=graphs.device)
+        adj = (input[0] == 0).float()
+        adj[:, :, 0] = 0.0
         return StateEdgeBipartite(
-            graphs=torch.tensor(input[0]),
-            u_size=torch.tensor([u_size]),
-            v_size=torch.tensor([v_size]),
-            weights=torch.tensor(input[1]),
-            batch_size=torch.tensor([batch_size]),
+            graphs=adj,
+            u_size=u_size,
+            v_size=v_size,
+            weights=input[0],
+            batch_size=torch.tensor([batch_size], device=input[0].device),
             ids=torch.arange(batch_size, dtype=torch.int64, device=input[0].device)[
                 :, None
             ],  # Add steps dimension
@@ -68,9 +70,8 @@ class StateEdgeBipartite(NamedTuple):
                     batch_size, 1, u_size + 1, dtype=torch.uint8, device=input[0].device
                 )
             ),
-            size=torch.zeros(batch_size, 1, device=input[0].device),
-            i=torch.ones(1, dtype=torch.int64, device=input[0].device)
-            * (u_size + 1),  # Vector with length num_steps
+            size=batch_size,
+            i=u_size + 1,
         )
 
     def get_final_cost(self):
@@ -83,24 +84,24 @@ class StateEdgeBipartite(NamedTuple):
     def update(self, selected):
         # Update the state
         nodes = self.matched_nodes.squeeze(1).scatter_(-1, selected, 1)
-        v = self.i.item() - (self.u_size.item() + 1)
+        v = self.i - (self.u_size + 1)
         total_weights = self.size + self.weights[:, v, :].gather(1, selected)
         return self._replace(matched_nodes=nodes, size=total_weights, i=self.i + 1,)
 
     def all_finished(self):
         # Exactly v_size steps
-        return (self.i.item() - (self.u_size.item() + 1)) >= self.v_size
+        return (self.i - (self.u_size + 1)) >= self.v_size
 
     def get_current_node(self):
-        return self.i.item()
+        return self.i
 
     def get_mask(self):
         """
         Returns a mask vector which includes only nodes in U that can matched.
         That is, neighbors of the incoming node that have not been matched already.
         """
-        mask = self.graphs[:, self.i.item(), : self.u_size.item() + 1]
-
+        v = self.i - (self.u_size + 1)
+        mask = self.graphs[:, v, :]
         self.matched_nodes[
             :, 0
         ] = 0  # node that represents not being matched to anything can be matched to more than once
