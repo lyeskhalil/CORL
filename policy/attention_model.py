@@ -177,7 +177,7 @@ class AttentionModel(nn.Module):
         # DataParallel since sequences can be of different lengths
         ll = self._calc_log_likelihood(_log_p, pi, None)
         if return_pi:
-            return cost, ll, pi
+            return -cost, ll, pi
 
         return -cost, ll
 

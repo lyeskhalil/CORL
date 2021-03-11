@@ -20,9 +20,9 @@ def get_inner_model(model):
     return model.module if isinstance(model, DataParallel) else model
 
 
-def evaluate(model, dataset, opts):
+def evaluate(models, dataset, opts):
     print("Evaluating...")
-    cost, cr = rollout(model, dataset, opts)
+    cost, cr, p = rollout_eval(models, dataset, opts)
     avg_cost = cost.mean()
 
     min_cr = min(cr)
@@ -42,7 +42,7 @@ def evaluate(model, dataset, opts):
     )
     print("\nEvaluation competitive ratio", min_cr.item())
 
-    return avg_cost, min_cr.item(), avg_cr, cr
+    return avg_cost, min_cr.item(), avg_cr, cr, p
 
 
 def validate(model, dataset, opts):
@@ -91,6 +91,53 @@ def eval_model(models, problem, opts):
     plt.ylabel("Average Optimality Ratio")
     plt.savefig("graph1.png")
     return
+
+
+def rollout_eval(models, dataset, opts):
+    # Put in greedy evaluation mode!
+    model = models[0]
+    g = models[1]
+    set_decode_type(model, "greedy")
+    model.eval()
+
+    def eval_model_bat(bat, optimal):
+        with torch.no_grad():
+            cost, _, a = model(
+                move_to(bat, opts.device),
+                opts,
+                baseline=None,
+                return_pi=True,
+                optimizer=None,
+            )
+            cost1, _, a1 = g(
+                move_to(bat, opts.device),
+                opts,
+                baseline=None,
+                return_pi=True,
+                optimizer=None,
+            )
+        # print(-cost.data.flatten())
+        num_agree = ((a == a1).float()).sum(0)
+        # print(bat[-1])
+        cr = (
+            -cost.data.flatten()
+            * opts.v_size
+            / move_to(batch.y + (batch.y == 0).float(), opts.device)
+        )
+        # print(
+        #     "\nBatch Competitive ratio: ", min(cr).item(),
+        # )
+        return cost.data.cpu() * opts.v_size * 100, cr * 100, num_agree
+
+    cost = []
+    crs = []
+    n = []
+    for batch in tqdm(dataset):
+        c, cr, num_agree = eval_model_bat(batch, None)
+        cost.append(c)
+        crs.append(cr)
+        n.append(num_agree[None, :])
+    return torch.cat(cost, 0), torch.cat(crs, 0), torch.cat(n, 0).sum(0)
 
 
 def rollout(model, dataset, opts):

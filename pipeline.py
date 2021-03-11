@@ -7,9 +7,9 @@ problem = "e-obm"
 graph_family = "er"
 weight_distribution = "uniform"
 weight_distribution_param = "5 100"  # seperate by a space
-graph_family_parameters = "0.01 0.05 0.1 0.15 0.2"
-u_size = 10  # 10
-v_size = 30  # 30
+graph_family_parameters = "0.05 0.1 0.15 0.2"
+u_size = 100  # 10
+v_size = 100  # 30
 dataset_size = 10000
 val_size = 100
 eval_size = 1000
@@ -45,7 +45,7 @@ output_dir = "saved_models"
 log_dir = "logs_dataset"
 
 # model evaluation flags
-eval_models = "attention"
+eval_models = "attention ff"
 eval_output = "figures"
 # this is a single checkpoint. Example: outputs_dataset/e-obm_20/run_20201226T171156/epoch-4.pt
 load_path = None
@@ -57,27 +57,51 @@ load_path = None
 
 # this is a list of attention model checkpoints seperated by space. The number of checkpoints should be the same as the length of eval_set
 # Note: checkpoints must be in the same order as eval set (i,e. checkpoint1 must be for graph paramter 0.05, etc.)
-# attention_models = "../output_e-obm_er_10by30_p=0.01_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T060349/epoch-79.pt \
-# ../output_e-obm_er_10by30_p=0.05_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T060338/epoch-79.pt \
-# ../output_e-obm_er_10by30_p=0.1_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T062920/epoch-79.pt \
-# ../output_e-obm_er_10by30_p=0.15_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T063254/epoch-79.pt \
-# ../output_e-obm_er_10by30_p=0.2_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T063830/epoch-79.pt"
 
-attention_models = "../output_e-obm_er_10by30_p=0.01_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by30_p=0.01_uniform_m=5_v=100_a=3/attention/run_20210310T043543/epoch-69.pt \
-../output_e-obm_er_10by30_p=0.05_uniform_m=5_v=100_a=3/attention/run_20210310T022430/epoch-69.pt \
-../output_e-obm_er_10by30_p=0.1_uniform_m=5_v=100_a=3/attention/run_20210310T022430/epoch-69.pt \
-../output_e-obm_er_10by30_p=0.15_uniform_m=5_v=100_a=3/attention/run_20210310T022430/epoch-69.pt \
-../output_e-obm_er_10by30_p=0.2_uniform_m=5_v=100_a=3/attention/run_20210310T022430/epoch-69.pt"
+# 10by60
+# attention_models = "../output_e-obm_er_10by60_p=0.01_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by60_p=0.01_uniform_m=5_v=100_a=3/attention/run_20210310T043543/epoch-69.pt \
+# ../output_e-obm_er_10by60_p=0.05_uniform_m=5_v=100_a=3/attention/run_20210310T022438/epoch-69.pt \
+# ../output_e-obm_er_10by60_p=0.1_uniform_m=5_v=100_a=3/attention/run_20210310T022441/epoch-69.pt \
+# ../output_e-obm_er_10by60_p=0.15_uniform_m=5_v=100_a=3/attention/run_20210310T022543/epoch-69.pt \
+# ../output_e-obm_er_10by60_p=0.2_uniform_m=5_v=100_a=3/attention/run_20210310T022545/epoch-69.pt"
+
+
+# 100by100
+attention_models = "../output_e-obm_er_100by100_p=0.05_uniform_m=5_v=100_a=3/attention/run_20210310T052217/epoch-59.pt \
+../output_e-obm_er_100by100_p=0.1_uniform_m=5_v=100_a=3/outputs_e-obm_er_100by100_p=0.1_uniform_m=5_v=100_a=3/attention/run_20210310T052324/epoch-59.pt \
+../output_e-obm_er_100by100_p=0.15_uniform_m=5_v=100_a=3/outputs_e-obm_er_100by100_p=0.15_uniform_m=5_v=100_a=3/attention/run_20210310T052320/epoch-59.pt \
+../output_e-obm_er_100by100_p=0.2_uniform_m=5_v=100_a=3/outputs_e-obm_er_100by100_p=0.2_uniform_m=5_v=100_a=3/attention/run_20210310T052524/epoch-59.pt \
+"
+
+# 10by30
+# attention_models = "../output_e-obm_er_10by30_p=0.01_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by30_p=0.01_uniform_m=5_v=100_a=3/attention/run_20210310T043543/epoch-69.pt \
+# ../output_e-obm_er_10by30_p=0.05_uniform_m=5_v=100_a=3/attention/run_20210310T022430/epoch-69.pt \
+# ../output_e-obm_er_10by30_p=0.1_uniform_m=5_v=100_a=3/attention/run_20210310T022430/epoch-69.pt \
+# ../output_e-obm_er_10by30_p=0.15_uniform_m=5_v=100_a=3/attention/run_20210310T022430/epoch-69.pt \
+# ../output_e-obm_er_10by30_p=0.2_uniform_m=5_v=100_a=3/attention/run_20210310T022430/epoch-69.pt"
 
 # this is a list of feedforward model checkpoints seperated by space. The number of checkpoints should be the same as the length of eval_set
 # Note: checkpoints must be in the same order as eval set (i,e. checkpoint1 must be for graph paramter 0.05, etc.)
-ff_models = "../output_e-obm_er_10by30_p=0.01_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by30_p=0.01_uniform_m=5_v=100_a=3/ff/run_20210310T083836/epoch-69.pt \
-../output_e-obm_er_10by30_p=0.05_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by30_p=0.05_uniform_m=5_v=100_a=3/ff/run_20210310T083836/epoch-69.pt \
-../output_e-obm_er_10by30_p=0.1_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by30_p=0.1_uniform_m=5_v=100_a=3/ff/run_20210310T083922/epoch-69.pt \
-../output_e-obm_er_10by30_p=0.15_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by30_p=0.15_uniform_m=5_v=100_a=3/ff/run_20210310T083920/epoch-69.pt \
-../output_e-obm_er_10by30_p=0.2_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by30_p=0.2_uniform_m=5_v=100_a=3/ff/run_20210310T083920/epoch-69.pt"
+# 10by30
+# ff_models = "../output_e-obm_er_10by30_p=0.01_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by30_p=0.01_uniform_m=5_v=100_a=3/ff/run_20210310T083836/epoch-69.pt \
+# ../output_e-obm_er_10by30_p=0.05_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by30_p=0.05_uniform_m=5_v=100_a=3/ff/run_20210310T083836/epoch-69.pt \
+# ../output_e-obm_er_10by30_p=0.1_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by30_p=0.1_uniform_m=5_v=100_a=3/ff/run_20210310T083922/epoch-69.pt \
+# ../output_e-obm_er_10by30_p=0.15_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by30_p=0.15_uniform_m=5_v=100_a=3/ff/run_20210310T083920/epoch-69.pt \
+# ../output_e-obm_er_10by30_p=0.2_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by30_p=0.2_uniform_m=5_v=100_a=3/ff/run_20210310T083920/epoch-69.pt"
+
+## 10by60
+# ff_models = "../output_e-obm_er_10by60_p=0.01_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by60_p=0.01_uniform_m=5_v=100_a=3/ff/run_20210310T083915/epoch-69.pt \
+# ../output_e-obm_er_10by60_p=0.05_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by60_p=0.05_uniform_m=5_v=100_a=3/ff/run_20210310T083914/epoch-69.pt \
+# ../output_e-obm_er_10by60_p=0.1_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by60_p=0.1_uniform_m=5_v=100_a=3/ff/run_20210310T083914/epoch-69.pt \
+# ../output_e-obm_er_10by60_p=0.15_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by60_p=0.15_uniform_m=5_v=100_a=3/ff/run_20210310T083914/epoch-69.pt \
+# ../output_e-obm_er_10by60_p=0.2_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by60_p=0.2_uniform_m=5_v=100_a=3/ff/run_20210310T083907/epoch-69.pt"
 
 
+# 100by100
+ff_models = "../output_e-obm_er_100by100_p=0.05_uniform_m=5_v=100_a=3/outputs_e-obm_er_100by100_p=0.05_uniform_m=5_v=100_a=3/ff/run_20210310T084054/epoch-69.pt \
+../output_e-obm_er_100by100_p=0.1_uniform_m=5_v=100_a=3/ff/run_20210310T084054/epoch-69.pt \
+../output_e-obm_er_100by100_p=0.15_uniform_m=5_v=100_a=3/ff/run_20210310T084103/epoch-69.pt \
+../output_e-obm_er_100by100_p=0.2_uniform_m=5_v=100_a=3/ff/run_20210310T084210/epoch-69.pt"
 eval_batch_size = 50
 eval_set = graph_family_parameters
 
