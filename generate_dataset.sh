@@ -1,12 +1,12 @@
 #!/bin/bash
 #SBATCH --mem=32000M       # Memory proportional to GPUs: 32000 Cedar, 64000 Graham.
-#SBATCH --time=00:10:00
+#SBATCH --time=00:30:00
 #SBATCH --output=%N-%j.out
 
-U_SIZE=5
-V_SIZE=15
+U_SIZE=$1
+V_SIZE=$2
 GRAPH_FAMILY="er"
-FAMILY_PARAMETER=0.15
+FAMILY_PARAMETER=$3
 PROBLEM="e-obm"
 TRAIN_SIZE=10000
 VAL_SIZE=1000
