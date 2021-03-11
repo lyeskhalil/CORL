@@ -111,7 +111,7 @@ class FeedForwardModel(nn.Module):
             sequences.append(selected)
             i += 1
         # Collected lists, return Tensor
-        return torch.stack(outputs, 1), torch.stack(sequences, 1), state.size / opts.v_size
+        return torch.stack(outputs, 1), torch.stack(sequences, 1), state.size / (opts.v_size*100)
 
     def _select_node(self, probs, mask):
         assert (probs == probs).all(), "Probs should not contain any nans"

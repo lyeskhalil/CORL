@@ -51,10 +51,12 @@ class MPNN(nn.Module):
             param.data.uniform_(-stdv, stdv)
     def forward(self, x, edge_index, edge_attribute, i):
         if i < self.n_layers:
-            n_encode_layers = i
+            n_encode_layers = i + 1
         else:
             n_encode_layers = self.n_layers
         x = self.node_embed(x)
+        
+
         #x = F.relu(x)
         for i in range(n_encode_layers):
             x = F.relu(x)
