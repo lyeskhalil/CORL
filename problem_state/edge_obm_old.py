@@ -95,6 +95,7 @@ class StateEdgeBipartite(NamedTuple):
             graph_size,
             device=self.graphs.batch.device,
         ).unsqueeze(1)
+        # edges = torch.cat((selected + offset, self.i + offset)).expand(self.batch_size, 2, self.graphs.edge_index.size(0))
         subgraphs = torch.cat(
             (
                 (

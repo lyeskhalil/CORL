@@ -223,7 +223,10 @@ class AttentionModel(nn.Module):
                 + torch.arange(0, batch_size * graph_size, graph_size).unsqueeze(1)
             ).flatten()  # The nodes of the current subgraphs
             edge_i, weights = subgraph(
-                subgraphs, state.graphs.edge_index, state.graphs.weight.unsqueeze(1)
+                subgraphs,
+                state.graphs.edge_index,
+                state.graphs.weight.unsqueeze(1),
+                relabel_nodes=True,
             )
             embeddings = self.embedder(node_features, edge_i, weights.float()).reshape(
                 batch_size, step_size, -1
@@ -240,7 +243,7 @@ class AttentionModel(nn.Module):
             selected = self._select_node(
                 log_p.exp()[:, 0, :], mask[:, 0, :].bool()
             )  # Squeeze out steps dimension
-            # print(selected)
+            print(log_p.exp()[:, 0, :])
             # print(embeddings)
             # print(state.weights)
             state = state.update(selected[:, None])
