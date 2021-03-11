@@ -121,7 +121,14 @@ def get_options(args=None):
         default="batch",
         help="Normalization type, 'batch' (default) or 'instance'",
     )
-
+    parser.add_argument(
+        "--n_step",
+        action="store_true",
+        help="Set to peform n-step training",
+    )
+    parser.add_argument(
+        "--max_steps", type=int, default=10, help="Maximum number of steps before performing backward pass (used in n-step training)"
+    )
     # Training
     parser.add_argument(
         "--lr_model",
