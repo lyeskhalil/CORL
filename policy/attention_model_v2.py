@@ -237,6 +237,7 @@ class AttentionModel(nn.Module):
                 .expand(batch_size, step_size)
                 .unsqueeze(-1)
             )
+            s = time.time()
             if opts.encoder == "attention":
                 embeddings = self.embedder(
                     self._init_embed(  # pass in one-hot encoding to embedder

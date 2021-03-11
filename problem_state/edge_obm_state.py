@@ -105,7 +105,6 @@ class StateEdgeBipartite(NamedTuple):
         self.matched_nodes[
             :, 0
         ] = 0  # node that represents not being matched to anything can be matched to more than once
-
         return (
             self.matched_nodes.squeeze(1) + mask > 0
         ).long()  # Hacky way to return bool or uint8 depending on pytorch version

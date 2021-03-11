@@ -7,12 +7,12 @@ import ast
 
 import torch
 import torch.optim as optim
-from torch.utils.data import DataLoader
+from torch_geometric.data import DataLoader
 
 # from nets.critic_network import CriticNetwork
 from options import get_options
 from train import train_epoch, validate, get_inner_model, eval_model, evaluate
-from policy.attention_model_v2 import AttentionModel
+from policy.attention_model import AttentionModel
 from policy.ff_model_v2 import FeedForwardModel
 from policy.greedy import Greedy
 from policy.greedy_rt import GreedyRt
@@ -204,13 +204,30 @@ def load_model(opts):
     return load_datas
 
 
-def load_models(opts):
+def load_models_attention(opts):
     """
     load models from the attention models dir
     """
     load_data = {}
     load_datas = []
     models_paths = opts.attention_models
+    assert len(models_paths) == len(
+        opts.eval_set
+    ), "the number of models and the eval_set should be equal"
+    for path in models_paths:
+        print(" Loading the model from {}".format(path))
+        load_data = torch_load_cpu(path)
+        load_datas.append(load_data)
+    return load_datas
+
+
+def load_models_ff(opts):
+    """
+    load models from the attention models dir
+    """
+    load_data = {}
+    load_datas = []
+    models_paths = opts.ff_models
     assert len(models_paths) == len(
         opts.eval_set
     ), "the number of models and the eval_set should be equal"
@@ -231,6 +248,7 @@ def initialize_models(opts, models, load_datas):
             opts.embedding_dim,
             opts.hidden_dim,
             problem=problem,
+            opts=opts,
             n_encode_layers=opts.n_encode_layers,
             mask_inner=True,
             mask_logits=True,
@@ -240,6 +258,7 @@ def initialize_models(opts, models, load_datas):
             shrink_size=opts.shrink_size,
             num_actions=opts.u_size + 1,
             n_heads=opts.n_heads,
+            encoder=opts.encoder,
         ).to(opts.device)
 
         if opts.use_cuda and torch.cuda.device_count() > 1:
@@ -260,6 +279,7 @@ def initialize_attention_models(opts, attention_models, load_attention_datas):
             opts.embedding_dim,
             opts.hidden_dim,
             problem=problem,
+            opts=opts,
             n_encode_layers=opts.n_encode_layers,
             mask_inner=True,
             mask_logits=True,
@@ -269,6 +289,7 @@ def initialize_attention_models(opts, attention_models, load_attention_datas):
             shrink_size=opts.shrink_size,
             num_actions=opts.u_size + 1,
             n_heads=opts.n_heads,
+            encoder=opts.encoder,
         ).to(opts.device)
 
         if opts.use_cuda and torch.cuda.device_count() > 1:
@@ -298,6 +319,7 @@ def initialize_ff_models(opts, ff_models, load_ff_datas):
             shrink_size=opts.shrink_size,
             num_actions=opts.u_size + 1,
             n_heads=opts.n_heads,
+            opts=opts,
         ).to(opts.device)
 
         if opts.use_cuda and torch.cuda.device_count() > 1:
@@ -352,12 +374,12 @@ def run(opts):
         load_datas = load_model(opts)
         initialize_models(opts, models, load_datas)
     if att_models is not None:
-        load_attention_datas = load_models(opts)
+        load_attention_datas = load_models_attention(opts)
         initialize_attention_models(
             opts, models, load_attention_datas
         )  # attention models from the directory
     if ff_models is not None:
-        load_ff_datas = load_models(opts)
+        load_ff_datas = load_models_ff(opts)
         initialize_ff_models(
             opts, models, load_ff_datas
         )  # feed forwad models from the directory
@@ -385,6 +407,7 @@ def run(opts):
             checkpoint_encoder=opts.checkpoint_encoder,
             shrink_size=opts.shrink_size,
             num_actions=opts.u_size + 1,
+            opts=opts,
         ).to(opts.device)
         baseline_models.append(model)
 
