@@ -273,7 +273,7 @@ def generate_edge_obm_data_geometric(
         # s = sorted(list(g1.nodes))
         # m = 1 - nx.convert_matrix.to_numpy_array(g1, s)
         data = from_networkx(g1)
-        data.y = torch.tensor(optimal)
+        data.y = torch.tensor(optimal).long()
         if save_data:
             torch.save(
                 data, "{}/data_{}.pt".format(dataset_folder, i),

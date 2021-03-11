@@ -262,7 +262,6 @@ class AttentionModel(nn.Module):
             selected = self._select_node(
                 log_p.exp()[:, 0, :], mask[:, 0, :].bool()
             )  # Squeeze out steps dimension
-            #print(selected)
             #print(state.matched_nodes)
             state = state.update(selected[:, None])
             s = (selected[:, None].repeat(1, fixed.node_embeddings.size(-1)))[

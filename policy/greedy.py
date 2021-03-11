@@ -33,20 +33,20 @@ class Greedy(nn.Module):
         self.is_tsp = problem.NAME == "tsp"
         self.problem = problem
 
-    def forward(self, x, opts):
+    def forward(self, x, opts, optimizer, baseline, return_pi=False):
         state = self.problem.make_state(x, opts.u_size, opts.v_size, opts.num_edges)
 
         sequences = []
         while not (state.all_finished()):
-            v = state.i.item() - (state.u_size.item() + 1)
-            w = state.weights[:, v, :].clone()
+            v = state.i - (state.u_size + 1)
+            w = state.adj[:, 0, :].clone()
             mask = state.get_mask()
             w[mask.bool()] = -1.0
             selected = torch.argmax(w, dim=1)
 
             state = state.update(selected[:, None])
             sequences.append(selected)
-        return -state.size / state.v_size.item(), torch.stack(sequences, 1)
+        return -state.size / state.v_size, torch.stack(sequences, 1)
 
     def set_decode_type(self, decode_type, temp=None):
         self.decode_type = decode_type
