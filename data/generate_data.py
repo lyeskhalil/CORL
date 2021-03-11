@@ -40,6 +40,7 @@ def generate_ba_graph(u, v, p, seed):
 
     v1 = 0.0
     w = 0
+
     while v1 < v:
         d = np.random.binomial(u, float(p) / v)
 
@@ -53,7 +54,8 @@ def generate_ba_graph(u, v, p, seed):
                 w += 1
 
         v1 += 1
-    return G
+
+    return G 
 
 
 def generate_obm_data(
@@ -74,7 +76,7 @@ def generate_obm_data(
     if graph_family == "er":
         g = nx.bipartite.random_graph
     if graph_family == "ba":
-        g = generate_ba_graph
+        g  = generate_ba_graph
     for i in tqdm(range(dataset_size)):
         g1 = g(u_size, v_size, p=graph_family_parameter, seed=seed + i)
 
@@ -108,20 +110,16 @@ def generate_obm_data(
 
 
 def generate_weights(distribution, u_size, v_size, parameters, g1):
-    weights, w = 0, 0
+
+    edges = nx.bipartite.biadjacency_matrix(g1, range(0, u_size), range(u_size, u_size + v_size)).toarray()  # U by V array of adjacacy matrix
+
     if distribution == "uniform":
-        weights = nx.bipartite.biadjacency_matrix(
-            g1, range(0, u_size), range(u_size, u_size + v_size)
-        ).toarray() * np.random.randint(
+        weights = edges * np.random.randint(
             int(parameters[0]), int(parameters[1]), (u_size, v_size)
         )
-        w = torch.cat(
-            (torch.zeros(v_size, 1).long(), torch.tensor(weights).T.long()), 1
-        )
+    
     elif distribution == "normal":
-        weights = nx.bipartite.biadjacency_matrix(
-            g1, range(0, u_size), range(u_size, u_size + v_size)
-        ).toarray() * (
+        weights = edges * (
             np.abs(
                 np.random.normal(
                     int(parameters[0]), int(parameters[1]), (u_size, v_size)
@@ -129,13 +127,9 @@ def generate_weights(distribution, u_size, v_size, parameters, g1):
             )
             + 5
         )  # to make sure no edge has weight zero
-        w = torch.cat(
-            (torch.zeros(v_size, 1).long(), torch.tensor(weights).T.long()), 1
-        )
+        
     elif distribution == "power":
-        weights = nx.bipartite.biadjacency_matrix(
-            g1, range(0, u_size), range(u_size, u_size + v_size)
-        ).toarray() * (
+        weights = edges * (
             powerlaw.rvs(
                 int(parameters[0]),
                 int(parameters[1]),
@@ -144,9 +138,17 @@ def generate_weights(distribution, u_size, v_size, parameters, g1):
             )
             + 5
         )  # to make sure no edge has weight zero
-        w = torch.cat(
-            (torch.zeros(v_size, 1).long(), torch.tensor(weights).T.long()), 1
+    elif distribution == "degree":
+        graph = 10 * edges * edges.sum(axis=1).reshape(-1, 1)
+        noise = np.random.randint(
+            int(parameters[0]), int(parameters[1]), (u_size, v_size)
         )
+        weights = np.where(graph, graph + noise, graph)
+        
+           
+    w = torch.cat(
+        (torch.zeros(v_size, 1).long(), torch.tensor(weights).T.long()), 1
+    )
 
     return weights, w
 
@@ -311,12 +313,19 @@ def generate_edge_obm_data(
     if graph_family == "ba":
         g = generate_ba_graph
     for i in tqdm(range(dataset_size)):
-        g1 = g(u_size, v_size, p=graph_family_parameter, seed=seed + i)
+        g1 = g(u_size, v_size, p=graph_family_parameter, seed=seed + i) 
+        
+        
+        # a = nx.bipartite.biadjacency_matrix(g1, range(0, u_size), range(u_size, u_size + v_size)).toarray()
+        # print('a', a)
         # d_old = np.array(sorted(g1.degree))[u_size:, 1]
         weights, w = generate_weights(
             weight_distribution, u_size, v_size, weight_param, g1
         )
-        s = sorted(list(g1.nodes))
+
+        # print('weights: ', weights)
+        # print('w: ', w)
+        # s = sorted(list(g1.nodes))
         # c = nx.convert_matrix.to_numpy_array(g1, s)
 
         g1.add_node(
@@ -325,7 +334,10 @@ def generate_edge_obm_data(
         g1.add_edges_from(list(zip([-1] * v_size, range(u_size, u_size + v_size))))
 
         s = sorted(list(g1.nodes))
+        # print('s: ', s)
+        
         m = 1 - nx.convert_matrix.to_numpy_array(g1, s)
+        # print('m: ', m)
         if save_data:
             torch.save(
                 [w], "{}/graphs/{}.pt".format(dataset_folder, i),
