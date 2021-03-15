@@ -178,14 +178,6 @@ def get_options(args=None):
         "--max_weight", type=int, default=100, help="Maximum edge weight in the graph"
     )
     parser.add_argument(
-        "--n_step",
-        action="store_true",
-        help="Set to peform n-step training",
-    )
-    parser.add_argument(
-        "--max_steps", type=int, default=10, help="Maximum number of steps before performing backward pass (used in n-step training)"
-    )
-    parser.add_argument(
         "--eval_batch_size",
         type=int,
         default=10,
@@ -195,7 +187,6 @@ def get_options(args=None):
         "--checkpoint_encoder",
         action="store_true",
         help="Set to decrease memory usage by checkpointing encoder",
-    
     )
     parser.add_argument(
         "--checkpoint_every",
@@ -278,7 +269,7 @@ def get_options(args=None):
         "--load_path", help="Path to load model parameters and optimizer state from"
     )
     parser.add_argument(
-        "--ff_models", type=str, help="list of trained ff models, seperated by space",
+        "--ff_models", nargs="+", help="list of trained ff models, seperated by space",
     )
     parser.add_argument(
         "--attention_models",

@@ -7,12 +7,12 @@ import ast
 
 import torch
 import torch.optim as optim
-from torch.utils.data import DataLoader
+from torch_geometric.data import DataLoader
 
 # from nets.critic_network import CriticNetwork
 from options import get_options
 from train import train_epoch, validate, get_inner_model, eval_model, evaluate
-from policy.attention_model_v2 import AttentionModel
+from policy.attention_model import AttentionModel
 from policy.ff_model_v2 import FeedForwardModel
 from policy.greedy import Greedy
 from policy.greedy_rt import GreedyRt
@@ -23,6 +23,8 @@ import time
 from tqdm import tqdm
 
 import math
+import matplotlib
+
 import matplotlib.pyplot as plt
 
 from torch.nn import DataParallel
@@ -32,6 +34,8 @@ from functions import move_to
 
 # from nets.pointer_network import PointerNetwork, CriticNetworkLSTM
 from functions import torch_load_cpu, load_problem
+
+matplotlib.use("Agg")
 
 
 def get_model_op_ratios(opts, model, problem):
@@ -51,7 +55,7 @@ def get_model_op_ratios(opts, model, problem):
             eval_dataset, batch_size=opts.eval_batch_size, num_workers=0
         )
 
-        avg_cost, cr, avg_cr, op = evaluate(model, eval_dataloader, opts)
+        avg_cost, cr, avg_cr, op, _ = evaluate([model, model], eval_dataloader, opts)
         ops.append(op.cpu().numpy())
     return np.array(ops)
 
@@ -90,7 +94,7 @@ def plot_box(opts, data):
     plots the box data.
     data is a list of (|graph family param| x |training examples|) arrays
     """
-    plt.figure()
+    # plt.figure()
     num = len(data)
     plt.xlabel("Graph family parameter")
     plt.ylabel("Optimality ratio")
@@ -113,11 +117,55 @@ def plot_box(opts, data):
 
     plt.xlim(-1 * num, len(ticks) * num)
     # plt.ylim(0, 1)
+    print(ticks)
     plt.xticks(range(0, len(ticks) * num, num), ticks)
     plt.legend(bps, opts.eval_baselines + opts.eval_models)
     plt.savefig(
         opts.eval_output
         + "/{}_{}_{}_{}_{}by{}_boxplot".format(
+            opts.problem,
+            opts.graph_family,
+            opts.weight_distribution,
+            opts.weight_distribution_param,
+            opts.u_size,
+            opts.v_size,
+        ).replace(" ", "")
+    )
+
+
+def plot_agreemant(opts, data):
+    """
+    plots the box data.
+    data is a list of (|graph family param| x |training examples|) arrays
+    """
+    colors = ["#d53e4f", "#3288bd", "#7fbf7b", "#fee08b", "#fc8d59", "#e6f598"]
+    fig, axs = plt.subplots(
+        ncols=1, nrows=len(opts.eval_set), sharex=True, sharey=True, figsize=(8, 10)
+    )
+    fig.suptitle("Agreemant plots for {}by{} graphs".format(opts.u_size, opts.v_size))
+    plots = []
+    for j, d in enumerate(data):
+        c = colors[j]
+        for i, a in enumerate(d):
+            (a,) = axs[i].plot(np.arange(opts.v_size), np.array(a) * 100.0, c)
+            plots.append(a)
+            axs[i].set_title(opts.eval_set[i])
+
+    plt.legend([plots[0], plots[-1]], opts.eval_models)
+
+    plt.xlabel("Timestep")
+    fig.text(
+        0.06,
+        0.5,
+        "Agreemant per timestep %",
+        ha="center",
+        va="center",
+        rotation="vertical",
+    )
+    # plt.legend(bps, opts.eval_baselines + opts.eval_models)
+    plt.savefig(
+        opts.eval_output
+        + "/{}_{}_{}_{}_{}by{}_agreemantplot".format(
             opts.problem,
             opts.graph_family,
             opts.weight_distribution,
@@ -204,13 +252,30 @@ def load_model(opts):
     return load_datas
 
 
-def load_models(opts):
+def load_models_attention(opts):
     """
     load models from the attention models dir
     """
     load_data = {}
     load_datas = []
     models_paths = opts.attention_models
+    assert len(models_paths) == len(
+        opts.eval_set
+    ), "the number of models and the eval_set should be equal"
+    for path in models_paths:
+        print(" Loading the model from {}".format(path))
+        load_data = torch_load_cpu(path)
+        load_datas.append(load_data)
+    return load_datas
+
+
+def load_models_ff(opts):
+    """
+    load models from the attention models dir
+    """
+    load_data = {}
+    load_datas = []
+    models_paths = opts.ff_models
     assert len(models_paths) == len(
         opts.eval_set
     ), "the number of models and the eval_set should be equal"
@@ -231,6 +296,7 @@ def initialize_models(opts, models, load_datas):
             opts.embedding_dim,
             opts.hidden_dim,
             problem=problem,
+            opts=opts,
             n_encode_layers=opts.n_encode_layers,
             mask_inner=True,
             mask_logits=True,
@@ -240,6 +306,7 @@ def initialize_models(opts, models, load_datas):
             shrink_size=opts.shrink_size,
             num_actions=opts.u_size + 1,
             n_heads=opts.n_heads,
+            encoder=opts.encoder,
         ).to(opts.device)
 
         if opts.use_cuda and torch.cuda.device_count() > 1:
@@ -260,6 +327,7 @@ def initialize_attention_models(opts, attention_models, load_attention_datas):
             opts.embedding_dim,
             opts.hidden_dim,
             problem=problem,
+            opts=opts,
             n_encode_layers=opts.n_encode_layers,
             mask_inner=True,
             mask_logits=True,
@@ -269,6 +337,7 @@ def initialize_attention_models(opts, attention_models, load_attention_datas):
             shrink_size=opts.shrink_size,
             num_actions=opts.u_size + 1,
             n_heads=opts.n_heads,
+            encoder=opts.encoder,
         ).to(opts.device)
 
         if opts.use_cuda and torch.cuda.device_count() > 1:
@@ -298,6 +367,7 @@ def initialize_ff_models(opts, ff_models, load_ff_datas):
             shrink_size=opts.shrink_size,
             num_actions=opts.u_size + 1,
             n_heads=opts.n_heads,
+            opts=opts,
         ).to(opts.device)
 
         if opts.use_cuda and torch.cuda.device_count() > 1:
@@ -309,6 +379,28 @@ def initialize_ff_models(opts, ff_models, load_ff_datas):
             {**model_.state_dict(), **load_ff_datas[m].get("model", {})}
         )
         ff_models.append(model)
+
+
+def compare_actions(opts, models, greedy, problem):
+    ops = []
+    ps = []
+    # for i in graph family parameters
+    for i in range(len(opts.eval_set)):
+        dataset = opts.eval_dataset + "/parameter_{}".format(opts.eval_set[i])
+        # get the eval dataset as a pytorch dataset object
+        eval_dataset = problem.make_dataset(
+            dataset, opts.eval_size, opts.eval_size, opts.problem, opts
+        )
+        eval_dataloader = DataLoader(
+            eval_dataset, batch_size=opts.eval_batch_size, num_workers=0
+        )
+
+        avg_cost, cr, avg_cr, op, p = evaluate(
+            [models[i], greedy], eval_dataloader, opts
+        )
+        ops.append(op.cpu().numpy())
+        ps.append(p.cpu().numpy() / float(opts.eval_size))
+    return np.array(ops), np.array(ps)
 
 
 def run(opts):
@@ -352,12 +444,12 @@ def run(opts):
         load_datas = load_model(opts)
         initialize_models(opts, models, load_datas)
     if att_models is not None:
-        load_attention_datas = load_models(opts)
+        load_attention_datas = load_models_attention(opts)
         initialize_attention_models(
             opts, models, load_attention_datas
         )  # attention models from the directory
     if ff_models is not None:
-        load_ff_datas = load_models(opts)
+        load_ff_datas = load_models_ff(opts)
         initialize_ff_models(
             opts, models, load_ff_datas
         )  # feed forwad models from the directory
@@ -385,6 +477,7 @@ def run(opts):
             checkpoint_encoder=opts.checkpoint_encoder,
             shrink_size=opts.shrink_size,
             num_actions=opts.u_size + 1,
+            opts=opts,
         ).to(opts.device)
         baseline_models.append(model)
 
@@ -399,16 +492,32 @@ def run(opts):
             trained_models_results.append(get_model_op_ratios(opts, models[0], problem))
         if att_models is not None or ff_models is not None:
             # Get the performance of the trained models
-            trained_models_results.append(get_models_op_ratios(opts, models, problem))
+            trained_models_results.append(
+                compare_actions(
+                    opts, models[: len(opts.eval_set)], baseline_models[0], problem
+                )
+            )
+            trained_models_results.append(
+                compare_actions(
+                    opts, models[len(opts.eval_set) :], baseline_models[0], problem
+                )
+            )
             # print('baseline_results[0]: ', baseline_results[0])
             # print('trained_models_results ', trained_models_results)
         # print('baseline_results: ', baseline_results)
         # print('trained_models_results ', trained_models_results)
+
         results = [
             np.array(baseline_results[0]),
-            np.array(baseline_results[1]),
-            np.array(trained_models_results[0]),
+            # np.array(baseline_results[1]),
+            np.array(trained_models_results[0][0]),
+            np.array(trained_models_results[1][0]),
         ]
+        results2 = [
+            np.array(trained_models_results[0][1]),
+            np.array(trained_models_results[1][1]),
+        ]
+
         # torch.save(
         #    torch.tensor(results),
         #    opts.eval_output + "/{}_{}_{}_{}_{}by{}_results".format(
@@ -418,6 +527,7 @@ def run(opts):
         # ).replace(" ",""),
         # )
         plot_box(opts, results)
+        plot_agreemant(opts, results2)
         # line_graph(opts, models + baseline_models , problem)
 
     # if opts.eval_plot:

@@ -57,6 +57,8 @@ class FeedForwardModel(nn.Module):
         # Log likelyhood is calculated within the model since returning it per action does not work well with
         # DataParallel since sequences can be of different lengths
         ll = self._calc_log_likelihood(_log_p, pi, None)
+        if return_pi:
+            return -cost, ll, pi
         # print(ll)
         return -cost, ll
 
@@ -93,7 +95,7 @@ class FeedForwardModel(nn.Module):
             #    state.u_size.item() + 1
             # )
             # step_size = state.i.item() + 1
-            v = state.i - (state.u_size + 1)
+            # v = state.i - (state.u_size + 1)
             # su = (state.weights[:, v, :]).float().sum(1)
             w = (state.adj[:, 0, :]).float()
             mask = state.get_mask()
@@ -111,7 +113,11 @@ class FeedForwardModel(nn.Module):
             sequences.append(selected)
             i += 1
         # Collected lists, return Tensor
-        return torch.stack(outputs, 1), torch.stack(sequences, 1), state.size / opts.v_size
+        return (
+            torch.stack(outputs, 1),
+            torch.stack(sequences, 1),
+            state.size / (opts.v_size * 100),
+        )
 
     def _select_node(self, probs, mask):
         assert (probs == probs).all(), "Probs should not contain any nans"

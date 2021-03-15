@@ -14,13 +14,15 @@ from functions import move_to
 
 import numpy as np
 from matplotlib.lines import Line2D
+
+
 def get_inner_model(model):
     return model.module if isinstance(model, DataParallel) else model
 
 
-def evaluate(model, dataset, opts):
+def evaluate(models, dataset, opts):
     print("Evaluating...")
-    cost, cr = rollout(model, dataset, opts)
+    cost, cr, p = rollout_eval(models, dataset, opts)
     avg_cost = cost.mean()
 
     min_cr = min(cr)
@@ -40,7 +42,7 @@ def evaluate(model, dataset, opts):
     )
     print("\nEvaluation competitive ratio", min_cr.item())
 
-    return avg_cost, min_cr.item(), avg_cr, cr
+    return avg_cost, min_cr.item(), avg_cr, cr, p
 
 
 def validate(model, dataset, opts):
@@ -89,6 +91,53 @@ def eval_model(models, problem, opts):
     plt.ylabel("Average Optimality Ratio")
     plt.savefig("graph1.png")
     return
+
+
+def rollout_eval(models, dataset, opts):
+    # Put in greedy evaluation mode!
+    model = models[0]
+    g = models[1]
+    set_decode_type(model, "greedy")
+    model.eval()
+
+    def eval_model_bat(bat, optimal):
+        with torch.no_grad():
+            cost, _, a = model(
+                move_to(bat, opts.device),
+                opts,
+                baseline=None,
+                return_pi=True,
+                optimizer=None,
+            )
+            cost1, _, a1 = g(
+                move_to(bat, opts.device),
+                opts,
+                baseline=None,
+                return_pi=True,
+                optimizer=None,
+            )
+        # print(-cost.data.flatten())
+        num_agree = ((a == a1).float()).sum(0)
+        # print(bat[-1])
+        cr = (
+            -cost.data.flatten()
+            * opts.v_size
+            / move_to(batch.y + (batch.y == 0).float(), opts.device)
+        )
+        # print(
+        #     "\nBatch Competitive ratio: ", min(cr).item(),
+        # )
+        return cost.data.cpu() * opts.v_size * 100, cr * 100, num_agree
+
+    cost = []
+    crs = []
+    n = []
+    for batch in tqdm(dataset):
+        c, cr, num_agree = eval_model_bat(batch, None)
+        cost.append(c)
+        crs.append(cr)
+        n.append(num_agree[None, :])
+    return torch.cat(cost, 0), torch.cat(crs, 0), torch.cat(n, 0).sum(0)
 
 
 def rollout(model, dataset, opts):
@@ -205,7 +254,9 @@ def train_epoch(
         )
     )
 
-    if opts.checkpoint_epochs == 0 and (epoch == opts.n_epochs - 1) and not opts.tune: #TODO: This does not save both optimizers
+    if (
+        opts.checkpoint_epochs == 0 and (epoch == opts.n_epochs - 1) and not opts.tune
+    ):  # TODO: This does not save both optimizers
         print("Saving model and state...")
         torch.save(
             {
@@ -235,7 +286,7 @@ def train_epoch(
         )
 
     avg_reward, min_cr, avg_cr = validate(model, val_dataset, opts)
-    #avg_reward, min_cr, avg_cr = 0,0,0
+    # avg_reward, min_cr, avg_cr = 0,0,0
     if not opts.no_tensorboard:
         tb_logger.add_scalar("val_avg_reward", -avg_reward, step)
         tb_logger.add_scalar("min_competitive_ratio", min_cr, step)
@@ -263,35 +314,42 @@ def train_n_step(cost, ll, x, optimizer, baseline):
     optimizer.step()
     return
 
+
 def plot_grad_flow(named_parameters):
-    '''Plots the gradients flowing through different layers in the net during training.
+    """Plots the gradients flowing through different layers in the net during training.
     Can be used for checking for possible gradient vanishing / exploding problems.
-    
-    Usage: Plug this function in Trainer class after loss.backwards() as 
-    "plot_grad_flow(self.model.named_parameters())" to visualize the gradient flow'''
+    Usage: Plug this function in Trainer class after loss.backwards() as
+    "plot_grad_flow(self.model.named_parameters())" to visualize the gradient flow"""
     ave_grads = []
-    max_grads= []
+    max_grads = []
     layers = []
     for n, p in named_parameters:
-        if(p.requires_grad) and ("bias" not in n):
+        if (p.requires_grad) and ("bias" not in n):
             layers.append(n)
             ave_grads.append(p.grad.abs().mean())
             max_grads.append(p.grad.abs().max())
     plt.bar(np.arange(len(max_grads)), max_grads, alpha=0.1, lw=1, color="c")
     plt.bar(np.arange(len(max_grads)), ave_grads, alpha=0.1, lw=1, color="b")
-    plt.hlines(0, 0, len(ave_grads)+1, lw=2, color="k" )
-    plt.xticks(range(0,len(ave_grads), 1), layers, rotation="vertical")
+    plt.hlines(0, 0, len(ave_grads) + 1, lw=2, color="k")
+    plt.xticks(range(0, len(ave_grads), 1), layers, rotation="vertical")
     plt.xlim(left=0, right=len(ave_grads))
-    plt.ylim(bottom = -0.001, top=0.02) # zoom in on the lower gradient regions
+    plt.ylim(bottom=-0.001, top=0.02)  # zoom in on the lower gradient regions
     plt.xlabel("Layers")
     plt.ylabel("average gradient")
     plt.title("Gradient flow")
     plt.grid(True)
-    plt.legend([Line2D([0], [0], color="c", lw=4),
-                Line2D([0], [0], color="b", lw=4),
-                Line2D([0], [0], color="k", lw=4)], ['max-gradient', 'mean-gradient', 'zero-gradient'])
+    plt.legend(
+        [
+            Line2D([0], [0], color="c", lw=4),
+            Line2D([0], [0], color="b", lw=4),
+            Line2D([0], [0], color="k", lw=4),
+        ],
+        ["max-gradient", "mean-gradient", "zero-gradient"],
+    )
     plt.show()
     plt.savefig("grad.png")
+
+
 def train_batch(
     model, optimizers, baseline, epoch, batch_id, step, batch, tb_logger, opts
 ):
@@ -313,20 +371,20 @@ def train_batch(
     if not opts.n_step:
         reinforce_loss = ((cost.squeeze(1) - bl_val) * log_likelihood).mean()
         loss = reinforce_loss + bl_loss
-        #print(log_likelihood)
+        # print(log_likelihood)
         # Perform backward pass and optimization step
         optimizers[0].zero_grad()
         loss.backward()
-        #for name, p in model.named_parameters():
+        # for name, p in model.named_parameters():
         #    print(p.grad)
-            #print(name)
-            #print(p.data)
+        # print(name)
+        # print(p.data)
         # Clip gradient norms and get (clipped) gradient norms for logging
         grad_norms = clip_grad_norms(optimizers[0].param_groups, opts.max_grad_norm)
         optimizers[0].step()
-    #grad_norms1 = clip_grad_norms(optimizers[1].param_groups, opts.max_grad_norm)
-    #optimizers[1].zero_grad()
-    #optimizers[1].step() # Gradient update for node embedding init layer
+    # grad_norms1 = clip_grad_norms(optimizers[1].param_groups, opts.max_grad_norm)
+    # optimizers[1].zero_grad()
+    # optimizers[1].step() # Gradient update for node embedding init layer
     # Logging
     if step % int(opts.log_step) == 0:
         log_values(
