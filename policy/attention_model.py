@@ -35,14 +35,14 @@ def train_n_step(cost, ll, x, optimizers, baseline, opts):
     loss = reinforce_loss + bl_loss
     # print(loss.item())
     # Perform backward pass and optimization step
-    #s = time.time()
+    # s = time.time()
     optimizers[0].zero_grad()
     loss.backward()
-    #print(time.time() - s)
-    grad_norms = clip_grad_norms(optimizers[0].param_groups, opts.max_grad_norm)
+    # print(time.time() - s)
+    clip_grad_norms(optimizers[0].param_groups, opts.max_grad_norm)
     optimizers[0].step()
-    #optimizers[1].step()
-    #print(time.time() - s)
+    # optimizers[1].step()
+    # print(time.time() - s)
     return
 
 
@@ -68,7 +68,7 @@ class AttentionModelFixed(NamedTuple):
                 logit_key=self.logit_key[key],
             )
         return super(AttentionModelFixed, self).__getitem__(key)
-        #return self[key]
+        # return self[key]
 
 
 class AttentionModel(nn.Module):
@@ -87,7 +87,7 @@ class AttentionModel(nn.Module):
         checkpoint_encoder=False,
         shrink_size=None,
         num_actions=None,
-        encoder="MPNN",
+        encoder="mpnn",
     ):
         super(AttentionModel, self).__init__()
 
@@ -107,19 +107,19 @@ class AttentionModel(nn.Module):
         self.opts = opts
         # Problem specific context parameters (placeholder and step context dimension)
         step_context_dim = 0
-        node_dim = 0
+        # node_dim = 0
         if self.is_bipartite:  # online bipartite matching
             step_context_dim = (
                 embedding_dim * 2
             )  # Embedding of edges chosen and current node
-            node_dim = 1  # edge weight
+            # node_dim = 1  # edge weight
 
             # Learned input symbols for first action
             self.W_placeholder = nn.Parameter(torch.Tensor(embedding_dim * 1))
             self.W_placeholder.data.uniform_(
                 -1, 1
             )  # Placeholder should be in range of activations
-        #self.init_embed = nn.Linear(node_dim, embedding_dim)
+        # self.init_embed = nn.Linear(node_dim, embedding_dim)
 
         encoder_class = {"attention": GraphAttentionEncoder, "mpnn": MPNN}.get(
             encoder, None
@@ -173,15 +173,15 @@ class AttentionModel(nn.Module):
         #     embeddings, _ = checkpoint(self.embedder, self._init_embed(input))
         # # else:
         #     embeddings, _ = self.embedder(self._init_embed(input))
-        s = time.time()
+        # s = time.time()
         _log_p, pi, cost = self._inner(input, opts, optimizer, baseline)
-        #print(time.time() - s)
+        # print(time.time() - s)
         # cost, mask = self.problem.get_costs(input, pi)
         # Log likelyhood is calculated within the model since returning it per action does not work well with
         # DataParallel since sequences can be of different lengths
         ll = self._calc_log_likelihood(_log_p, pi, None)
         if return_pi:
-            return cost, ll, pi
+            return -cost, ll, pi
 
         return -cost, ll
 
@@ -223,13 +223,13 @@ class AttentionModel(nn.Module):
         batch_size = state.batch_size
         graph_size = state.u_size + state.v_size + 1
         i = 1
-        #node_features = (
+        # node_features = (
         #    torch.arange(1, graph_size + 1, device=opts.device)
         #    .unsqueeze(0)
         #    .expand(batch_size, graph_size)
         #    .reshape(batch_size * graph_size, 1)
-        #).float()
-        #initial_embeddings = checkpoint(self.project_node_features, node_features).reshape(batch_size, graph_size, -1)
+        # ).float()
+        # initial_embeddings = checkpoint(self.project_node_features, node_features).reshape(batch_size, graph_size, -1)
         while not (state.all_finished()):
             step_size = state.i + 1
             node_features = (
@@ -239,16 +239,25 @@ class AttentionModel(nn.Module):
                 .reshape(batch_size * step_size, 1)
             ).float()  # Collecting node features up until the ith incoming node
             subgraphs = (
-                (torch.arange(0, step_size, device=opts.device).unsqueeze(0).expand(batch_size, step_size))
-                + torch.arange(0, batch_size * graph_size, graph_size, device=opts.device).unsqueeze(1)
+                (
+                    torch.arange(0, step_size, device=opts.device)
+                    .unsqueeze(0)
+                    .expand(batch_size, step_size)
+                )
+                + torch.arange(
+                    0, batch_size * graph_size, graph_size, device=opts.device
+                ).unsqueeze(1)
             ).flatten()  # The nodes of the current subgraphs
             edge_i, weights = subgraph(
-                subgraphs, state.graphs.edge_index, state.graphs.weight.unsqueeze(1), relabel_nodes=True
+                subgraphs,
+                state.graphs.edge_index,
+                state.graphs.weight.unsqueeze(1),
+                relabel_nodes=True,
             )
-            if (i % opts.checkpoint_every == 0):
-                embeddings = checkpoint(self.embedder, node_features, edge_i, weights.float(), i).reshape(
-                    batch_size, step_size, -1
-                )
+            if i % opts.checkpoint_every == 0:
+                embeddings = checkpoint(
+                    self.embedder, node_features, edge_i, weights.float(), i
+                ).reshape(batch_size, step_size, -1)
             else:
                 embeddings = self.embedder(node_features, edge_i, weights.float(), i).reshape(
                     batch_size, step_size, -1
@@ -258,7 +267,7 @@ class AttentionModel(nn.Module):
             #   opts.batch_size, step_size, -1
             # )
             fixed = self._precompute(embeddings, step_size, opts, state)
-            #print(fixed.node_embeddings) 
+            # print(fixed.node_embeddings)
             log_p, mask = self._get_log_p(
                 fixed, state, step_context, opts, embeddings[:, -1, :]
             )
@@ -267,21 +276,28 @@ class AttentionModel(nn.Module):
             selected = self._select_node(
                 log_p.exp()[:, 0, :], mask[:, 0, :].bool()
             )  # Squeeze out steps dimension
-            #print(selected)
-            #print(state.matched_nodes)
+            # print(embeddings)
+            # print(state.weights)
+            # print(selected)
+            # print(state.matched_nodes)
             state = state.update(selected[:, None])
             s = (selected[:, None].repeat(1, fixed.node_embeddings.size(-1)))[
                 :, None, :
             ]
-#            with torch.no_grad():
+            #            with torch.no_grad():
             step_context = (
                 step_context
                 + (
-                   self.get_edge_embed(torch.cat(
-                    (torch.gather(fixed.node_embeddings, 1, s), 
-                    embeddings[:, -1, :].unsqueeze(1))
-                   , dim=2))
-#                    / 2
+                    self.get_edge_embed(
+                        torch.cat(
+                            (
+                                torch.gather(fixed.node_embeddings, 1, s),
+                                embeddings[:, -1, :].unsqueeze(1),
+                            ),
+                            dim=2,
+                        )
+                    )
+                    #                    / 2
                     - step_context
                 )
                 / i
@@ -290,7 +306,7 @@ class AttentionModel(nn.Module):
             # step_size = ((state.i.item() - state.u_size.item() + 1) * (state.u_size + 1))
             outputs.append(log_p[:, 0, :])
             sequences.append(selected)
-    
+
             if (
                 (optimizer is not None)
                 and opts.n_step
@@ -311,7 +327,7 @@ class AttentionModel(nn.Module):
         return (
             torch.stack(outputs, 1),
             torch.stack(sequences, 1),
-            state.size / (state.v_size),
+            state.size / (state.v_size * 100),
         )
 
     def _select_node(self, probs, mask):

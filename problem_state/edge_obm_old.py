@@ -44,7 +44,8 @@ class StateEdgeBipartite(NamedTuple):
                 u_size=self.u_size[key],
                 v_size=self.v_size[key],
             )
-        return super(StateEdgeBipartite, self).__getitem__(key)
+        # return super(StateEdgeBipartite, self).__getitem__(key)
+        return self[key]
 
     @staticmethod
     def initialize(
@@ -52,10 +53,12 @@ class StateEdgeBipartite(NamedTuple):
     ):
         graph_size = u_size + v_size + 1
         batch_size = int(input.batch.size(0) / graph_size)
-        adj = to_dense_adj(input.edge_index, input.batch, input.weight.unsqueeze(1))[:, u_size + 1 :, : u_size + 1].squeeze(-1) 
+        adj = to_dense_adj(input.edge_index, input.batch, input.weight.unsqueeze(1))[
+            :, u_size + 1 :, : u_size + 1
+        ].squeeze(-1)
         # size = torch.zeros(batch_size, 1, dtype=torch.long, device=graphs.device)
         # adj = (input[0] == 0).float()
-        #adj[:, :, 0] = 0.0
+        # adj[:, :, 0] = 0.0
         return StateEdgeBipartite(
             graphs=input,
             adj=adj,
@@ -89,14 +92,14 @@ class StateEdgeBipartite(NamedTuple):
         # Update the state
         nodes = self.matched_nodes.squeeze(1).scatter_(-1, selected, 1)
         # v = self.i - (self.u_size + 1)
-        graph_size = self.u_size + self.v_size + 1
-        #offset = torch.arange(
+        # graph_size = self.u_size + self.v_size + 1
+        # offset = torch.arange(
         #    0,
         #    self.batch_size * (graph_size),
         #    graph_size,
         #    device=self.graphs.batch.device,
-        #).unsqueeze(1)
-        #subgraphs = torch.cat(
+        # ).unsqueeze(1)
+        # subgraphs = torch.cat(
         #    (
         #        (
         #            torch.arange(0, self.u_size + 1, device=self.graphs.batch.device)
@@ -110,24 +113,29 @@ class StateEdgeBipartite(NamedTuple):
         #        + offset,
         #    ),
         #    dim=1,
-        #).flatten()
-        #edge_i, weights = subgraph(
+        # ).flatten()
+        # edge_i, weights = subgraph(
         #    subgraphs,
         #    self.graphs.edge_index,
         #    self.graphs.weight.unsqueeze(1),
         #    relabel_nodes=True,
-        #)
-        #adj = to_dense_adj(
+        # )
+        # adj = to_dense_adj(
         #    edge_i,
         #    self.graphs.batch.reshape(self.batch_size, graph_size)[
         #        :, : self.u_size + 2
         #    ].flatten(),
         #    weights,
-        #)[:, -1, : self.u_size + 1].squeeze(-1)
-        v = self.i - (self.u_size + 1)
+        # )[:, -1, : self.u_size + 1].squeeze(-1)
+        # v = self.i - (self.u_size + 1)
         total_weights = self.size + self.adj[:, 0, :].gather(1, selected)
-        #total_weights = self.size + adj.gather(1, selected)
-        return self._replace(matched_nodes=nodes, size=total_weights, i=self.i + 1,adj=self.adj[:, 1 :, :])
+        # total_weights = self.size + adj.gather(1, selected)
+        return self._replace(
+            matched_nodes=nodes,
+            size=total_weights,
+            i=self.i + 1,
+            adj=self.adj[:, 1:, :],
+        )
 
     def all_finished(self):
         # Exactly v_size steps
@@ -141,15 +149,15 @@ class StateEdgeBipartite(NamedTuple):
         Returns a mask vector which includes only nodes in U that can matched.
         That is, neighbors of the incoming node that have not been matched already.
         """
-        v = self.i - (self.u_size + 1)
-        graph_size = self.u_size + self.v_size + 1
-        #offset = torch.arange(
+        # v = self.i - (self.u_size + 1)
+        # graph_size = self.u_size + self.v_size + 1
+        # offset = torch.arange(
         #    0,
         #    self.batch_size * (graph_size),
         #    graph_size,
         #    device=self.graphs.batch.device,
-        #).unsqueeze(1)
-        #subgraphs = torch.cat(
+        # ).unsqueeze(1)
+        # subgraphs = torch.cat(
         #    (
         #        (
         #            torch.arange(0, self.u_size + 1, device=self.graphs.batch.device)
@@ -157,20 +165,20 @@ class StateEdgeBipartite(NamedTuple):
         #            .expand(self.batch_size, self.u_size + 1)
         #        )
         #        + offset,
-       #         torch.tensor(self.i, device=self.graphs.batch.device).expand(
+        #         torch.tensor(self.i, device=self.graphs.batch.device).expand(
         #            self.batch_size, 1
         #        )
         #        + offset,
         #    ),
         #    dim=1,
-        #).flatten()
-        #edge_i, weights = subgraph(
+        # ).flatten()
+        # edge_i, weights = subgraph(
         #    subgraphs,
-         #   self.graphs.edge_index,
+        #   self.graphs.edge_index,
         #    self.graphs.weight.unsqueeze(1),
         #    relabel_nodes=True,
-        #)
-        #mask = (
+        # )
+        # mask = (
         #    1.0
         #    - to_dense_adj(
         #        edge_i,
@@ -178,7 +186,7 @@ class StateEdgeBipartite(NamedTuple):
         #            :, : self.u_size + 2
         #        ].flatten(),
         #    )[:, -1, : self.u_size + 1]
-        #)
+        # )
         mask = (self.adj[:, 0, :] == 0).float()
         mask[:, 0] = 0
         self.matched_nodes[

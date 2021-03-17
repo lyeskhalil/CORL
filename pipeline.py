@@ -7,10 +7,10 @@ problem = "e-obm"
 graph_family = "er"
 weight_distribution = "uniform"
 weight_distribution_param = "5 100"  # seperate by a space
-graph_family_parameters = "0.2"
-u_size = 5  # 10
-v_size = 15  # 30
-dataset_size = 200
+graph_family_parameters = "0.05 0.1 0.15 0.2"
+u_size = 100  # 10
+v_size = 100  # 30
+dataset_size = 10000
 val_size = 100
 eval_size = 1000
 num_edges = 100
@@ -30,13 +30,13 @@ val_dataset = "dataset/val" + extention
 eval_dataset = "dataset/eval" + extention
 
 # model flags
-batch_size = 50
-embedding_dim = 60  # 60
-n_heads = 3  # 3
-n_epochs = 10
+batch_size = 1
+embedding_dim = 30  # 60
+n_heads = 2  # 3
+n_epochs = 20
 checkpoint_epochs = 5
 eval_baselines = "greedy"  # ******
-lr_model = 0.001
+lr_model = 0.0001
 lr_decay = 0.9
 n_encode_layers = 3
 baseline = "exponential"
@@ -45,7 +45,7 @@ output_dir = "saved_models"
 log_dir = "logs_dataset"
 
 # model evaluation flags
-eval_models = "attention"
+eval_models = "attention ff"
 eval_output = "figures"
 # this is a single checkpoint. Example: outputs_dataset/e-obm_20/run_20201226T171156/epoch-4.pt
 load_path = None
@@ -57,23 +57,51 @@ load_path = None
 
 # this is a list of attention model checkpoints seperated by space. The number of checkpoints should be the same as the length of eval_set
 # Note: checkpoints must be in the same order as eval set (i,e. checkpoint1 must be for graph paramter 0.05, etc.)
-# attention_models = "../output_e-obm_er_10by30_p=0.01_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T060349/epoch-79.pt \
-# ../output_e-obm_er_10by30_p=0.05_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T060338/epoch-79.pt \
-# ../output_e-obm_er_10by30_p=0.1_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T062920/epoch-79.pt \
-# ../output_e-obm_er_10by30_p=0.15_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T063254/epoch-79.pt \
-# ../output_e-obm_er_10by30_p=0.2_uniform_m=5_v=100_a=3/e-obm_20/run_20201223T063830/epoch-79.pt"
 
-attention_models = "../output_e-obm_er_5by15_p=0.01_uniform_m=5_v=100_a=3/e-obm_20/run_20201222T163026/epoch-69.pt \
-../output_e-obm_er_5by15_p=0.05_uniform_m=5_v=100_a=3/e-obm_20/run_20201222T163107/epoch-69.pt \
-../output_e-obm_er_5by15_p=0.1_uniform_m=5_v=100_a=3/e-obm_20/run_20201222T163157/epoch-69.pt \
-../output_e-obm_er_5by15_p=0.15_uniform_m=5_v=100_a=3/e-obm_20/run_20201222T163441/epoch-69.pt \
-../output_e-obm_er_5by15_p=0.2_uniform_m=5_v=100_a=3/outputs_e-obm_er_5by15_p=0.2_uniform_m=5_v=100_a=3/e-obm_20/run_20201222T170215/epoch-69.pt"
+# 10by60
+# attention_models = "../output_e-obm_er_10by60_p=0.01_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by60_p=0.01_uniform_m=5_v=100_a=3/attention/run_20210310T043543/epoch-69.pt \
+# ../output_e-obm_er_10by60_p=0.05_uniform_m=5_v=100_a=3/attention/run_20210310T022438/epoch-69.pt \
+# ../output_e-obm_er_10by60_p=0.1_uniform_m=5_v=100_a=3/attention/run_20210310T022441/epoch-69.pt \
+# ../output_e-obm_er_10by60_p=0.15_uniform_m=5_v=100_a=3/attention/run_20210310T022543/epoch-69.pt \
+# ../output_e-obm_er_10by60_p=0.2_uniform_m=5_v=100_a=3/attention/run_20210310T022545/epoch-69.pt"
+
+
+# 100by100
+attention_models = "../output_e-obm_er_100by100_p=0.05_uniform_m=5_v=100_a=3/attention/run_20210310T052217/epoch-59.pt \
+../output_e-obm_er_100by100_p=0.1_uniform_m=5_v=100_a=3/outputs_e-obm_er_100by100_p=0.1_uniform_m=5_v=100_a=3/attention/run_20210310T052324/epoch-59.pt \
+../output_e-obm_er_100by100_p=0.15_uniform_m=5_v=100_a=3/outputs_e-obm_er_100by100_p=0.15_uniform_m=5_v=100_a=3/attention/run_20210310T052320/epoch-59.pt \
+../output_e-obm_er_100by100_p=0.2_uniform_m=5_v=100_a=3/outputs_e-obm_er_100by100_p=0.2_uniform_m=5_v=100_a=3/attention/run_20210310T052524/epoch-59.pt \
+"
+
+# 10by30
+# attention_models = "../output_e-obm_er_10by30_p=0.01_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by30_p=0.01_uniform_m=5_v=100_a=3/attention/run_20210310T043543/epoch-69.pt \
+# ../output_e-obm_er_10by30_p=0.05_uniform_m=5_v=100_a=3/attention/run_20210310T022430/epoch-69.pt \
+# ../output_e-obm_er_10by30_p=0.1_uniform_m=5_v=100_a=3/attention/run_20210310T022430/epoch-69.pt \
+# ../output_e-obm_er_10by30_p=0.15_uniform_m=5_v=100_a=3/attention/run_20210310T022430/epoch-69.pt \
+# ../output_e-obm_er_10by30_p=0.2_uniform_m=5_v=100_a=3/attention/run_20210310T022430/epoch-69.pt"
 
 # this is a list of feedforward model checkpoints seperated by space. The number of checkpoints should be the same as the length of eval_set
 # Note: checkpoints must be in the same order as eval set (i,e. checkpoint1 must be for graph paramter 0.05, etc.)
-ff_models = None
+# 10by30
+# ff_models = "../output_e-obm_er_10by30_p=0.01_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by30_p=0.01_uniform_m=5_v=100_a=3/ff/run_20210310T083836/epoch-69.pt \
+# ../output_e-obm_er_10by30_p=0.05_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by30_p=0.05_uniform_m=5_v=100_a=3/ff/run_20210310T083836/epoch-69.pt \
+# ../output_e-obm_er_10by30_p=0.1_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by30_p=0.1_uniform_m=5_v=100_a=3/ff/run_20210310T083922/epoch-69.pt \
+# ../output_e-obm_er_10by30_p=0.15_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by30_p=0.15_uniform_m=5_v=100_a=3/ff/run_20210310T083920/epoch-69.pt \
+# ../output_e-obm_er_10by30_p=0.2_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by30_p=0.2_uniform_m=5_v=100_a=3/ff/run_20210310T083920/epoch-69.pt"
+
+## 10by60
+# ff_models = "../output_e-obm_er_10by60_p=0.01_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by60_p=0.01_uniform_m=5_v=100_a=3/ff/run_20210310T083915/epoch-69.pt \
+# ../output_e-obm_er_10by60_p=0.05_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by60_p=0.05_uniform_m=5_v=100_a=3/ff/run_20210310T083914/epoch-69.pt \
+# ../output_e-obm_er_10by60_p=0.1_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by60_p=0.1_uniform_m=5_v=100_a=3/ff/run_20210310T083914/epoch-69.pt \
+# ../output_e-obm_er_10by60_p=0.15_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by60_p=0.15_uniform_m=5_v=100_a=3/ff/run_20210310T083914/epoch-69.pt \
+# ../output_e-obm_er_10by60_p=0.2_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by60_p=0.2_uniform_m=5_v=100_a=3/ff/run_20210310T083907/epoch-69.pt"
 
 
+# 100by100
+ff_models = "../output_e-obm_er_100by100_p=0.05_uniform_m=5_v=100_a=3/outputs_e-obm_er_100by100_p=0.05_uniform_m=5_v=100_a=3/ff/run_20210310T084054/epoch-69.pt \
+../output_e-obm_er_100by100_p=0.1_uniform_m=5_v=100_a=3/ff/run_20210310T084054/epoch-69.pt \
+../output_e-obm_er_100by100_p=0.15_uniform_m=5_v=100_a=3/ff/run_20210310T084103/epoch-69.pt \
+../output_e-obm_er_100by100_p=0.2_uniform_m=5_v=100_a=3/ff/run_20210310T084210/epoch-69.pt"
 eval_batch_size = 50
 eval_set = graph_family_parameters
 
@@ -147,14 +175,14 @@ def generate_data():
             n,
         )
 
-        # print(generate_train)
-        os.system(generate_train)
+        print(generate_train)
+        # os.system(generate_train)
 
-        # print(generate_val)
-        os.system(generate_val)
+        print(generate_val)
+        # os.system(generate_val)
 
-        print(generate_eval)
-        # os.system(generate_eval)
+        # print(generate_eval)
+        os.system(generate_eval)
 
 
 def train_model():
@@ -163,7 +191,7 @@ def train_model():
         train_dir = train_dataset + "/parameter_{}".format(n)
         val_dir = val_dataset + "/parameter_{}".format(n)
         save_dir = output_dir + extention + "/parameter_{}".format(n)
-        train = """python run.py --problem {} --batch_size {} --embedding_dim {} --n_heads {} --u_size {}  --v_size {} --n_epochs {} \
+        train = """python run.py --encoder mpnn --problem {} --batch_size {} --embedding_dim {} --n_heads {} --u_size {}  --v_size {} --n_epochs {} \
                     --train_dataset {} --val_dataset {} --dataset_size {} --val_size {} --checkpoint_epochs {} --baseline {} \
                     --lr_model {} --lr_decay {} --output_dir {} --log_dir {} --n_encode_layers {} --num_edges {} --save_dir {} --graph_family_parameter {}""".format(
             problem,
@@ -196,7 +224,7 @@ def train_model():
 def evaluate_model():
     evaluate = """python eval.py --problem {} --embedding_dim {} --load_path {} --ff_models {} --attention_models {} --eval_baselines {} \
         --baseline {} --eval_models {} --eval_dataset {}  --u_size {} --v_size {} --eval_set {} --eval_size {} --eval_batch_size {} \
-        --n_encode_layers {} --n_heads {} --output_dir {} --batch_size {}""".format(
+        --n_encode_layers {} --n_heads {} --output_dir {} --batch_size {} --encoder mpnn""".format(
         problem,
         embedding_dim,
         load_path,
@@ -224,6 +252,6 @@ def evaluate_model():
 if __name__ == "__main__":
     # make the directories if they do not exist
     make_dir()
-    generate_data()
-    train_model()
-    # evaluate_model()
+    # generate_data()
+    # train_model()
+    evaluate_model()
