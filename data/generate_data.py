@@ -10,6 +10,7 @@ import pickle as pk
 from tqdm import tqdm
 from scipy.stats import powerlaw
 import torch_geometric
+import math
 
 # from torch_geometric.utils import from_networkx
 
@@ -55,7 +56,7 @@ def generate_ba_graph(u, v, p, seed):
 
         v1 += 1
 
-    return G 
+    return G
 
 
 def generate_obm_data(
@@ -76,7 +77,7 @@ def generate_obm_data(
     if graph_family == "er":
         g = nx.bipartite.random_graph
     if graph_family == "ba":
-        g  = generate_ba_graph
+        g = generate_ba_graph
     for i in tqdm(range(dataset_size)):
         g1 = g(u_size, v_size, p=graph_family_parameter, seed=seed + i)
 
@@ -111,13 +112,15 @@ def generate_obm_data(
 
 def generate_weights(distribution, u_size, v_size, parameters, g1):
 
-    edges = nx.bipartite.biadjacency_matrix(g1, range(0, u_size), range(u_size, u_size + v_size)).toarray()  # U by V array of adjacacy matrix
+    edges = nx.bipartite.biadjacency_matrix(
+        g1, range(0, u_size), range(u_size, u_size + v_size)
+    ).toarray()  # U by V array of adjacacy matrix
 
     if distribution == "uniform":
         weights = edges * np.random.randint(
             int(parameters[0]), int(parameters[1]), (u_size, v_size)
         )
-    
+
     elif distribution == "normal":
         weights = edges * (
             np.abs(
@@ -127,7 +130,7 @@ def generate_weights(distribution, u_size, v_size, parameters, g1):
             )
             + 5
         )  # to make sure no edge has weight zero
-        
+
     elif distribution == "power":
         weights = edges * (
             powerlaw.rvs(
@@ -144,11 +147,7 @@ def generate_weights(distribution, u_size, v_size, parameters, g1):
             int(parameters[0]), int(parameters[1]), (u_size, v_size)
         )
         weights = np.where(graph, graph + noise, graph)
-        
-           
-    w = torch.cat(
-        (torch.zeros(v_size, 1).long(), torch.tensor(weights).T.long()), 1
-    )
+    w = torch.cat((torch.zeros(v_size, 1).long(), torch.tensor(weights).T.long()), 1)
 
     return weights, w
 
@@ -228,6 +227,24 @@ def generate_weights_geometric(distribution, u_size, v_size, parameters, g1):
         w = torch.cat(
             (torch.zeros(v_size, 1).long(), torch.tensor(weights).T.long()), 1
         )
+    elif distribution == "degree":
+        weights = nx.bipartite.biadjacency_matrix(
+            g1, range(0, u_size), range(u_size, u_size + v_size)
+        ).toarray()
+        graph = 10 * weights * weights.sum(axis=1).reshape(-1, 1)
+        noise = np.random.randint(
+            int(parameters[0]), int(parameters[1]), (u_size, v_size)
+        )
+        weights = np.where(graph, graph + noise, graph)
+        w = torch.cat(
+            (torch.zeros(v_size, 1).long(), torch.tensor(weights).T.long()), 1
+        )
+    elif distribution == "node-normal":
+        mean = np.random.randint(int(parameters[0]), int(parameters[1]), (1, v_size))
+        variance = np.random.randint(
+            math.sqrt(int(parameters[0])), math.sqrt(int(parameters[1])), (1, v_size)
+        )
+        np.abs(np.random.normal(0, 1, (u_size, v_size)) * variance + mean) + 5
     w = np.delete(weights.flatten(), weights.flatten() == 0)
     return weights, w
 
@@ -313,9 +330,8 @@ def generate_edge_obm_data(
     if graph_family == "ba":
         g = generate_ba_graph
     for i in tqdm(range(dataset_size)):
-        g1 = g(u_size, v_size, p=graph_family_parameter, seed=seed + i) 
-        
-        
+        g1 = g(u_size, v_size, p=graph_family_parameter, seed=seed + i)
+
         # a = nx.bipartite.biadjacency_matrix(g1, range(0, u_size), range(u_size, u_size + v_size)).toarray()
         # print('a', a)
         # d_old = np.array(sorted(g1.degree))[u_size:, 1]
@@ -335,7 +351,7 @@ def generate_edge_obm_data(
 
         s = sorted(list(g1.nodes))
         # print('s: ', s)
-        
+
         m = 1 - nx.convert_matrix.to_numpy_array(g1, s)
         # print('m: ', m)
         if save_data:
