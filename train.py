@@ -159,7 +159,7 @@ def rollout(model, dataset, opts):
         # print(
         #     "\nBatch Competitive ratio: ", min(cr).item(),
         # )
-        return cost.data.cpu() * opts.v_size * 100, cr * 100
+        return cost.data.cpu() * opts.v_size, cr
 
     cost = []
     crs = []

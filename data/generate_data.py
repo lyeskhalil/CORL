@@ -240,11 +240,14 @@ def generate_weights_geometric(distribution, u_size, v_size, parameters, g1):
             (torch.zeros(v_size, 1).long(), torch.tensor(weights).T.long()), 1
         )
     elif distribution == "node-normal":
+        adj = nx.bipartite.biadjacency_matrix(
+            g1, range(0, u_size), range(u_size, u_size + v_size)
+        ).toarray() 
         mean = np.random.randint(int(parameters[0]), int(parameters[1]), (u_size, 1))
         variance = np.sqrt(np.random.randint(
             int(parameters[0]), int(parameters[1]), (u_size, 1)
         ))
-        weights = np.abs(np.random.normal(0., 1., (u_size, v_size)) * variance + mean) + 5
+        weights = (np.abs(np.random.normal(0., 1., (u_size, v_size)) * variance + mean) + 5) * adj
     w = np.delete(weights.flatten(), weights.flatten() == 0)
     return weights, w
 

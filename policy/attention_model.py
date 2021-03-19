@@ -68,7 +68,6 @@ class AttentionModelFixed(NamedTuple):
                 logit_key=self.logit_key[key],
             )
         return super(AttentionModelFixed, self).__getitem__(key)
-        #return self[key]
 
 
 class AttentionModel(nn.Module):
@@ -149,7 +148,11 @@ class AttentionModel(nn.Module):
         nn.init.xavier_uniform_(self.project_step_context.weight)
         nn.init.xavier_uniform_(self.get_edge_embed.weight)
         nn.init.xavier_uniform_(self.project_out.weight)
-
+        self.init_parameters()
+    def init_parameters(self):
+        for name, param in self.named_parameters():
+            stdv = 1. / math.sqrt(param.size(-1))
+            param.data.uniform_(-stdv, stdv)
     def set_decode_type(self, decode_type, temp=None):
         self.decode_type = decode_type
         if temp is not None:  # Do not change temperature if not provided
@@ -255,10 +258,10 @@ class AttentionModel(nn.Module):
                     self.embedder, node_features, edge_i, weights.float(), i
                 ).reshape(batch_size, step_size, -1)
             else:
-                embeddings = self.embedder(
-                    node_features, edge_i, weights.float()
-                ).reshape(batch_size, step_size, -1)
-            # print(time.time() - s)
+                embeddings = self.embedder(node_features, edge_i, weights.float(), i).reshape(
+                    batch_size, step_size, -1
+                )
+            #print(time.time() - s)
             # embeddings = self._init_embed(node_features.float()).view(
             #   opts.batch_size, step_size, -1
             # )
