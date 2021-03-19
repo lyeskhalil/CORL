@@ -38,7 +38,6 @@ class Greedy(nn.Module):
 
         sequences = []
         while not (state.all_finished()):
-            # v = state.i.item() - (state.u_size.item() + 1)
             w = state.adj[:, 0, :].clone()
             mask = state.get_mask()
             w[mask.bool()] = -1.0

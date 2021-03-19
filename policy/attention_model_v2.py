@@ -24,11 +24,11 @@ def set_decode_type(model, decode_type):
 
 
 def train_n_step(cost, ll, x, optimizer, baseline):
-    bl_val, bl_loss = baseline.eval(x, cost)
+    bl_val, bl_loss = baseline.eval(x, cost.float())
 
     # Calculate loss
     # print("\nCost: " , cost.item())
-    reinforce_loss = ((cost.squeeze(1) - bl_val) * ll).mean()
+    reinforce_loss = ((cost.squeeze(1).float() - bl_val) * ll).mean()
     loss = reinforce_loss + bl_loss
     # print(loss.item())
     # Perform backward pass and optimization step

@@ -68,7 +68,6 @@ class AttentionModelFixed(NamedTuple):
                 logit_key=self.logit_key[key],
             )
         return super(AttentionModelFixed, self).__getitem__(key)
-        # return self[key]
 
 
 class AttentionModel(nn.Module):
@@ -276,6 +275,7 @@ class AttentionModel(nn.Module):
             selected = self._select_node(
                 log_p.exp()[:, 0, :], mask[:, 0, :].bool()
             )  # Squeeze out steps dimension
+            #print(state.matched_nodes)
             # print(embeddings)
             # print(state.weights)
             # print(selected)
