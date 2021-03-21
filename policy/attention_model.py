@@ -232,7 +232,7 @@ class AttentionModel(nn.Module):
         while not (state.all_finished()):
             step_size = state.i + 1
             node_features = (
-                torch.arange(1, step_size + 1, device=opts.device)
+                torch.cat((torch.ones(1, device=opts.device), torch.ones(opts.u_size, device=opts.device) * 2, torch.ones(step_size - opts.u_size - 1, device=opts.device) * 3))  
                 .unsqueeze(0)
                 .expand(batch_size, step_size)
                 .reshape(batch_size * step_size, 1)
