@@ -127,7 +127,7 @@ def rollout_eval(models, dataset, opts):
         # print(
         #     "\nBatch Competitive ratio: ", min(cr).item(),
         # )
-        return cost.data.cpu() * opts.v_size * 100, cr * 100, num_agree
+        return cost.data.cpu() * opts.v_size, cr, num_agree
 
     cost = []
     crs = []
@@ -371,7 +371,6 @@ def train_batch(
     if not opts.n_step:
         reinforce_loss = ((cost.squeeze(1) - bl_val) * log_likelihood).mean()
         loss = reinforce_loss + bl_loss
-        # print(log_likelihood)
         # Perform backward pass and optimization step
         optimizers[0].zero_grad()
         loss.backward()
