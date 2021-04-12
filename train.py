@@ -152,8 +152,8 @@ def rollout(model, dataset, opts):
         # print(-cost.data.flatten())
         # print(bat[-1])
         cr = (
-            -cost.data.flatten()
-            * opts.v_size
+            (-cost.data.flatten()
+            * opts.v_size)
             / move_to(batch.y + (batch.y == 0).float(), opts.device)
         )
         # print(
@@ -295,7 +295,7 @@ def train_epoch(
 
     # lr_scheduler should be called at end of epoch
     lr_schedulers[0].step()
-    lr_schedulers[1].step()
+#    lr_schedulers[1].step()
 
     return avg_reward, min_cr, avg_cr
 

@@ -57,7 +57,19 @@ def generate_ba_graph(u, v, p, seed):
         v1 += 1
 
     return G
+def generate_gmission_graph(u, v, p, seed):
+    np.random.seed(seed)
 
+    G = nx.Graph()
+    G = _add_nodes_with_bipartite_label(G, u, v)
+
+    G.name = f"ba_random_graph({u},{v},{p})"
+
+    deg = np.zeros(u)
+
+    v1 = 0.0
+    w = 0
+     
 
 def generate_obm_data(
     u_size,
@@ -187,8 +199,9 @@ def from_networkx(G):
     return data
 
 
-def generate_weights_geometric(distribution, u_size, v_size, parameters, g1):
+def generate_weights_geometric(distribution, u_size, v_size, parameters, g1, seed):
     weights, w = 0, 0
+    np.random.seed(seed)
     if distribution == "uniform":
         weights = nx.bipartite.biadjacency_matrix(
             g1, range(0, u_size), range(u_size, u_size + v_size)
@@ -248,6 +261,13 @@ def generate_weights_geometric(distribution, u_size, v_size, parameters, g1):
             int(parameters[0]), int(parameters[1]), (u_size, 1)
         ))
         weights = (np.abs(np.random.normal(0., 1., (u_size, v_size)) * variance + mean) + 5) * adj
+    elif distribution == "fixed-normal":
+        adj = nx.bipartite.biadjacency_matrix(
+            g1, range(0, u_size), range(u_size, u_size + v_size)
+        ).toarray()
+        mean = np.random.choice(np.arange(0, 100, 15), size=(u_size, 1)) 
+        variance = np.sqrt(np.random.choice(np.arange(0, 100, 20), size=(u_size, 1)))
+        weights = (np.abs(np.random.normal(0., 1., (u_size, v_size)) * variance + mean) + 5) * adj
     w = np.delete(weights.flatten(), weights.flatten() == 0)
     return weights, w
 
@@ -277,8 +297,9 @@ def generate_edge_obm_data_geometric(
     for i in tqdm(range(dataset_size)):
         g1 = g(u_size, v_size, p=graph_family_parameter, seed=seed + i)
         # d_old = np.array(sorted(g1.degree))[u_size:, 1]
+
         weights, w = generate_weights_geometric(
-            weight_distribution, u_size, v_size, weight_param, g1
+            weight_distribution, u_size, v_size, weight_param, g1, seed + i
         )
         # s = sorted(list(g1.nodes))
         # c = nx.convert_matrix.to_numpy_array(g1, s)
@@ -309,6 +330,8 @@ def generate_edge_obm_data_geometric(
         torch.tensor(M),
     )
 
+
+    
 
 def generate_edge_obm_data(
     u_size,

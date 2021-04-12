@@ -252,6 +252,6 @@ def evaluate_model():
 if __name__ == "__main__":
     # make the directories if they do not exist
     make_dir()
-    # generate_data()
+    #generate_data()
     # train_model()
     evaluate_model()
