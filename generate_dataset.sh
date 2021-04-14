@@ -11,7 +11,7 @@ PROBLEM="e-obm"
 TRAIN_SIZE=10000
 VAL_SIZE=1000
 MAX_WEIGHT=100
-WEIGHT_DIST="node-normal"
+WEIGHT_DIST="fixed-normal"
 MEAN=5
 VARIANCE=100
 a=3
@@ -28,9 +28,9 @@ pip install --no-index -r requirements.txt
 
 
 # python data/generate_data.py --dataset_size $TRAIN_SIZE --seed 50000 --u_size $U_SIZE --v_size $V_SIZE --graph_family_parameter $FAMILY_PARAMETER  --dataset_folder $SLURM_TMPDIR/$DATASET/train
-python data/generate_data.py --weight_distribution_param $MEAN $VARIANCE --weight_distribution $WEIGHT_DIST --problem $PROBLEM --dataset_size $TRAIN_SIZE --u_size $U_SIZE --v_size $V_SIZE --graph_family_parameter $FAMILY_PARAMETER --dataset_folder $SLURM_TMPDIR/$DATASET/train
+python data/generate_data.py --weight_distribution_param $MEAN $VARIANCE --weight_distribution $WEIGHT_DIST --graph_family $GRAPH_FAMILY --problem $PROBLEM --dataset_size $TRAIN_SIZE --u_size $U_SIZE --v_size $V_SIZE --graph_family_parameter $FAMILY_PARAMETER --dataset_folder $SLURM_TMPDIR/$DATASET/train
 
-python data/generate_data.py --problem $PROBLEM --weight_distribution_param $MEAN $VARIANCE --weight_distribution $WEIGHT_DIST --dataset_size $VAL_SIZE --u_size $U_SIZE --v_size $V_SIZE --graph_family_parameter $FAMILY_PARAMETER --seed 20000 --dataset_folder $SLURM_TMPDIR/$DATASET/val
+python data/generate_data.py --problem $PROBLEM --weight_distribution_param $MEAN $VARIANCE --weight_distribution $WEIGHT_DIST --graph_family $GRAPH_FAMILY --dataset_size $VAL_SIZE --u_size $U_SIZE --v_size $V_SIZE --graph_family_parameter $FAMILY_PARAMETER --seed 20000 --dataset_folder $SLURM_TMPDIR/$DATASET/val
 
 cd $SLURM_TMPDIR
 

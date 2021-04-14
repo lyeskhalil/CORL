@@ -103,7 +103,7 @@ def run(opts):
         validate(model, val_dataloader, opts)
     elif opts.tune:
         PARAM_GRID = list(product(
-            [0.001, 0.0001, 0.00001, 0.002, 0.0002],  # learning_rate
+            [0.01, 0.001, 0.0001, 0.00001, 0.02, 0.002, 0.0002, 0.00002, 0.03, 0.003, 0.0003, 0.00003],  # learning_rate
 #            [(20, 1), (30, 1), (40, 4)],  # embedding size
             [0.75, 0.85, 0.8, 0.9, 0.95],  # baseline exponential decay
             [1.0, 0.99, 0.98, 0.97, 0.96]  # lr decay
@@ -115,7 +115,7 @@ def run(opts):
         # this worker's array index. Assumes slurm array job is zero-indexed
         # defaults to zero if not running under SLURM
         this_worker = int(os.getenv("SLURM_ARRAY_TASK_ID", 0))
-        SCOREFILE = os.path.expanduser(f"./val_rewards_{opts.model}_{opts.u_size}_{opts.v_size}_{opts.graph_family_parameter}.csv")
+        SCOREFILE = os.path.expanduser(f"./val_rewards_{opts.model}_{opts.u_size}_{opts.v_size}_{opts.graph_family_parameter}_1.csv")
         for param_ix in range(this_worker, len(PARAM_GRID), N_WORKERS):
             torch.manual_seed(opts.seed)
             params = PARAM_GRID[param_ix]
