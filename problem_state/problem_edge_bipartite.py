@@ -53,9 +53,11 @@ class EdgeBipartiteDataset1(geometricDataset):
 
     def len(self):
         return self.size
-
     def get(self, idx):
-        data = torch.load(self.data_set + "/data_{}.pt".format(idx))
+        if type(self.data_set) == str:
+            data = torch.load(self.data_set + "/data_{}.pt".format(idx))
+        else:
+            data = self.data_set[idx]
         return data
 
 

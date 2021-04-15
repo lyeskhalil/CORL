@@ -17,18 +17,11 @@ python-dateutil>=2.8.1
 scipy>=1.4.0
 tensorboard>=2.2.2
 tensorboard-plugin-wit>=1.7.0
-torch==1.5.0
-torchvision==0.6.0
+torch==1.7.0
+torchvision==0.8.1
 tqdm>=4.47.0
-<<<<<<< HEAD
-torch-spline-conv
-torch-scatter
-torch-sparse
-torch-cluster
-=======
 torch-scatter
 torch-sparse
 torch-cluster
 torch-spline-conv
->>>>>>> 1d45ee1603c489760e96c51b84f1e30d81e3b820
 torch-geometric

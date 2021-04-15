@@ -110,7 +110,7 @@ class AttentionModel(nn.Module):
         # node_dim = 0
         if self.is_bipartite:  # online bipartite matching
             step_context_dim = (
-                embedding_dim * 2
+                embedding_dim * 1
             )  # Embedding of edges chosen and current node
             # node_dim = 1  # edge weight
 
@@ -152,6 +152,7 @@ class AttentionModel(nn.Module):
         # nn.init.xavier_uniform_(self.get_edge_embed.weight)
         # nn.init.xavier_uniform_(self.project_out.weight)
         # self.init_parameters()
+        self.dummy = torch.ones(1, dtype=torch.float32, requires_grad=True)
 
     def init_parameters(self):
         for name, param in self.named_parameters():
@@ -267,7 +268,12 @@ class AttentionModel(nn.Module):
             )
             if i % opts.checkpoint_every == 0:
                 embeddings = checkpoint(
-                    self.embedder, node_features, edge_i, weights.float(), i
+                    self.embedder,
+                    node_features,
+                    edge_i,
+                    weights.float(),
+                    torch.tensor(i),
+                    self.dummy,
                 ).reshape(batch_size, step_size, -1)
             else:
                 embeddings = self.embedder(
@@ -281,7 +287,6 @@ class AttentionModel(nn.Module):
             log_p, mask = self._get_log_p(
                 fixed, state, step_context, opts, embeddings[:, -1, :]
             )
-            # print(embeddings[:, : state.u_size + 1, :])
             # Select the indices of the next nodes in the sequences, result (batch_size) long
             selected = self._select_node(
                 log_p.exp()[:, 0, :], mask[:, 0, :].bool()
@@ -292,27 +297,27 @@ class AttentionModel(nn.Module):
             # print(selected)
             # print(state.matched_nodes)
             state = state.update(selected[:, None])
-            s = (selected[:, None].repeat(1, fixed.node_embeddings.size(-1)))[
-                :, None, :
-            ]
+            # s = (selected[:, None].repeat(1, fixed.node_embeddings.size(-1)))[
+            #     :, None, :
+            # ]
             # with torch.no_grad():
-            step_context = (
-                step_context
-                + (
-                    self.get_edge_embed(
-                        torch.cat(
-                            (
-                                torch.gather(fixed.node_embeddings, 1, s),
-                                embeddings[:, -1, :].unsqueeze(1),
-                            ),
-                            dim=2,
-                        )
-                    )
-                    #                    / 2
-                    - step_context
-                )
-                / i
-            )  # Incremental averaging of selected edges
+            # step_context = (
+            #    step_context
+            #    + (
+            #        self.get_edge_embed(
+            #            torch.cat(
+            #                (
+            #                    torch.gather(fixed.node_embeddings, 1, s),
+            #                    embeddings[:, -1, :].unsqueeze(1),
+            #                ),
+            #                dim=2,
+            #            )
+            #        )
+            #          / 2
+            #         - step_context
+            #    )
+            #    / i
+            # )  # Incremental averaging of selected edges
             # Collect output of step
             # step_size = ((state.i.item() - state.u_size.item() + 1) * (state.u_size + 1))
             outputs.append(log_p[:, 0, :])
@@ -414,11 +419,12 @@ class AttentionModel(nn.Module):
     def _get_log_p(self, fixed, state, step_context, opts, curr_node, normalize=True):
 
         # Compute query = context node embedding
-        query = fixed.context_node_projected + self.project_step_context(
+        projected_step_context = self.project_step_context(
             self._get_parallel_step_context(
                 fixed.node_embeddings, state, step_context, curr_node
             )
         )
+        query = fixed.context_node_projected + projected_step_context
 
         # Compute keys and values for the nodes
         glimpse_K, glimpse_V, logit_K = self._get_attention_node_data(fixed, state)
@@ -451,7 +457,8 @@ class AttentionModel(nn.Module):
         """
 
         # current_node = state.get_current_node()
-        batch_size, num_steps = state.batch_size, 1
+        # batch_size = state.batch_size
+        num_steps = 1
 
         if self.is_bipartite:  # Bipartite matching
             if (
@@ -461,9 +468,9 @@ class AttentionModel(nn.Module):
                     # First and only step, ignore prev_a (this is a placeholder)
                     return torch.cat(
                         (
-                            self.W_placeholder[None, None, :].expand(
-                                batch_size, 1, self.W_placeholder.size(-1)
-                            ),
+                            # self.W_placeholder[None, None, :].expand(
+                            # batch_size, 1, self.W_placeholder.size(-1)
+                            # ),
                             curr_node.unsqueeze(1),
                             state.adj[:, 0, :].float().unsqueeze(1),
                         ),
@@ -476,7 +483,6 @@ class AttentionModel(nn.Module):
                 else:
                     return torch.cat(
                         (
-                            step_context,
                             curr_node.unsqueeze(1),
                             state.adj[:, 0, :].float().unsqueeze(1),
                         ),

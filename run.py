@@ -103,10 +103,10 @@ def run(opts):
         validate(model, val_dataloader, opts)
     elif opts.tune:
         PARAM_GRID = list(product(
-            [0.0001, 0.00001],  # learning_rate
-            [(20, 1), (30, 1), (40, 1)],  # embedding size
-            [0.75, 0.85, 0.9, 0.95],  # baseline exponential decay
-            [0.99, 0.98, 0.97]  # lr decay
+            [0.01, 0.001, 0.0001, 0.00001, 0.02, 0.002, 0.0002, 0.00002, 0.03, 0.003, 0.0003, 0.00003],  # learning_rate
+#            [(20, 1), (30, 1), (40, 4)],  # embedding size
+            [0.75, 0.85, 0.8, 0.9, 0.95],  # baseline exponential decay
+            [1.0, 0.99, 0.98, 0.97, 0.96]  # lr decay
         ))
         # total number of slurm workers detected
         # defaults to 1 if not running under SLURM
@@ -115,20 +115,20 @@ def run(opts):
         # this worker's array index. Assumes slurm array job is zero-indexed
         # defaults to zero if not running under SLURM
         this_worker = int(os.getenv("SLURM_ARRAY_TASK_ID", 0))
-        SCOREFILE = os.path.expanduser("./val_rewards.csv")
+        SCOREFILE = os.path.expanduser(f"./val_rewards_{opts.model}_{opts.u_size}_{opts.v_size}_{opts.graph_family_parameter}_1.csv")
         for param_ix in range(this_worker, len(PARAM_GRID), N_WORKERS):
             torch.manual_seed(opts.seed)
             params = PARAM_GRID[param_ix]
             lr = params[0]
-            embedding_dim = params[1][0]
-            n_heads = params[1][1]
-            exp_decay = params[2]
-            lr_decay = params[3]
+#            embedding_dim = params[1][0]
+#            n_heads = params[1][1]
+            exp_decay = params[1]
+            lr_decay = params[2]
             opts.lr_model = lr
             opts.lr_decay = lr_decay
             opts.exp_beta = exp_decay
-            opts.embedding_dim = embedding_dim
-            opts.n_heads = n_heads
+            #opts.embedding_dim = embedding_dim
+            #opts.n_heads = n_heads
             if not opts.no_tensorboard:
                 tb_logger = SummaryWriter(
                     os.path.join(

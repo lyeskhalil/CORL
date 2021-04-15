@@ -44,12 +44,13 @@ class MPNN(nn.Module):
         #nn.init.xavier_uniform_(self.l1.weight)
         #nn.init.xavier_uniform_(self.l2.weight)
         #nn.init.xavier_uniform_(self.l3.weight)
-        #self.init_parameters()
-    def init_parameters(self):
-        for name, param in self.named_parameters():
+        #self.init_parameters(self.norm)
+    def init_parameters(self, module):
+        for name, param in module.named_parameters():
             stdv = 1. / math.sqrt(param.size(-1))
             param.data.uniform_(-stdv, stdv)
-    def forward(self, x, edge_index, edge_attribute, i):
+    def forward(self, x, edge_index, edge_attribute, i, dummy):
+        i = i.item()
         if i < self.n_layers:
             n_encode_layers = i + 1
         else:
@@ -60,7 +61,7 @@ class MPNN(nn.Module):
         #x = F.relu(x)
         for j in range(n_encode_layers):
             x = F.relu(x)
-            x = self.conv1(x, edge_index, edge_attribute.float() / 100.)
+            x = self.conv1(x, edge_index, edge_attribute.float())
 #            x = F.relu(x)
             #x = self.norm(x.view(-1, x.size(-1))).view(*x.size())
         

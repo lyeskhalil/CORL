@@ -235,20 +235,19 @@ def generate_gmission_graph(
             worker = availableWorkers[w]
             edge = str(float(worker)) + ";" + str(float(sampledTask))
 
-            if edge in edges and (w, i) not in G.edges:
-                G.add_edge(w, i)
+            if edge in edges and (w, i + u) not in G.edges:
+                G.add_edge(w, i + u, weight=float(edges[edge]))
                 weights.append(float(edges[edge]))
             else:
                 weights.append(float(0))
-    weights = np.array(weights).reshape(u, v)
+    weights = np.array(weights).reshape(v, u).T
     w = np.delete(weights.flatten(), weights.flatten() == 0)
-    d = [dict(weight=int(i)) for i in list(w)]
-    nx.set_edge_attributes(G, dict(zip(list(G.edges), d)))
     return G, weights, w
 
 
-def generate_weights_geometric(distribution, u_size, v_size, parameters, g1):
+def generate_weights_geometric(distribution, u_size, v_size, parameters, g1, seed):
     weights, w = 0, 0
+    np.random.seed(seed)
     if distribution == "uniform":
         weights = nx.bipartite.biadjacency_matrix(
             g1, range(0, u_size), range(u_size, u_size + v_size)
@@ -310,6 +309,15 @@ def generate_weights_geometric(distribution, u_size, v_size, parameters, g1):
         weights = (
             np.abs(np.random.normal(0.0, 1.0, (u_size, v_size)) * variance + mean) + 5
         ) * adj
+    elif distribution == "fixed-normal":
+        adj = nx.bipartite.biadjacency_matrix(
+            g1, range(0, u_size), range(u_size, u_size + v_size)
+        ).toarray()
+        mean = np.random.choice(np.arange(0, 100, 15), size=(u_size, 1))
+        variance = np.sqrt(np.random.choice(np.arange(0, 100, 20), (u_size, 1)))
+        weights = (
+            np.abs(np.random.normal(0.0, 1.0, (u_size, v_size)) * variance + mean) + 5
+        ) * adj
     w = np.delete(weights.flatten(), weights.flatten() == 0)
     return weights, w
 
@@ -319,7 +327,9 @@ def generate_er_graph(
 ):
 
     g1 = nx.bipartite.random_graph(u, v, p, seed=seed)
-    weights, w = generate_weights_geometric(weight_distribution, u, v, weight_param, g1)
+    weights, w = generate_weights_geometric(
+        weight_distribution, u, v, weight_param, g1, seed
+    )
     # s = sorted(list(g1.nodes))
     # c = nx.convert_matrix.to_numpy_array(g1, s)
     d = [dict(weight=int(i)) for i in list(w)]
@@ -346,7 +356,7 @@ def generate_edge_obm_data_geometric(
     Supports unifrom, normal, and power distributions.
     """
     D, M = [], []
-    edges, tasks = None, None
+    edges, tasks, workers = None, None, None
     if graph_family == "er":
         g = generate_er_graph
     elif graph_family == "ba":
