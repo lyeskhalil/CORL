@@ -5,11 +5,11 @@ import os
 # graph/dataset flags
 problem = "e-obm"
 graph_family = "er"
-weight_distribution = "uniform"
+weight_distribution = "node-normal"
 weight_distribution_param = "5 100"  # seperate by a space
 graph_family_parameters = "0.05 0.1 0.15 0.2"
-u_size = 100  # 10
-v_size = 100  # 30
+u_size = 10  # 10
+v_size = 60  # 30
 dataset_size = 10000
 val_size = 100
 eval_size = 1000
@@ -59,19 +59,18 @@ load_path = None
 # Note: checkpoints must be in the same order as eval set (i,e. checkpoint1 must be for graph paramter 0.05, etc.)
 
 # 10by60
-# attention_models = "../output_e-obm_er_10by60_p=0.01_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by60_p=0.01_uniform_m=5_v=100_a=3/attention/run_20210310T043543/epoch-69.pt \
-# ../output_e-obm_er_10by60_p=0.05_uniform_m=5_v=100_a=3/attention/run_20210310T022438/epoch-69.pt \
-# ../output_e-obm_er_10by60_p=0.1_uniform_m=5_v=100_a=3/attention/run_20210310T022441/epoch-69.pt \
-# ../output_e-obm_er_10by60_p=0.15_uniform_m=5_v=100_a=3/attention/run_20210310T022543/epoch-69.pt \
-# ../output_e-obm_er_10by60_p=0.2_uniform_m=5_v=100_a=3/attention/run_20210310T022545/epoch-69.pt"
+attention_models = "./output_e-obm_er_10by60_p=0.05_node-normal_m=5_v=100_a=3/attention/run_20210324T151823/epoch-99.pt \
+./output_e-obm_er_10by60_p=0.1_node-normal_m=5_v=100_a=3/attention/run_20210324T151823/epoch-99.pt \
+./output_e-obm_er_10by60_p=0.15_node-normal_m=5_v=100_a=3/attention/run_20210324T151826/epoch-99.pt \
+./output_e-obm_er_10by60_p=0.2_node-normal_m=5_v=100_a=3/attention/run_20210324T151825/epoch-99.pt"
 
 
-# 100by100
-attention_models = "../output_e-obm_er_100by100_p=0.05_uniform_m=5_v=100_a=3/attention/run_20210310T052217/epoch-59.pt \
-../output_e-obm_er_100by100_p=0.1_uniform_m=5_v=100_a=3/outputs_e-obm_er_100by100_p=0.1_uniform_m=5_v=100_a=3/attention/run_20210310T052324/epoch-59.pt \
-../output_e-obm_er_100by100_p=0.15_uniform_m=5_v=100_a=3/outputs_e-obm_er_100by100_p=0.15_uniform_m=5_v=100_a=3/attention/run_20210310T052320/epoch-59.pt \
-../output_e-obm_er_100by100_p=0.2_uniform_m=5_v=100_a=3/outputs_e-obm_er_100by100_p=0.2_uniform_m=5_v=100_a=3/attention/run_20210310T052524/epoch-59.pt \
-"
+# # 100by100
+# attention_models = "../output_e-obm_er_100by100_p=0.05_uniform_m=5_v=100_a=3/attention/run_20210310T052217/epoch-59.pt \
+# ../output_e-obm_er_100by100_p=0.1_uniform_m=5_v=100_a=3/outputs_e-obm_er_100by100_p=0.1_uniform_m=5_v=100_a=3/attention/run_20210310T052324/epoch-59.pt \
+# ../output_e-obm_er_100by100_p=0.15_uniform_m=5_v=100_a=3/outputs_e-obm_er_100by100_p=0.15_uniform_m=5_v=100_a=3/attention/run_20210310T052320/epoch-59.pt \
+# ../output_e-obm_er_100by100_p=0.2_uniform_m=5_v=100_a=3/outputs_e-obm_er_100by100_p=0.2_uniform_m=5_v=100_a=3/attention/run_20210310T052524/epoch-59.pt \
+# "
 
 # 10by30
 # attention_models = "../output_e-obm_er_10by30_p=0.01_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by30_p=0.01_uniform_m=5_v=100_a=3/attention/run_20210310T043543/epoch-69.pt \
@@ -90,19 +89,18 @@ attention_models = "../output_e-obm_er_100by100_p=0.05_uniform_m=5_v=100_a=3/att
 # ../output_e-obm_er_10by30_p=0.2_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by30_p=0.2_uniform_m=5_v=100_a=3/ff/run_20210310T083920/epoch-69.pt"
 
 ## 10by60
-# ff_models = "../output_e-obm_er_10by60_p=0.01_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by60_p=0.01_uniform_m=5_v=100_a=3/ff/run_20210310T083915/epoch-69.pt \
-# ../output_e-obm_er_10by60_p=0.05_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by60_p=0.05_uniform_m=5_v=100_a=3/ff/run_20210310T083914/epoch-69.pt \
-# ../output_e-obm_er_10by60_p=0.1_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by60_p=0.1_uniform_m=5_v=100_a=3/ff/run_20210310T083914/epoch-69.pt \
-# ../output_e-obm_er_10by60_p=0.15_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by60_p=0.15_uniform_m=5_v=100_a=3/ff/run_20210310T083914/epoch-69.pt \
-# ../output_e-obm_er_10by60_p=0.2_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by60_p=0.2_uniform_m=5_v=100_a=3/ff/run_20210310T083907/epoch-69.pt"
+ff_models = "./output_e-obm_er_10by60_p=0.05_node-normal_m=5_v=100_a=3/ff/run_20210320T093450/epoch-99.pt \
+./output_e-obm_er_10by60_p=0.1_node-normal_m=5_v=100_a=3/ff/run_20210320T093450/epoch-99.pt \
+./output_e-obm_er_10by60_p=0.15_node-normal_m=5_v=100_a=3/ff/run_20210320T093450/epoch-99.pt \
+./output_e-obm_er_10by60_p=0.2_node-normal_m=5_v=100_a=3/ff/run_20210320T093450/epoch-99.pt"
 
 
 # 100by100
-ff_models = "../output_e-obm_er_100by100_p=0.05_uniform_m=5_v=100_a=3/outputs_e-obm_er_100by100_p=0.05_uniform_m=5_v=100_a=3/ff/run_20210310T084054/epoch-69.pt \
-../output_e-obm_er_100by100_p=0.1_uniform_m=5_v=100_a=3/ff/run_20210310T084054/epoch-69.pt \
-../output_e-obm_er_100by100_p=0.15_uniform_m=5_v=100_a=3/ff/run_20210310T084103/epoch-69.pt \
-../output_e-obm_er_100by100_p=0.2_uniform_m=5_v=100_a=3/ff/run_20210310T084210/epoch-69.pt"
-eval_batch_size = 50
+# ff_models = "../output_e-obm_er_100by100_p=0.05_uniform_m=5_v=100_a=3/outputs_e-obm_er_100by100_p=0.05_uniform_m=5_v=100_a=3/ff/run_20210310T084054/epoch-69.pt \
+# ../output_e-obm_er_100by100_p=0.1_uniform_m=5_v=100_a=3/ff/run_20210310T084054/epoch-69.pt \
+# ../output_e-obm_er_100by100_p=0.15_uniform_m=5_v=100_a=3/ff/run_20210310T084103/epoch-69.pt \
+# ../output_e-obm_er_100by100_p=0.2_uniform_m=5_v=100_a=3/ff/run_20210310T084210/epoch-69.pt"
+eval_batch_size = 10
 eval_set = graph_family_parameters
 
 
@@ -224,7 +222,7 @@ def train_model():
 def evaluate_model():
     evaluate = """python eval.py --problem {} --embedding_dim {} --load_path {} --ff_models {} --attention_models {} --eval_baselines {} \
         --baseline {} --eval_models {} --eval_dataset {}  --u_size {} --v_size {} --eval_set {} --eval_size {} --eval_batch_size {} \
-        --n_encode_layers {} --n_heads {} --output_dir {} --batch_size {} --encoder mpnn""".format(
+        --n_encode_layers {} --n_heads {} --output_dir {} --batch_size {} --encoder mpnn --weight_distribution {}""".format(
         problem,
         embedding_dim,
         load_path,
@@ -243,6 +241,7 @@ def evaluate_model():
         n_heads,
         output_dir,
         eval_batch_size,
+        weight_distribution,
     )
 
     # print(evaluate)
