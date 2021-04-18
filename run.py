@@ -8,6 +8,7 @@ import torch
 import torch.optim as optim
 from itertools import product
 import torch.autograd.profiler as profiler
+
 # from tensorboard_logger import Logger as TbLogger
 from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
@@ -27,6 +28,7 @@ from reinforce_baselines import (
 from policy.attention_model_v2 import AttentionModel
 from policy.attention_model import AttentionModel as AttentionModelgeo
 from policy.ff_model_v2 import FeedForwardModel
+from policy.ff_model_invariant import InvariantFF
 from policy.greedy import Greedy
 from policy.greedy_rt import GreedyRt
 from policy.simple_greedy import SimpleGreedy
@@ -42,21 +44,17 @@ def run(opts):
 
     # Set the random seed
     torch.manual_seed(opts.seed)
-    #torch.backends.cudnn.benchmark = True
-    #torch.autograd.set_detect_anomaly(True)
+    # torch.backends.cudnn.benchmark = True
+    # torch.autograd.set_detect_anomaly(True)
     # Optionally configure tensorboard
     tb_logger = None
     if not opts.no_tensorboard:
         tb_logger = SummaryWriter(
-            os.path.join(
-                opts.log_dir,
-                opts.model,
-                opts.run_name,
-            )
+            os.path.join(opts.log_dir, opts.model, opts.run_name,)
         )
     if not opts.eval_only and not os.path.exists(opts.save_dir):
         os.makedirs(opts.save_dir)
-    # Save arguments so exact configuration can always be found
+        # Save arguments so exact configuration can always be found
         with open(os.path.join(opts.save_dir, "args.json"), "w") as f:
             json.dump(vars(opts), f, indent=True)
 
@@ -85,6 +83,7 @@ def run(opts):
         "greedy": Greedy,
         "greedy-rt": GreedyRt,
         "simple-greedy": SimpleGreedy,
+        "inv-ff": InvariantFF,
     }.get(opts.model, None)
     assert model_class is not None, "Unknown model: {}".format(model_class)
     # if not opts.tune:
@@ -102,12 +101,27 @@ def run(opts):
     if opts.eval_only:
         validate(model, val_dataloader, opts)
     elif opts.tune:
-        PARAM_GRID = list(product(
-            [0.01, 0.001, 0.0001, 0.00001, 0.02, 0.002, 0.0002, 0.00002, 0.03, 0.003, 0.0003, 0.00003],  # learning_rate
-#            [(20, 1), (30, 1), (40, 4)],  # embedding size
-            [0.75, 0.85, 0.8, 0.9, 0.95],  # baseline exponential decay
-            [1.0, 0.99, 0.98, 0.97, 0.96]  # lr decay
-        ))
+        PARAM_GRID = list(
+            product(
+                [
+                    0.01,
+                    0.001,
+                    0.0001,
+                    0.00001,
+                    0.02,
+                    0.002,
+                    0.0002,
+                    0.00002,
+                    0.03,
+                    0.003,
+                    0.0003,
+                    0.00003,
+                ],  # learning_rate
+                #            [(20, 1), (30, 1), (40, 4)],  # embedding size
+                [0.75, 0.85, 0.8, 0.9, 0.95],  # baseline exponential decay
+                [1.0, 0.99, 0.98, 0.97, 0.96],  # lr decay
+            )
+        )
         # total number of slurm workers detected
         # defaults to 1 if not running under SLURM
         N_WORKERS = int(os.getenv("SLURM_ARRAY_TASK_COUNT", 1))
@@ -115,20 +129,22 @@ def run(opts):
         # this worker's array index. Assumes slurm array job is zero-indexed
         # defaults to zero if not running under SLURM
         this_worker = int(os.getenv("SLURM_ARRAY_TASK_ID", 0))
-        SCOREFILE = os.path.expanduser(f"./val_rewards_{opts.model}_{opts.u_size}_{opts.v_size}_{opts.graph_family_parameter}_1.csv")
+        SCOREFILE = os.path.expanduser(
+            f"./val_rewards_{opts.model}_{opts.u_size}_{opts.v_size}_{opts.graph_family_parameter}_1.csv"
+        )
         for param_ix in range(this_worker, len(PARAM_GRID), N_WORKERS):
             torch.manual_seed(opts.seed)
             params = PARAM_GRID[param_ix]
             lr = params[0]
-#            embedding_dim = params[1][0]
-#            n_heads = params[1][1]
+            #            embedding_dim = params[1][0]
+            #            n_heads = params[1][1]
             exp_decay = params[1]
             lr_decay = params[2]
             opts.lr_model = lr
             opts.lr_decay = lr_decay
             opts.exp_beta = exp_decay
-            #opts.embedding_dim = embedding_dim
-            #opts.n_heads = n_heads
+            # opts.embedding_dim = embedding_dim
+            # opts.n_heads = n_heads
             if not opts.no_tensorboard:
                 tb_logger = SummaryWriter(
                     os.path.join(
@@ -186,15 +202,15 @@ def run(opts):
                 f.write(f'{",".join(map(str, params + (avg_reward,min_cr,avg_cr)))}\n')
     else:
         for epoch in range(opts.epoch_start, opts.epoch_start + opts.n_epochs):
-            #with profiler.profile() as prof:
+            # with profiler.profile() as prof:
             #    with profiler.record_function("model_inference"):
-           
+
             training_dataloader = geoDataloader(
                 baseline.wrap_dataset(training_dataset),
-                    batch_size=opts.batch_size,
-                    num_workers=0,
-                    shuffle=True,
-                )
+                batch_size=opts.batch_size,
+                num_workers=0,
+                shuffle=True,
+            )
             train_epoch(
                 model,
                 optimizers,
@@ -207,7 +223,7 @@ def run(opts):
                 tb_logger,
                 opts,
             )
-            #print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=20))
+            # print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=20))
 
 
 def setup_training_env(opts, model_class, problem, load_data, tb_logger):
@@ -270,9 +286,18 @@ def setup_training_env(opts, model_class, problem, load_data, tb_logger):
     # Load baseline from data, make sure script is called with same type of baseline
     if "baseline" in load_data:
         baseline.load_state_dict(load_data["baseline"])
-    init_node_embedding_weights = ("project_node_features.weight", "project_node_features.bias")
-    parameters = (p for name, p in model.named_parameters() if name not in init_node_embedding_weights)
-    parameters1 = (p for name, p in model.named_parameters() if name in init_node_embedding_weights)
+    init_node_embedding_weights = (
+        "project_node_features.weight",
+        "project_node_features.bias",
+    )
+    parameters = (
+        p
+        for name, p in model.named_parameters()
+        if name not in init_node_embedding_weights
+    )
+    parameters1 = (
+        p for name, p in model.named_parameters() if name in init_node_embedding_weights
+    )
     # Initialize optimizer
     optimizer = optim.Adam(
         [{"params": parameters, "lr": opts.lr_model}]
@@ -307,7 +332,7 @@ def setup_training_env(opts, model_class, problem, load_data, tb_logger):
     val_dataloader = geoDataloader(
         val_dataset, batch_size=opts.eval_batch_size, num_workers=1
     )
-    if opts.resume: #TODO: This does not resume both optimizers
+    if opts.resume:  # TODO: This does not resume both optimizers
         epoch_resume = int(
             os.path.splitext(os.path.split(opts.resume)[-1])[0].split("-")[1]
         )
@@ -320,7 +345,13 @@ def setup_training_env(opts, model_class, problem, load_data, tb_logger):
         baseline.epoch_callback(model, epoch_resume)
         print("Resuming after {}".format(epoch_resume))
         opts.epoch_start = epoch_resume + 1
-    return model, [lr_scheduler, lr_scheduler1], [optimizer, optimizer1], val_dataloader, baseline
+    return (
+        model,
+        [lr_scheduler, lr_scheduler1],
+        [optimizer, optimizer1],
+        val_dataloader,
+        baseline,
+    )
 
 
 if __name__ == "__main__":
