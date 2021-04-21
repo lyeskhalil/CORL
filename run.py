@@ -130,7 +130,7 @@ def run(opts):
         # defaults to zero if not running under SLURM
         this_worker = int(os.getenv("SLURM_ARRAY_TASK_ID", 0))
         SCOREFILE = os.path.expanduser(
-            f"./val_rewards_{opts.model}_{opts.u_size}_{opts.v_size}_{opts.graph_family_parameter}_1.csv"
+            f"./val_rewards_{opts.model}_{opts.u_size}_{opts.v_size}_{opts.graph_family}_{opts.graph_family_parameter}.csv"
         )
         for param_ix in range(this_worker, len(PARAM_GRID), N_WORKERS):
             torch.manual_seed(opts.seed)
