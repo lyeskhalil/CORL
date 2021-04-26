@@ -100,11 +100,10 @@ class FeedForwardModelHist(nn.Module):
             w = (state.adj[:, 0, :]).float()
             mask = state.get_mask()
             s = torch.cat((w, mask.float()), dim=1)
-            h_mean = state.hist_sum / i
-            h_var = (state.hist_sum_sq - ((state.hist_sum ** 2) / i)) / i
-            h_mean_degree = state.hist_deg / i
-            h_mean[:, :, 0], h_var[:, :, 0], h_mean_degree[:, :, 0] = -1, -1, -1
-            print(h_mean_degree)
+            h_mean = state.hist_sum.squeeze(1) / i
+            h_var = ((state.hist_sum_sq - ((state.hist_sum ** 2) / i)) / i).squeeze(1)
+            h_mean_degree = state.hist_deg.squeeze(1) / i
+            h_mean[:, 0], h_var[:, 0], h_mean_degree[:, 0] = -1, -1, -1
             s = torch.cat((s, h_mean, h_var, h_mean_degree,), dim=1,)
             # s = w
             # print(s)
