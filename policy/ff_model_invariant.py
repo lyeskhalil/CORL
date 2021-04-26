@@ -32,7 +32,7 @@ class InvariantFF(nn.Module):
         self.is_bipartite = problem.NAME == "bipartite"
         self.problem = problem
         self.shrink_size = None
-        self.ff = nn.Sequential(nn.Linear(5, 100), nn.ReLU(), nn.Linear(100, 1),)
+        self.ff = nn.Sequential(nn.Linear(2, 100), nn.ReLU(), nn.Linear(100, 1),)
 
         # def init_weights(m):
         #     if type(m) == nn.Linear:
@@ -93,21 +93,12 @@ class InvariantFF(nn.Module):
             mean_w = w.mean(1)[:, None, None].repeat(1, state.u_size + 1, 1)
             mask = state.get_mask()
             s = w.reshape(state.batch_size, state.u_size + 1, 1)
-            h_mean = state.hist_sum / i
-            h_var = (state.hist_sum_sq - ((state.hist_sum ** 2) / i)) / i
-            h_mean_degree = state.hist_deg / i
-            h_mean[:, :, 0], h_var[:, :, 0], h_mean_degree[:, :, 0] = -1, -1, -1
-
-            s = torch.cat(
-                (
-                    s,
-                    mean_w,
-                    h_mean.transpose(1, 2),
-                    h_var.transpose(1, 2),
-                    h_mean_degree.transpose(1, 2),
-                ),
-                dim=2,
-            )
+            # h_mean = state.hist_sum / i
+            # h_var = (state.hist_sum_sq - ((state.hist_sum ** 2) / i)) / i
+            # h_mean_degree = state.hist_deg / i
+            # h_mean[:, :, 0], h_var[:, :, 0], h_mean_degree[:, :, 0] = -1, -1, -1
+            # print(h_mean_degree)
+            s = torch.cat((s, mean_w,), dim=2,)
             # print(s)
             pi = self.ff(s).reshape(state.batch_size, state.u_size + 1)
             # Select the indices of the next nodes in the sequences, result (batch_size) long

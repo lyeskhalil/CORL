@@ -114,7 +114,7 @@ class FeedForwardModel(nn.Module):
             sequences.append(selected)
             i += 1
         # Collected lists, return Tensor
-        return torch.stack(outputs, 1), torch.stack(sequences, 1), state.size
+        return torch.stack(outputs, 1), torch.stack(sequences, 1), state.size / 100.0
 
     def _select_node(self, probs, mask):
 

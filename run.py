@@ -29,6 +29,8 @@ from policy.attention_model_v2 import AttentionModel
 from policy.attention_model import AttentionModel as AttentionModelgeo
 from policy.ff_model_v2 import FeedForwardModel
 from policy.ff_model_invariant import InvariantFF
+from policy.ff_model_hist import FeedForwardModelHist
+from policy.inv_ff_history import InvariantFFHist
 from policy.greedy import Greedy
 from policy.greedy_rt import GreedyRt
 from policy.simple_greedy import SimpleGreedy
@@ -84,6 +86,8 @@ def run(opts):
         "greedy-rt": GreedyRt,
         "simple-greedy": SimpleGreedy,
         "inv-ff": InvariantFF,
+        "inv-ff-hist": InvariantFFHist,
+        "ff-hist": FeedForwardModelHist,
     }.get(opts.model, None)
     assert model_class is not None, "Unknown model: {}".format(model_class)
     # if not opts.tune:
