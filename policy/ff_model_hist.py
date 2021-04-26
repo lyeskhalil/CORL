@@ -28,7 +28,7 @@ class FeedForwardModelHist(nn.Module):
 
         self.embedding_dim = embedding_dim
         self.decode_type = None
-        self.num_actions = 2 * (opts.u_size + 1)
+        self.num_actions = 4 * (opts.u_size + 1)
         self.is_bipartite = problem.NAME == "bipartite"
         self.problem = problem
         self.shrink_size = None
@@ -99,7 +99,7 @@ class FeedForwardModelHist(nn.Module):
             # su = (state.weights[:, v, :]).float().sum(1)
             w = (state.adj[:, 0, :]).float()
             mask = state.get_mask()
-            s = torch.cat((w, mask.float()), dim=1)
+            s = w
             h_mean = state.hist_sum.squeeze(1) / i
             h_var = ((state.hist_sum_sq - ((state.hist_sum ** 2) / i)) / i).squeeze(1)
             h_mean_degree = state.hist_deg.squeeze(1) / i
