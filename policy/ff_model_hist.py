@@ -47,8 +47,8 @@ class FeedForwardModelHist(nn.Module):
                 torch.nn.init.xavier_uniform_(m.weight)
                 m.bias.data.fill_(0.0001)
 
-        #        self.ff.apply(init_weights)
-        self.init_parameters()
+        self.ff.apply(init_weights)
+        # self.init_parameters()
 
     def init_parameters(self):
         for name, param in self.named_parameters():
@@ -115,7 +115,6 @@ class FeedForwardModelHist(nn.Module):
             h_mean[:, 0], h_var[:, 0], h_mean_degree[:, 0] = -1.0, -1.0, -1.0
             s = torch.cat((s, h_mean, h_var, h_mean_degree,), dim=1,)
             # s = w
-            # print(h_var)
             pi = self.ff(s)
             # Select the indices of the next nodes in the sequences, result (batch_size) long
             selected, p = self._select_node(
@@ -135,9 +134,8 @@ class FeedForwardModelHist(nn.Module):
 
     def _select_node(self, probs, mask):
         assert (probs == probs).all(), "Probs should not contain any nans"
-        probs[mask] = -1e8
-        #        print(probs)
-        p = torch.log_softmax(probs, dim=1)
+        probs[mask] = -1e6
+        p = torch.softmax(probs, dim=1)
         if self.decode_type == "greedy":
             _, selected = p.max(1)
             # assert not mask.gather(

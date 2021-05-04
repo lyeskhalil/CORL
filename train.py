@@ -406,8 +406,8 @@ def train_batch(
         # Perform backward pass and optimization step
         optimizers[0].zero_grad()
         loss.backward()
-        # for name, p in model.named_parameters():
-        #    print(p.grad)
+        #        for name, p in model.named_parameters():
+        #            print(p.grad)
         # print(name)
         # print(p.data)
         # Clip gradient norms and get (clipped) gradient norms for logging
