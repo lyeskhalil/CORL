@@ -339,10 +339,10 @@ def get_options(args=None):
         help="if you want to tune the hyperparameters with wandb",
     )
     parser.add_argument(
-        "--sweep_id", type=str, default="", help="Sweep id of wandb tuning"
+        "--sweep_id", type=str, default="u63zugm4", help="Sweep id of wandb tuning"
     )
     parser.add_argument(
-        "--num_per-agent", type=int, default=5, help="Number of hyper params per agent"
+        "--num_per_agent", type=int, default=5, help="Number of hyper params per agent"
     )
     parser.add_argument(
         "--log_step", type=int, default=50, help="Log info every log_step steps"
