@@ -95,8 +95,7 @@ class InvariantFFHist(nn.Module):
             h_mean = state.hist_sum / i
             h_var = (state.hist_sum_sq - ((state.hist_sum ** 2) / i)) / i
             h_mean_degree = state.hist_deg / i
-            h_mean[:, :, 0], h_var[:, :, 0], h_mean_degree[:, :, 0] = -1, -1, -1
-            print(h_mean_degree)
+            h_mean[:, :, 0], h_var[:, :, 0], h_mean_degree[:, :, 0] = -1., -1., -1.
             s = torch.cat(
                 (
                     s,
@@ -115,20 +114,20 @@ class InvariantFFHist(nn.Module):
             )  # Squeeze out steps dimension
             # entropy += torch.sum(p * (p.log()), dim=1)
             state = state.update((selected)[:, None])
-            outputs.append(p.log())
+            outputs.append(p)
             sequences.append(selected)
             i += 1
         # Collected lists, return Tensor
         return (
             torch.stack(outputs, 1),
             torch.stack(sequences, 1),
-            state.size / (opts.v_size * 100.0),
+            state.size / (opts.v_size),
         )
 
     def _select_node(self, probs, mask):
         assert (probs == probs).all(), "Probs should not contain any nans"
         probs[mask] = -1e6
-        p = torch.nn.functional.softmax(probs, dim=1)
+        p = torch.log_softmax(probs, dim=1)
         # print(p)
         if self.decode_type == "greedy":
             _, selected = p.max(1)
@@ -137,7 +136,7 @@ class InvariantFFHist(nn.Module):
             # ).data.any(), "Decode greedy: infeasible action has maximum probability"
 
         elif self.decode_type == "sampling":
-            selected = p.multinomial(1).squeeze(1)
+            selected = p.exp().multinomial(1).squeeze(1)
             # Check if sampling went OK, can go wrong due to bug on GPU
             # See https://discuss.pytorch.org/t/bad-behavior-of-multinomial-function/10232
             # while mask.gather(1, selected.unsqueeze(-1)).data.any():
@@ -146,7 +145,7 @@ class InvariantFFHist(nn.Module):
 
         else:
             assert False, "Unknown decode type"
-        return selected, p + 1e-6
+        return selected, p
 
     def set_decode_type(self, decode_type, temp=None):
         self.decode_type = decode_type

@@ -107,7 +107,7 @@ class InvariantFF(nn.Module):
             )  # Squeeze out steps dimension
             # entropy += torch.sum(p * (p.log()), dim=1)
             state = state.update((selected)[:, None])
-            outputs.append(p.log())
+            outputs.append(p)
             sequences.append(selected)
             i += 1
         # Collected lists, return Tensor
@@ -120,7 +120,7 @@ class InvariantFF(nn.Module):
     def _select_node(self, probs, mask):
         assert (probs == probs).all(), "Probs should not contain any nans"
         probs[mask] = -1e6
-        p = torch.nn.functional.softmax(probs, dim=1)
+        p = torch.log_softmax(probs, dim=1)
         # print(p)
         if self.decode_type == "greedy":
             _, selected = p.max(1)
@@ -129,7 +129,7 @@ class InvariantFF(nn.Module):
             # ).data.any(), "Decode greedy: infeasible action has maximum probability"
 
         elif self.decode_type == "sampling":
-            selected = p.multinomial(1).squeeze(1)
+            selected = p.exp().multinomial(1).squeeze(1)
             # Check if sampling went OK, can go wrong due to bug on GPU
             # See https://discuss.pytorch.org/t/bad-behavior-of-multinomial-function/10232
             # while mask.gather(1, selected.unsqueeze(-1)).data.any():
@@ -138,7 +138,7 @@ class InvariantFF(nn.Module):
 
         else:
             assert False, "Unknown decode type"
-        return selected, p + 1e-6
+        return selected, p
 
     def set_decode_type(self, decode_type, temp=None):
         self.decode_type = decode_type
