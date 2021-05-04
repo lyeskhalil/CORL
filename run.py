@@ -106,7 +106,14 @@ def run(opts):
     if opts.eval_only:
         validate(model, val_dataloader, opts)
     elif opts.tune_wandb:
-        wandb.agent(opts.sweep_id, train_wandb, count=opts.num_per_agent)
+        wandb.agent(
+            opts.sweep_id,
+            lambda config=None: train_wandb(
+                model_class, problem, tb_logger, opts, config=config
+            ),
+            count=opts.num_per_agent,
+            project="CORL",
+        )
     elif opts.tune:
         PARAM_GRID = list(
             product(
@@ -233,7 +240,7 @@ def run(opts):
             # print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=20))
 
 
-def train_wandb(config, model_class, problem, tb_logger, opts):
+def train_wandb(model_class, problem, tb_logger, opts, config=None):
     with wandb.init(config=config):
         torch.manual_seed(opts.seed)
         # If called by wandb.agent, as below,
