@@ -48,7 +48,12 @@ class FeedForwardModelHist(nn.Module):
                 m.bias.data.fill_(0.0001)
 
         self.ff.apply(init_weights)
+        #self.init_parameters()
 
+    def init_parameters(self):
+        for name, param in self.named_parameters():
+            stdv = 1.0 / math.sqrt(param.size(-1))
+            param.data.uniform_(-stdv, stdv)
     def forward(self, x, opts, optimizer, baseline, return_pi=False):
 
         _log_p, pi, cost = self._inner(x, opts)
@@ -103,10 +108,9 @@ class FeedForwardModelHist(nn.Module):
             h_mean = state.hist_sum.squeeze(1) / i
             h_var = ((state.hist_sum_sq - ((state.hist_sum ** 2) / i)) / i).squeeze(1)
             h_mean_degree = state.hist_deg.squeeze(1) / i
-            h_mean[:, 0], h_var[:, 0], h_mean_degree[:, 0] = -1, -1, -1
+            h_mean[:, 0], h_var[:, 0], h_mean_degree[:, 0] = -1., -1., -1.
             s = torch.cat((s, h_mean, h_var, h_mean_degree,), dim=1,)
             # s = w
-            # print(s)
             pi = self.ff(s)
             # Select the indices of the next nodes in the sequences, result (batch_size) long
             selected, p = self._select_node(
@@ -127,8 +131,7 @@ class FeedForwardModelHist(nn.Module):
     def _select_node(self, probs, mask):
         assert (probs == probs).all(), "Probs should not contain any nans"
         probs[mask] = -1e6
-        p = torch.nn.functional.softmax(probs, dim=1)
-        # print(p)
+        p = torch.softmax(probs, dim=1)
         if self.decode_type == "greedy":
             _, selected = p.max(1)
             # assert not mask.gather(
