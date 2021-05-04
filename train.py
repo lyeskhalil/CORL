@@ -401,7 +401,9 @@ def train_batch(
     reinforce_loss = torch.tensor(0)
     loss = 0
     if not opts.n_step:
-        reinforce_loss = ((cost.squeeze(1) - bl_val) * log_likelihood).mean()
+        reinforce_loss = (
+            (cost.squeeze(1) - bl_val) * log_likelihood
+        ).mean() - opts.ent_rate * e
         loss = reinforce_loss + bl_loss
         # Perform backward pass and optimization step
         optimizers[0].zero_grad()

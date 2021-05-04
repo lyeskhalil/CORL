@@ -165,6 +165,9 @@ def get_options(args=None):
         help="Exponential moving average baseline decay (default 0.8)",
     )
     parser.add_argument(
+        "--ent_rate", type=float, default=0.1, help="entropy regularization rate",
+    )
+    parser.add_argument(
         "--baseline",
         default=None,
         help="Baseline to use: 'rollout', 'critic' or 'exponential'. Defaults to no baseline.",
@@ -329,6 +332,17 @@ def get_options(args=None):
         "--tune",
         action="store_true",
         help="Set this to true if you want to tune the hyperparameters",
+    )
+    parser.add_argument(
+        "--tune_wandb",
+        action="store_true",
+        help="if you want to tune the hyperparameters with wandb",
+    )
+    parser.add_argument(
+        "--sweep_id", type=str, default="", help="Sweep id of wandb tuning"
+    )
+    parser.add_argument(
+        "--num_per-agent", type=int, default=5, help="Number of hyper params per agent"
     )
     parser.add_argument(
         "--log_step", type=int, default=50, help="Log info every log_step steps"

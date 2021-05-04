@@ -135,7 +135,7 @@ class FeedForwardModelHist(nn.Module):
     def _select_node(self, probs, mask):
         assert (probs == probs).all(), "Probs should not contain any nans"
         probs[mask] = -1e6
-        p = torch.softmax(probs, dim=1)
+        p = torch.log_softmax(probs, dim=1)
         if self.decode_type == "greedy":
             _, selected = p.max(1)
             # assert not mask.gather(
