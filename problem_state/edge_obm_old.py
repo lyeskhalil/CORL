@@ -59,6 +59,8 @@ class StateEdgeBipartite(NamedTuple):
         adj = to_dense_adj(input.edge_index, input.batch, input.weight.unsqueeze(1))[
             :, u_size + 1 :, : u_size + 1
         ].squeeze(-1)
+        idx = torch.randperm(adj.shape[1])
+        adj = adj[:, idx, :].view(adj.size())
         # size = torch.zeros(batch_size, 1, dtype=torch.long, device=graphs.device)
         # adj = (input[0] == 0).float()
         # adj[:, :, 0] = 0.0

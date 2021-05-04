@@ -96,7 +96,6 @@ class InvariantFFHist(nn.Module):
             h_var = (state.hist_sum_sq - ((state.hist_sum ** 2) / i)) / i
             h_mean_degree = state.hist_deg / i
             h_mean[:, :, 0], h_var[:, :, 0], h_mean_degree[:, :, 0] = -1, -1, -1
-            print(h_mean_degree)
             s = torch.cat(
                 (
                     s,
@@ -122,7 +121,7 @@ class InvariantFFHist(nn.Module):
         return (
             torch.stack(outputs, 1),
             torch.stack(sequences, 1),
-            state.size / (opts.v_size * 100.0),
+            state.size / (opts.u_size),
         )
 
     def _select_node(self, probs, mask):

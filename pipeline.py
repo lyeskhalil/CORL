@@ -3,13 +3,14 @@ import os
 
 # Refer to opts.py for details about the flags
 # graph/dataset flags
+model_type = "ff-hist"
 problem = "e-obm"
-graph_family = "er"
-weight_distribution = "node-normal"
-weight_distribution_param = "5 100"  # seperate by a space
-graph_family_parameters = "0.05 0.1 0.15 0.2"
+graph_family = "gmission"
+weight_distribution = "gmission"
+weight_distribution_param = "-1 -1"  # seperate by a space
+graph_family_parameters = "-1"
 u_size = 10  # 10
-v_size = 60  # 30
+v_size = 30  # 30
 dataset_size = 10000
 val_size = 100
 eval_size = 1000
@@ -30,14 +31,15 @@ val_dataset = "dataset/val" + extention
 eval_dataset = "dataset/eval" + extention
 
 # model flags
-batch_size = 1
+batch_size = 100
 embedding_dim = 30  # 60
 n_heads = 2  # 3
-n_epochs = 20
-checkpoint_epochs = 5
+n_epochs = 30
+checkpoint_epochs = 0
 eval_baselines = "greedy"  # ******
-lr_model = 0.0001
-lr_decay = 0.9
+lr_model = 0.03
+lr_decay = 0.98
+beta_decay = 0.8
 n_encode_layers = 3
 baseline = "exponential"
 # directory io flags
@@ -45,7 +47,7 @@ output_dir = "saved_models"
 log_dir = "logs_dataset"
 
 # model evaluation flags
-eval_models = "attention ff"
+eval_models = "ff inv-ff ff-hist inv-ff-hist"
 eval_output = "figures"
 # this is a single checkpoint. Example: outputs_dataset/e-obm_20/run_20201226T171156/epoch-4.pt
 load_path = None
@@ -59,10 +61,10 @@ load_path = None
 # Note: checkpoints must be in the same order as eval set (i,e. checkpoint1 must be for graph paramter 0.05, etc.)
 
 # 10by60
-attention_models = "./output_e-obm_er_10by60_p=0.05_node-normal_m=5_v=100_a=3/attention/run_20210324T151823/epoch-99.pt \
-./output_e-obm_er_10by60_p=0.1_node-normal_m=5_v=100_a=3/attention/run_20210324T151823/epoch-99.pt \
-./output_e-obm_er_10by60_p=0.15_node-normal_m=5_v=100_a=3/attention/run_20210324T151826/epoch-99.pt \
-./output_e-obm_er_10by60_p=0.2_node-normal_m=5_v=100_a=3/attention/run_20210324T151825/epoch-99.pt"
+# attention_models = "../output_e-obm_er_10by60_p=0.05_fixed-normal_m=5_v=100_a=3/attention/run_20210414T085006/epoch-99.pt \
+# ../output_e-obm_er_10by60_p=0.1_fixed-normal_m=5_v=100_a=3/attention/run_20210414T085006/epoch-99.pt \
+# ../output_e-obm_er_10by60_p=0.15_fixed-normal_m=5_v=100_a=3/attention/run_20210414T085006/epoch-99.pt \
+# ../output_e-obm_er_10by60_p=0.2_fixed-normal_m=5_v=100_a=3/attention/run_20210414T085006/epoch-99.pt"
 
 
 # # 100by100
@@ -72,9 +74,15 @@ attention_models = "./output_e-obm_er_10by60_p=0.05_node-normal_m=5_v=100_a=3/at
 # ../output_e-obm_er_100by100_p=0.2_uniform_m=5_v=100_a=3/outputs_e-obm_er_100by100_p=0.2_uniform_m=5_v=100_a=3/attention/run_20210310T052524/epoch-59.pt \
 # "
 
+# gMission
 # 10by30
-# attention_models = "../output_e-obm_er_10by30_p=0.01_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by30_p=0.01_uniform_m=5_v=100_a=3/attention/run_20210310T043543/epoch-69.pt \
-# ../output_e-obm_er_10by30_p=0.05_uniform_m=5_v=100_a=3/attention/run_20210310T022430/epoch-69.pt \
+# attention_models = "../output_e-obm_gmission_10by30_p=-1_gmission_m=-1_v=-1_a=3/attention/run_20210415T024155/epoch-119.pt"
+# 10by60
+# attention_models = "./output_e-obm_gmission_10by60_p=-1_gmission_m=-1_v=-1_a=3/attention/run_20210415T042030/epoch-119.pt"
+
+# 10by30
+attention_models = "None"
+# attention_models = "../output_e-obm_er_10by30_p=0.05_uniform_m=5_v=100_a=3/attention/run_20210310T022430/epoch-69.pt \
 # ../output_e-obm_er_10by30_p=0.1_uniform_m=5_v=100_a=3/attention/run_20210310T022430/epoch-69.pt \
 # ../output_e-obm_er_10by30_p=0.15_uniform_m=5_v=100_a=3/attention/run_20210310T022430/epoch-69.pt \
 # ../output_e-obm_er_10by30_p=0.2_uniform_m=5_v=100_a=3/attention/run_20210310T022430/epoch-69.pt"
@@ -82,25 +90,58 @@ attention_models = "./output_e-obm_er_10by60_p=0.05_node-normal_m=5_v=100_a=3/at
 # this is a list of feedforward model checkpoints seperated by space. The number of checkpoints should be the same as the length of eval_set
 # Note: checkpoints must be in the same order as eval set (i,e. checkpoint1 must be for graph paramter 0.05, etc.)
 # 10by30
-# ff_models = "../output_e-obm_er_10by30_p=0.01_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by30_p=0.01_uniform_m=5_v=100_a=3/ff/run_20210310T083836/epoch-69.pt \
-# ../output_e-obm_er_10by30_p=0.05_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by30_p=0.05_uniform_m=5_v=100_a=3/ff/run_20210310T083836/epoch-69.pt \
+# ff_models = "../output_e-obm_er_10by30_p=0.05_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by30_p=0.05_uniform_m=5_v=100_a=3/ff/run_20210310T083836/epoch-69.pt \
 # ../output_e-obm_er_10by30_p=0.1_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by30_p=0.1_uniform_m=5_v=100_a=3/ff/run_20210310T083922/epoch-69.pt \
 # ../output_e-obm_er_10by30_p=0.15_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by30_p=0.15_uniform_m=5_v=100_a=3/ff/run_20210310T083920/epoch-69.pt \
 # ../output_e-obm_er_10by30_p=0.2_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by30_p=0.2_uniform_m=5_v=100_a=3/ff/run_20210310T083920/epoch-69.pt"
 
-## 10by60
-ff_models = "./output_e-obm_er_10by60_p=0.05_node-normal_m=5_v=100_a=3/ff/run_20210320T093450/epoch-99.pt \
-./output_e-obm_er_10by60_p=0.1_node-normal_m=5_v=100_a=3/ff/run_20210320T093450/epoch-99.pt \
-./output_e-obm_er_10by60_p=0.15_node-normal_m=5_v=100_a=3/ff/run_20210320T093450/epoch-99.pt \
-./output_e-obm_er_10by60_p=0.2_node-normal_m=5_v=100_a=3/ff/run_20210320T093450/epoch-99.pt"
+# inv_ff_models = "../output_e-obm_er_10by30_p=0.05_uniform_m=5_v=100_a=3/inv-ff/run_20210421T062441/epoch-119.pt \
+# ../output_e-obm_er_10by30_p=0.1_uniform_m=5_v=100_a=3/inv-ff/run_20210421T062441/epoch-119.pt \
+# ../output_e-obm_er_10by30_p=0.15_uniform_m=5_v=100_a=3/inv-ff/run_20210421T063433/epoch-119.pt \
+# ../output_e-obm_er_10by30_p=0.2_uniform_m=5_v=100_a=3/inv-ff/run_20210421T071049/epoch-119.pt"
 
+# inv_ff_models = "../output_e-obm_er_10by60_p=0.1_uniform_m=5_v=100_a=3/inv-ff/run_20210421T065258/epoch-119.pt \
+# ../output_e-obm_er_10by60_p=0.15_uniform_m=5_v=100_a=3/inv-ff/run_20210421T065311/epoch-119.pt \
+# ../output_e-obm_er_10by60_p=0.2_uniform_m=5_v=100_a=3/inv-ff/run_20210421T065256/epoch-119.pt"
+
+inv_ff_models = "../output_e-obm_gmission_10by30_p=-1_gmission_m=-1_v=-1_a=3/inv-ff/run_20210421T071053/epoch-119.pt"
+
+# inv_ff_models = "outputs/output_e-obm_gmission_100by100_p=-1_gmission_m=-1_v=-1_a=3/inv-ff/run_20210502T062345/epoch-119.pt"
+# inv_ff_models = "../output_e-obm_gmission_10by60_p=-1_gmission_m=-1_v=-1_a=3/inv-ff/run_20210421T064440/epoch-119.pt"
+
+inv_ff_hist_models = "outputs/output_e-obm_gmission_10by30_p=-1_gmission_m=-1_v=-1_a=3/inv-ff-hist/run_20210502T062353/epoch-119.pt"
+
+# inv_ff_hist_models = "outputs/output_e-obm_gmission_100by100_p=-1_gmission_m=-1_v=-1_a=3/inv-ff-hist/run_20210502T062345/epoch-119.pt"
+
+
+## 10by60
+# ff_models = "../output_e-obm_er_10by60_p=0.05_fixed-normal_m=5_v=100_a=3/ff/run_20210414T085002/epoch-99.pt \
+# ff_models = "../output_e-obm_er_10by60_p=0.1_fixed-normal_m=5_v=100_a=3/ff/run_20210414T085002/epoch-99.pt \
+# ../output_e-obm_er_10by60_p=0.15_fixed-normal_m=5_v=100_a=3/ff/run_20210414T085002/epoch-99.pt \
+# ../output_e-obm_er_10by60_p=0.2_fixed-normal_m=5_v=100_a=3/ff/run_20210414T085002/epoch-99.pt"
+# output_e-obm_er_10by60_p=0.2_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by60_p=0.2_uniform_m=5_v=100_a=3/ff/run_20210310T083907
+# ff_models = "../output_e-obm_er_10by60_p=0.1_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by60_p=0.1_uniform_m=5_v=100_a=3/ff/run_20210310T083914/epoch-69.pt \
+#     ../output_e-obm_er_10by60_p=0.15_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by60_p=0.15_uniform_m=5_v=100_a=3/ff/run_20210310T083914/epoch-69.pt \
+#     ../output_e-obm_er_10by60_p=0.2_uniform_m=5_v=100_a=3/outputs_e-obm_er_10by60_p=0.2_uniform_m=5_v=100_a=3/ff/run_20210310T083907/epoch-69.pt"
 
 # 100by100
 # ff_models = "../output_e-obm_er_100by100_p=0.05_uniform_m=5_v=100_a=3/outputs_e-obm_er_100by100_p=0.05_uniform_m=5_v=100_a=3/ff/run_20210310T084054/epoch-69.pt \
 # ../output_e-obm_er_100by100_p=0.1_uniform_m=5_v=100_a=3/ff/run_20210310T084054/epoch-69.pt \
 # ../output_e-obm_er_100by100_p=0.15_uniform_m=5_v=100_a=3/ff/run_20210310T084103/epoch-69.pt \
 # ../output_e-obm_er_100by100_p=0.2_uniform_m=5_v=100_a=3/ff/run_20210310T084210/epoch-69.pt"
-eval_batch_size = 10
+
+# gMission
+# 10by30
+ff_models = "../output_e-obm_gmission_10by30_p=-1_gmission_m=-1_v=-1_a=3/ff/run_20210414T085004/epoch-99.pt"
+# 10by60
+# ff_models = "../output_e-obm_gmission_10by60_p=-1_gmission_m=-1_v=-1_a=3/ff/run_20210414T085002/epoch-99.pt"
+# ff_models = "outputs/output_e-obm_gmission_100by100_p=-1_gmission_m=-1_v=-1_a=3/ff/run_20210503T040359/epoch-119.pt"
+
+ff_hist_models = "outputs/output_e-obm_gmission_10by30_p=-1_gmission_m=-1_v=-1_a=3/ff-hist/run_20210502T093733/epoch-119.pt"
+
+# ff_hist_models = "outputs/output_e-obm_gmission_100by100_p=-1_gmission_m=-1_v=-1_a=3/ff-hist/run_20210502T095427/epoch-119.pt"
+
+eval_batch_size = 1000
 eval_set = graph_family_parameters
 
 
@@ -176,10 +217,10 @@ def generate_data():
         print(generate_train)
         # os.system(generate_train)
 
-        print(generate_val)
-        # os.system(generate_val)
+        # print(generate_val)
+        os.system(generate_val)
 
-        # print(generate_eval)
+        print(generate_eval)
         os.system(generate_eval)
 
 
@@ -189,9 +230,10 @@ def train_model():
         train_dir = train_dataset + "/parameter_{}".format(n)
         val_dir = val_dataset + "/parameter_{}".format(n)
         save_dir = output_dir + extention + "/parameter_{}".format(n)
-        train = """python run.py --encoder mpnn --problem {} --batch_size {} --embedding_dim {} --n_heads {} --u_size {}  --v_size {} --n_epochs {} \
+        train = """python run.py --encoder mpnn --model {} --problem {} --batch_size {} --embedding_dim {} --n_heads {} --u_size {}  --v_size {} --n_epochs {} \
                     --train_dataset {} --val_dataset {} --dataset_size {} --val_size {} --checkpoint_epochs {} --baseline {} \
-                    --lr_model {} --lr_decay {} --output_dir {} --log_dir {} --n_encode_layers {} --num_edges {} --save_dir {} --graph_family_parameter {}""".format(
+                    --lr_model {} --lr_decay {} --output_dir {} --log_dir {} --n_encode_layers {} --num_edges {} --save_dir {} --graph_family_parameter {} --exp_beta {}""".format(
+            model_type,
             problem,
             batch_size,
             embedding_dim,
@@ -213,6 +255,7 @@ def train_model():
             num_edges,
             save_dir,
             n,
+            beta_decay,
         )
 
         # print(train)
@@ -220,7 +263,8 @@ def train_model():
 
 
 def evaluate_model():
-    evaluate = """python eval.py --problem {} --embedding_dim {} --load_path {} --ff_models {} --attention_models {} --eval_baselines {} \
+    evaluate = """python eval.py --problem {} --embedding_dim {} --load_path {} --ff_models {} --attention_models {} --inv_ff_models {} --ff_hist_models {} \
+        --inv_ff_hist_models {} --eval_baselines {} \
         --baseline {} --eval_models {} --eval_dataset {}  --u_size {} --v_size {} --eval_set {} --eval_size {} --eval_batch_size {} \
         --n_encode_layers {} --n_heads {} --output_dir {} --batch_size {} --encoder mpnn --weight_distribution {}""".format(
         problem,
@@ -228,6 +272,9 @@ def evaluate_model():
         load_path,
         ff_models,
         attention_models,
+        inv_ff_models,
+        ff_hist_models,
+        inv_ff_hist_models,
         eval_baselines,
         baseline,
         eval_models,
@@ -251,6 +298,6 @@ def evaluate_model():
 if __name__ == "__main__":
     # make the directories if they do not exist
     make_dir()
-    # generate_data()
+    generate_data()
     # train_model()
     evaluate_model()

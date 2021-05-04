@@ -114,7 +114,7 @@ class InvariantFF(nn.Module):
         return (
             torch.stack(outputs, 1),
             torch.stack(sequences, 1),
-            state.size / (opts.v_size),
+            state.size / (opts.u_size),
         )
 
     def _select_node(self, probs, mask):
