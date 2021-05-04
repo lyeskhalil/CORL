@@ -285,7 +285,7 @@ def train_wandb(model_class, problem, tb_logger, opts, config=None):
                 tb_logger,
                 opts,
             )
-            wandb.log({"val_reward": avg_reward, "epoch": epoch})
+            wandb.log({"val_reward": abs(avg_reward), "epoch": epoch})
 
 
 def setup_training_env(opts, model_class, problem, load_data, tb_logger):
