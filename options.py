@@ -122,12 +122,13 @@ def get_options(args=None):
         help="Normalization type, 'batch' (default) or 'instance'",
     )
     parser.add_argument(
-        "--n_step",
-        action="store_true",
-        help="Set to peform n-step training",
+        "--n_step", action="store_true", help="Set to peform n-step training",
     )
     parser.add_argument(
-        "--max_steps", type=int, default=10, help="Maximum number of steps before performing backward pass (used in n-step training)"
+        "--max_steps",
+        type=int,
+        default=10,
+        help="Maximum number of steps before performing backward pass (used in n-step training)",
     )
     # Training
     parser.add_argument(
@@ -162,6 +163,9 @@ def get_options(args=None):
         type=float,
         default=0.8,
         help="Exponential moving average baseline decay (default 0.8)",
+    )
+    parser.add_argument(
+        "--ent_rate", type=float, default=0.1, help="entropy regularization rate",
     )
     parser.add_argument(
         "--baseline",
@@ -273,10 +277,27 @@ def get_options(args=None):
     #     "--eval_model_paths", nargs="+", help="paths to trained models files",
     # )
     parser.add_argument(
-        "--load_path", help="Path to load model parameters and optimizer state from"
+        "--load_path",
+        default=None,
+        help="Path to load model parameters and optimizer state from",
     )
     parser.add_argument(
         "--ff_models", nargs="+", help="list of trained ff models, seperated by space",
+    )
+    parser.add_argument(
+        "--inv_ff_models",
+        nargs="+",
+        help="list of trained inv-ff models, seperated by space",
+    )
+    parser.add_argument(
+        "--ff_hist_models",
+        nargs="+",
+        help="list of trained ff-hist models, seperated by space",
+    )
+    parser.add_argument(
+        "--inv_ff_hist_models",
+        nargs="+",
+        help="list of trained inv-ff-hist models, seperated by space",
     )
     parser.add_argument(
         "--attention_models",
@@ -311,6 +332,17 @@ def get_options(args=None):
         "--tune",
         action="store_true",
         help="Set this to true if you want to tune the hyperparameters",
+    )
+    parser.add_argument(
+        "--tune_wandb",
+        action="store_true",
+        help="if you want to tune the hyperparameters with wandb",
+    )
+    parser.add_argument(
+        "--sweep_id", type=str, default="", help="Sweep id of wandb tuning"
+    )
+    parser.add_argument(
+        "--num_per-agent", type=int, default=5, help="Number of hyper params per agent"
     )
     parser.add_argument(
         "--log_step", type=int, default=50, help="Log info every log_step steps"

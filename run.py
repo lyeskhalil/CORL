@@ -8,6 +8,7 @@ import torch
 import torch.optim as optim
 from itertools import product
 import torch.autograd.profiler as profiler
+import wandb
 
 # from tensorboard_logger import Logger as TbLogger
 from torch.utils.tensorboard import SummaryWriter
@@ -104,6 +105,8 @@ def run(opts):
     # training_dataloader = training_dataset
     if opts.eval_only:
         validate(model, val_dataloader, opts)
+    elif opts.tune_wandb:
+        wandb.agent(opts.sweep_id, train_wandb, count=opts.num_per_agent)
     elif opts.tune:
         PARAM_GRID = list(
             product(
@@ -228,6 +231,54 @@ def run(opts):
                 opts,
             )
             # print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=20))
+
+
+def train_wandb(config, model_class, problem, tb_logger, opts):
+    with wandb.init(config=config):
+        torch.manual_seed(opts.seed)
+        # If called by wandb.agent, as below,
+        # this config will be set by Sweep Controller
+        config = wandb.config
+        opts.lr_model = config.lr_model
+        opts.lr_decay = config.lr_decay
+        opts.exp_beta = config.exp_beta
+        opts.ent_rate = config.ent_rate
+        load_data = {}
+        (
+            model,
+            lr_schedulers,
+            optimizers,
+            val_dataloader,
+            baseline,
+        ) = setup_training_env(opts, model_class, problem, load_data, tb_logger)
+        training_dataset = problem.make_dataset(
+            opts.train_dataset, opts.dataset_size, opts.problem, seed=None, opts=opts,
+        )
+
+        # training_dataloader = DataLoader(
+        #    baseline.wrap_dataset(training_dataset), batch_size=opts.batch_size, num_workers=1, shuffle=True,
+        # )
+
+        for epoch in range(opts.epoch_start, opts.epoch_start + opts.n_epochs):
+            training_dataloader = geoDataloader(
+                baseline.wrap_dataset(training_dataset),
+                batch_size=opts.batch_size,
+                num_workers=0,
+                shuffle=True,
+            )
+            avg_reward, min_cr, avg_cr = train_epoch(
+                model,
+                optimizers,
+                baseline,
+                lr_schedulers,
+                epoch,
+                val_dataloader,
+                training_dataloader,
+                problem,
+                tb_logger,
+                opts,
+            )
+            wandb.log({"val_reward": avg_reward, "epoch": epoch})
 
 
 def setup_training_env(opts, model_class, problem, load_data, tb_logger):

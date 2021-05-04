@@ -14,6 +14,9 @@ from options import get_options
 from train import train_epoch, validate, get_inner_model, eval_model, evaluate
 from policy.attention_model import AttentionModel
 from policy.ff_model_v2 import FeedForwardModel
+from policy.ff_model_invariant import InvariantFF
+from policy.ff_model_hist import FeedForwardModelHist
+from policy.inv_ff_history import InvariantFFHist
 from policy.greedy import Greedy
 from policy.greedy_rt import GreedyRt
 from policy.simple_greedy import SimpleGreedy
@@ -55,7 +58,7 @@ def get_model_op_ratios(opts, model, problem):
             eval_dataset, batch_size=opts.eval_batch_size, num_workers=0
         )
 
-        avg_cost, cr, avg_cr, op, _ = evaluate([model, model], eval_dataloader, opts)
+        avg_cost, cr, avg_cr, op, *_ = evaluate([model, model], eval_dataloader, opts)
         ops.append(op.cpu().numpy())
     return np.array(ops)
 
@@ -77,7 +80,7 @@ def get_models_op_ratios(opts, models, problem):
             eval_dataset, batch_size=opts.eval_batch_size, num_workers=0
         )
 
-        avg_cost, cr, avg_cr, op = evaluate(models[i], eval_dataloader, opts)
+        avg_cost, cr, avg_cr, op, *_ = evaluate(models[i], eval_dataloader, opts)
         ops.append(op.cpu().numpy())
     return np.array(ops)
 
@@ -176,6 +179,65 @@ def plot_agreemant(opts, data):
     )
 
 
+def plot_action_distribution(opts, data):
+    """
+    plots the box data.
+    data is a list of (|graph family param| x |training examples|) arrays
+    """
+
+    labels = list(range(opts.u_size + 1))
+
+    x = np.arange(len(labels))  # the label locations
+    width = 0.75  # the width of the bars
+
+    # Add some text for labels, title and custom x-axis tick labels, etc.
+
+    colors = ["#d53e4f", "#3288bd", "#7fbf7b", "#fee08b", "#fc8d59", "#e6f598"]
+    fig, axs = plt.subplots(
+        ncols=1, nrows=len(opts.eval_set), sharex=True, sharey=True, figsize=(8, 15)
+    )
+    fig.suptitle(
+        "Action Distribution for {}by{} graphs".format(opts.u_size, opts.v_size)
+    )
+    plots = []
+    models = ["attention", "ff", "greedy"]
+    for j, d in enumerate(data):
+        c = colors[j]
+        for i, a in enumerate(d):
+            # (a,) = axs[i].plot(np.arange(opts.v_size), np.array(a) * 100.0, c)
+
+            rects1 = axs[i].bar(
+                x - (width) * (j + 1), a, width, label=models[j], color=c
+            )
+            plots.append(rects1)
+            axs[i].set_title(opts.eval_set[i])
+
+    plt.legend([plots[0], plots[-5], plots[-1]], models)
+    plt.set_xticks(x)
+    plt.set_xticklabels(labels)
+    plt.xlabel("Actions")
+    fig.text(
+        0.06,
+        0.5,
+        "Action Distribution %",
+        ha="center",
+        va="center",
+        rotation="vertical",
+    )
+    # plt.legend(bps, opts.eval_baselines + opts.eval_models)
+    plt.savefig(
+        opts.eval_output
+        + "/{}_{}_{}_{}_{}by{}_actiondistribution".format(
+            opts.problem,
+            opts.graph_family,
+            opts.weight_distribution,
+            opts.weight_distribution_param,
+            opts.u_size,
+            opts.v_size,
+        ).replace(" ", "")
+    )
+
+
 def line_graph(opts, models, problem):
     """
     Evaluate the models on a range of graph family parameters.
@@ -252,13 +314,12 @@ def load_model(opts):
     return load_datas
 
 
-def load_models_attention(opts):
+def load_models(opts, models_paths):
     """
     load models from the attention models dir
     """
     load_data = {}
     load_datas = []
-    models_paths = opts.attention_models
     assert len(models_paths) == len(
         opts.eval_set
     ), "the number of models and the eval_set should be equal"
@@ -269,34 +330,47 @@ def load_models_attention(opts):
     return load_datas
 
 
-def load_models_ff(opts):
-    """
-    load models from the attention models dir
-    """
-    load_data = {}
-    load_datas = []
-    models_paths = opts.ff_models
-    assert len(models_paths) == len(
-        opts.eval_set
-    ), "the number of models and the eval_set should be equal"
-    for path in models_paths:
-        print(" Loading the model from {}".format(path))
-        load_data = torch_load_cpu(path)
-        load_datas.append(load_data)
-    return load_datas
+# def initialize_models(opts, models, load_datas):
+#     problem = load_problem(opts.problem)
+#     for m in range(len(opts.eval_models)):
+#         model_class = {"attention": AttentionModel, "ff": FeedForwardModel}.get(
+#             opts.eval_models[m], None
+#         )
+#         model = model_class(
+#             opts.embedding_dim,
+#             opts.hidden_dim,
+#             problem=problem,
+#             opts=opts,
+#             n_encode_layers=opts.n_encode_layers,
+#             mask_inner=True,
+#             mask_logits=True,
+#             normalization=opts.normalization,
+#             tanh_clipping=opts.tanh_clipping,
+#             checkpoint_encoder=opts.checkpoint_encoder,
+#             shrink_size=opts.shrink_size,
+#             num_actions=opts.u_size + 1,
+#             n_heads=opts.n_heads,
+#             encoder=opts.encoder,
+#         ).to(opts.device)
+
+#         if opts.use_cuda and torch.cuda.device_count() > 1:
+#             model = torch.nn.DataParallel(model)
+
+#         # Overwrite model parameters by parameters to load
+#         model_ = get_inner_model(model)
+#         model_.load_state_dict(
+#             {**model_.state_dict(), **load_datas[m].get("model", {})}
+#         )
+#         models.append(model)
 
 
-def initialize_models(opts, models, load_datas):
+def initialize_models(opts, models, load_datas, Model):
     problem = load_problem(opts.problem)
-    for m in range(len(opts.eval_models)):
-        model_class = {"attention": AttentionModel, "ff": FeedForwardModel}.get(
-            opts.eval_models[m], None
-        )
-        model = model_class(
+    for m in range(len(load_datas)):
+        model = Model(
             opts.embedding_dim,
             opts.hidden_dim,
             problem=problem,
-            opts=opts,
             n_encode_layers=opts.n_encode_layers,
             mask_inner=True,
             mask_logits=True,
@@ -306,7 +380,7 @@ def initialize_models(opts, models, load_datas):
             shrink_size=opts.shrink_size,
             num_actions=opts.u_size + 1,
             n_heads=opts.n_heads,
-            encoder=opts.encoder,
+            opts=opts,
         ).to(opts.device)
 
         if opts.use_cuda and torch.cuda.device_count() > 1:
@@ -320,70 +394,11 @@ def initialize_models(opts, models, load_datas):
         models.append(model)
 
 
-def initialize_attention_models(opts, attention_models, load_attention_datas):
-    problem = load_problem(opts.problem)
-    for m in range(len(load_attention_datas)):
-        model = AttentionModel(
-            opts.embedding_dim,
-            opts.hidden_dim,
-            problem=problem,
-            opts=opts,
-            n_encode_layers=opts.n_encode_layers,
-            mask_inner=True,
-            mask_logits=True,
-            normalization=opts.normalization,
-            tanh_clipping=opts.tanh_clipping,
-            checkpoint_encoder=opts.checkpoint_encoder,
-            shrink_size=opts.shrink_size,
-            num_actions=opts.u_size + 1,
-            n_heads=opts.n_heads,
-            encoder=opts.encoder,
-        ).to(opts.device)
-
-        if opts.use_cuda and torch.cuda.device_count() > 1:
-            model = torch.nn.DataParallel(model)
-
-        # Overwrite model parameters by parameters to load
-        model_ = get_inner_model(model)
-        model_.load_state_dict(
-            {**model_.state_dict(), **load_attention_datas[m].get("model", {})}
-        )
-        attention_models.append(model)
-
-
-def initialize_ff_models(opts, ff_models, load_ff_datas):
-    problem = load_problem(opts.problem)
-    for m in range(len(load_ff_datas)):
-        model = FeedForwardModel(
-            opts.embedding_dim,
-            opts.hidden_dim,
-            problem=problem,
-            n_encode_layers=opts.n_encode_layers,
-            mask_inner=True,
-            mask_logits=True,
-            normalization=opts.normalization,
-            tanh_clipping=opts.tanh_clipping,
-            checkpoint_encoder=opts.checkpoint_encoder,
-            shrink_size=opts.shrink_size,
-            num_actions=opts.u_size + 1,
-            n_heads=opts.n_heads,
-            opts=opts,
-        ).to(opts.device)
-
-        if opts.use_cuda and torch.cuda.device_count() > 1:
-            model = torch.nn.DataParallel(model)
-
-        # Overwrite model parameters by parameters to load
-        model_ = get_inner_model(model)
-        model_.load_state_dict(
-            {**model_.state_dict(), **load_ff_datas[m].get("model", {})}
-        )
-        ff_models.append(model)
-
-
 def compare_actions(opts, models, greedy, problem):
     ops = []
     ps = []
+    counts = []
+    counts1 = []
     # for i in graph family parameters
     for i in range(len(opts.eval_set)):
         dataset = opts.eval_dataset + "/parameter_{}".format(opts.eval_set[i])
@@ -395,12 +410,16 @@ def compare_actions(opts, models, greedy, problem):
             eval_dataset, batch_size=opts.eval_batch_size, num_workers=0
         )
 
-        avg_cost, cr, avg_cr, op, p = evaluate(
+        avg_cost, cr, avg_cr, op, p, count1, count2, avg_j, wil = evaluate(
             [models[i], greedy], eval_dataloader, opts
         )
+        print(f"Average Jaccard Index: {opts.eval_set[i]}: {avg_j}")
+        print(f"Wilcoxon test p-value: {opts.eval_set[i]}: {wil}")
         ops.append(op.cpu().numpy())
         ps.append(p.cpu().numpy() / float(opts.eval_size))
-    return np.array(ops), np.array(ps)
+        counts.append(count1.cpu().numpy() / float(count1.sum()))
+        counts1.append(count2.cpu().numpy() / float(count2.sum()))
+    return np.array(ops), np.array(ps), np.array(counts), np.array(counts1)
 
 
 def run(opts):
@@ -433,25 +452,44 @@ def run(opts):
         and opts.eval_ff_dir is None
         and opts.eval_attention_dir is None
     ) or opts.resume is None, "either one of load_path, attention_models, ff_models as well as resume should be given"
-
-    single_model = None if opts.load_path == "None" else opts.load_path
-    att_models = None if opts.attention_models == "None" else opts.attention_models
-    ff_models = None if opts.ff_models == "None" else opts.ff_models
+    # single_model = None if opts.load_path == ["None"] else opts.load_path
+    att_models = None if opts.attention_models == ["None"] else opts.attention_models
+    ff_models = None if opts.ff_models == ["None"] else opts.ff_models
+    inv_ff_models = None if opts.inv_ff_models == ["None"] else opts.inv_ff_models
+    ff_hist_models = None if opts.ff_hist_models == ["None"] else opts.ff_hist_models
+    inv_ff_hist_models = (
+        None if opts.inv_ff_hist_models == ["None"] else opts.inv_ff_hist_models
+    )
 
     models = []
     # Initialize models
-    if single_model is not None:
-        load_datas = load_model(opts)
-        initialize_models(opts, models, load_datas)
+    # if single_model is not None:
+    #     load_datas = load_model(opts)
+    #     initialize_models(opts, models, load_datas)
     if att_models is not None:
-        load_attention_datas = load_models_attention(opts)
-        initialize_attention_models(
-            opts, models, load_attention_datas
+        load_attention_datas = load_models(opts, opts.att_models)
+        initialize_models(
+            opts, models, load_attention_datas, AttentionModel
         )  # attention models from the directory
     if ff_models is not None:
-        load_ff_datas = load_models_ff(opts)
-        initialize_ff_models(
-            opts, models, load_ff_datas
+        load_ff_datas = load_models(opts, ff_models)
+        initialize_models(
+            opts, models, load_ff_datas, FeedForwardModel
+        )  # feed forwad models from the directory
+    if inv_ff_models is not None:
+        load_inv_ff_datas = load_models(opts, inv_ff_models)
+        initialize_models(
+            opts, models, load_inv_ff_datas, InvariantFF
+        )  # feed forwad models from the directory
+    if ff_hist_models is not None:
+        load_ff_datas = load_models(opts, ff_hist_models)
+        initialize_models(
+            opts, models, load_ff_datas, FeedForwardModelHist
+        )  # feed forwad models from the directory
+    if inv_ff_hist_models is not None:
+        load_inv_ff_datas = load_models(opts, inv_ff_hist_models)
+        initialize_models(
+            opts, models, load_inv_ff_datas, InvariantFFHist
         )  # feed forwad models from the directory
 
     # Initialize baseline models
@@ -488,8 +526,9 @@ def run(opts):
         for m in baseline_models:  # Get the performance of the baselines
             ops = get_model_op_ratios(opts, m, problem)
             baseline_results.append(ops)
-        if single_model is not None:
-            trained_models_results.append(get_model_op_ratios(opts, models[0], problem))
+        # if single_model is not None:
+        #     trained_models_results.append(get_model_op_ratios(opts, models[0], problem))
+        print(len(models))
         if att_models is not None or ff_models is not None:
             # Get the performance of the trained models
             trained_models_results.append(
@@ -499,7 +538,23 @@ def run(opts):
             )
             trained_models_results.append(
                 compare_actions(
-                    opts, models[len(opts.eval_set) :], baseline_models[0], problem
+                    opts,
+                    models[len(opts.eval_set) : len(opts.eval_set) * 2],
+                    baseline_models[0],
+                    problem,
+                )
+            )
+            trained_models_results.append(
+                compare_actions(
+                    opts,
+                    models[2 * len(opts.eval_set) : 3 * len(opts.eval_set)],
+                    baseline_models[0],
+                    problem,
+                )
+            )
+            trained_models_results.append(
+                compare_actions(
+                    opts, models[3 * len(opts.eval_set) :], baseline_models[0], problem
                 )
             )
             # print('baseline_results[0]: ', baseline_results[0])
@@ -512,11 +567,19 @@ def run(opts):
             # np.array(baseline_results[1]),
             np.array(trained_models_results[0][0]),
             np.array(trained_models_results[1][0]),
+            np.array(trained_models_results[2][0]),
+            np.array(trained_models_results[3][0]),
+            # np.array(trained_models_results[2][0])
         ]
-        results2 = [
-            np.array(trained_models_results[0][1]),
-            np.array(trained_models_results[1][1]),
-        ]
+        # results2 = [
+        #     np.array(trained_models_results[0][1]),
+        #     np.array(trained_models_results[1][1]),
+        # ]
+        # results3 = [
+        #     np.array(trained_models_results[0][2]),
+        #     np.array(trained_models_results[1][2]),
+        #     np.array(trained_models_results[1][3]),
+        # ]
 
         # torch.save(
         #    torch.tensor(results),
@@ -527,7 +590,8 @@ def run(opts):
         # ).replace(" ",""),
         # )
         plot_box(opts, results)
-        plot_agreemant(opts, results2)
+        # plot_agreemant(opts, results2)
+        # plot_action_distribution(opts, results3)
         # line_graph(opts, models + baseline_models , problem)
 
     # if opts.eval_plot:
