@@ -42,8 +42,8 @@ def run(opts):
 
     # Set the random seed
     torch.manual_seed(opts.seed)
-    #torch.backends.cudnn.benchmark = True
-    #torch.autograd.set_detect_anomaly(True)
+    # torch.backends.cudnn.benchmark = True
+    # torch.autograd.set_detect_anomaly(True)
     # Optionally configure tensorboard
     tb_logger = None
     if not opts.no_tensorboard:
