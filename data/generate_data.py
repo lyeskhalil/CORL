@@ -10,8 +10,13 @@ import pickle as pk
 from tqdm import tqdm
 from scipy.stats import powerlaw
 import torch_geometric
+import math
 
 # from torch_geometric.utils import from_networkx
+
+gMission_edges = "data/edges.txt"
+
+gMission_tasks = "data/tasks.txt"
 
 
 def _add_nodes_with_bipartite_label(G, lena, lenb):
@@ -55,7 +60,7 @@ def generate_ba_graph(u, v, p, seed):
 
         v1 += 1
 
-    return G 
+    return G
 
 
 def generate_obm_data(
@@ -76,7 +81,7 @@ def generate_obm_data(
     if graph_family == "er":
         g = nx.bipartite.random_graph
     if graph_family == "ba":
-        g  = generate_ba_graph
+        g = generate_ba_graph
     for i in tqdm(range(dataset_size)):
         g1 = g(u_size, v_size, p=graph_family_parameter, seed=seed + i)
 
@@ -111,13 +116,15 @@ def generate_obm_data(
 
 def generate_weights(distribution, u_size, v_size, parameters, g1):
 
-    edges = nx.bipartite.biadjacency_matrix(g1, range(0, u_size), range(u_size, u_size + v_size)).toarray()  # U by V array of adjacacy matrix
+    edges = nx.bipartite.biadjacency_matrix(
+        g1, range(0, u_size), range(u_size, u_size + v_size)
+    ).toarray()  # U by V array of adjacacy matrix
 
     if distribution == "uniform":
         weights = edges * np.random.randint(
             int(parameters[0]), int(parameters[1]), (u_size, v_size)
         )
-    
+
     elif distribution == "normal":
         weights = edges * (
             np.abs(
@@ -127,7 +134,7 @@ def generate_weights(distribution, u_size, v_size, parameters, g1):
             )
             + 5
         )  # to make sure no edge has weight zero
-        
+
     elif distribution == "power":
         weights = edges * (
             powerlaw.rvs(
@@ -144,11 +151,7 @@ def generate_weights(distribution, u_size, v_size, parameters, g1):
             int(parameters[0]), int(parameters[1]), (u_size, v_size)
         )
         weights = np.where(graph, graph + noise, graph)
-        
-           
-    w = torch.cat(
-        (torch.zeros(v_size, 1).long(), torch.tensor(weights).T.long()), 1
-    )
+    w = torch.cat((torch.zeros(v_size, 1).long(), torch.tensor(weights).T.long()), 1)
 
     return weights, w
 
@@ -188,12 +191,67 @@ def from_networkx(G):
     return data
 
 
-def generate_weights_geometric(distribution, u_size, v_size, parameters, g1):
+def parse_gmission_dataset():
+    f_edges = open(gMission_edges, "r")
+    f_tasks = open(gMission_tasks, "r")
+    edgeWeights = dict()
+    edgeNumber = dict()
+    count = 0
+    for line in f_edges:
+        vals = line.split(",")
+        edgeWeights[vals[0]] = vals[1].split("\n")[0]
+        edgeNumber[vals[0]] = count
+        count += 1
+
+    tasks = list()
+    tasks_x = dict()
+    tasks_y = dict()
+
+    for line in f_tasks:
+        vals = line.split(",")
+        tasks.append(vals[0])
+        tasks_x[vals[0]] = float(vals[2])
+        tasks_y[vals[0]] = float(vals[3])
+
+    return edgeWeights, tasks
+
+
+def generate_gmission_graph(
+    u, v, tasks, edges, workers, p, seed, weight_dist, weight_param
+):
+    np.random.seed(seed)
+
+    G = nx.Graph()
+    G = _add_nodes_with_bipartite_label(G, u, v)
+
+    G.name = f"gmission_random_graph({u},{v})"
+
+    availableWorkers = workers.copy()
+    weights = []
+    for i in range(v):
+        sampledTask = np.random.choice(tasks)
+
+        for w in range(len(availableWorkers)):
+            worker = availableWorkers[w]
+            edge = str(float(worker)) + ";" + str(float(sampledTask))
+
+            if edge in edges and (w, i + u) not in G.edges:
+                G.add_edge(w, i + u, weight=float(edges[edge]))
+                weights.append(float(edges[edge]))
+            else:
+                weights.append(float(0))
+    weights = np.array(weights).reshape(v, u).T
+    w = np.delete(weights.flatten(), weights.flatten() == 0)
+    return G, weights, w
+
+
+def generate_weights_geometric(distribution, u_size, v_size, parameters, g1, seed):
     weights, w = 0, 0
+    np.random.seed(seed)
     if distribution == "uniform":
         weights = nx.bipartite.biadjacency_matrix(
             g1, range(0, u_size), range(u_size, u_size + v_size)
-        ).toarray() * np.random.randint(
+        ).toarray() * np.random.uniform(
             int(parameters[0]), int(parameters[1]), (u_size, v_size)
         )
         w = torch.cat(
@@ -228,8 +286,57 @@ def generate_weights_geometric(distribution, u_size, v_size, parameters, g1):
         w = torch.cat(
             (torch.zeros(v_size, 1).long(), torch.tensor(weights).T.long()), 1
         )
+    elif distribution == "degree":
+        weights = nx.bipartite.biadjacency_matrix(
+            g1, range(0, u_size), range(u_size, u_size + v_size)
+        ).toarray()
+        graph = 10 * weights * weights.sum(axis=1).reshape(-1, 1)
+        noise = np.random.randint(
+            int(parameters[0]), int(parameters[1]), (u_size, v_size)
+        )
+        weights = np.where(graph, graph + noise, graph)
+        w = torch.cat(
+            (torch.zeros(v_size, 1).long(), torch.tensor(weights).T.long()), 1
+        )
+    elif distribution == "node-normal":
+        adj = nx.bipartite.biadjacency_matrix(
+            g1, range(0, u_size), range(u_size, u_size + v_size)
+        ).toarray()
+        mean = np.random.randint(int(parameters[0]), int(parameters[1]), (u_size, 1))
+        variance = np.sqrt(
+            np.random.randint(int(parameters[0]), int(parameters[1]), (u_size, 1))
+        )
+        weights = (
+            np.abs(np.random.normal(0.0, 1.0, (u_size, v_size)) * variance + mean) + 5
+        ) * adj
+    elif distribution == "fixed-normal":
+        adj = nx.bipartite.biadjacency_matrix(
+            g1, range(0, u_size), range(u_size, u_size + v_size)
+        ).toarray()
+        mean = np.random.choice(np.arange(0, 100, 15), size=(u_size, 1))
+        variance = np.sqrt(np.random.choice(np.arange(0, 100, 20), (u_size, 1)))
+        weights = (
+            np.abs(np.random.normal(0.0, 1.0, (u_size, v_size)) * variance + mean) + 5
+        ) * adj
+
     w = np.delete(weights.flatten(), weights.flatten() == 0)
     return weights, w
+
+
+def generate_er_graph(
+    u, v, tasks, edges, workers, p, seed, weight_distribution, weight_param
+):
+
+    g1 = nx.bipartite.random_graph(u, v, p, seed=seed)
+    weights, w = generate_weights_geometric(
+        weight_distribution, u, v, weight_param, g1, seed
+    )
+    # s = sorted(list(g1.nodes))
+    # c = nx.convert_matrix.to_numpy_array(g1, s)
+    d = [dict(weight=int(i)) for i in list(w)]
+    nx.set_edge_attributes(g1, dict(zip(list(g1.edges), d)))
+
+    return g1, weights, w
 
 
 def generate_edge_obm_data_geometric(
@@ -250,20 +357,30 @@ def generate_edge_obm_data_geometric(
     Supports unifrom, normal, and power distributions.
     """
     D, M = [], []
+    edges, tasks, workers = None, None, None
     if graph_family == "er":
-        g = nx.bipartite.random_graph
-    if graph_family == "ba":
+        g = generate_er_graph
+    elif graph_family == "ba":
         g = generate_ba_graph
+    elif graph_family == "gmission":
+        edges, tasks = parse_gmission_dataset()
+        np.random.seed(100)
+        workers = list(np.random.randint(1, 533, size=u_size))
+        g = generate_gmission_graph
     for i in tqdm(range(dataset_size)):
-        g1 = g(u_size, v_size, p=graph_family_parameter, seed=seed + i)
-        # d_old = np.array(sorted(g1.degree))[u_size:, 1]
-        weights, w = generate_weights_geometric(
-            weight_distribution, u_size, v_size, weight_param, g1
+        g1, weights, w = g(
+            u_size,
+            v_size,
+            tasks,
+            edges,
+            workers,
+            graph_family_parameter,
+            seed + i,
+            weight_distribution,
+            weight_param,
         )
-        # s = sorted(list(g1.nodes))
-        # c = nx.convert_matrix.to_numpy_array(g1, s)
-        d = [dict(weight=int(i)) for i in list(w)]
-        nx.set_edge_attributes(g1, dict(zip(list(g1.edges), d)))
+        # d_old = np.array(sorted(g1.degree))[u_size:, 1]
+
         g1.add_node(
             -1, bipartite=0
         )  # add extra node in U that represents not matching the current node to anything
@@ -313,9 +430,8 @@ def generate_edge_obm_data(
     if graph_family == "ba":
         g = generate_ba_graph
     for i in tqdm(range(dataset_size)):
-        g1 = g(u_size, v_size, p=graph_family_parameter, seed=seed + i) 
-        
-        
+        g1 = g(u_size, v_size, p=graph_family_parameter, seed=seed + i)
+
         # a = nx.bipartite.biadjacency_matrix(g1, range(0, u_size), range(u_size, u_size + v_size)).toarray()
         # print('a', a)
         # d_old = np.array(sorted(g1.degree))[u_size:, 1]
@@ -335,7 +451,7 @@ def generate_edge_obm_data(
 
         s = sorted(list(g1.nodes))
         # print('s: ', s)
-        
+
         m = 1 - nx.convert_matrix.to_numpy_array(g1, s)
         # print('m: ', m)
         if save_data:
@@ -488,7 +604,7 @@ if __name__ == "__main__":
         "--graph_family",
         type=str,
         default="er",
-        help="family of graphs to generate (er, ba, etc)",
+        help="family of graphs to generate (er, ba, gmission, etc)",
     )
     parser.add_argument(
         "--graph_family_parameter",

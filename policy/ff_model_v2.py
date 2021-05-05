@@ -77,6 +77,7 @@ class FeedForwardModel(nn.Module):
         ).data.all(), "Logprobs should not be -inf, check sampling procedure!"
 
         # Calculate log_likelihood
+        # print(log_p.sum(1))
         return log_p.sum(1)
 
     def _inner(self, input, opts):
@@ -116,13 +117,13 @@ class FeedForwardModel(nn.Module):
         return (
             torch.stack(outputs, 1),
             torch.stack(sequences, 1),
-            state.size / (opts.v_size * 100),
+            state.size / (opts.u_size),
         )
 
     def _select_node(self, probs, mask):
         assert (probs == probs).all(), "Probs should not contain any nans"
         probs[mask] = -1e6
-        p = torch.nn.functional.softmax(probs, dim=1)
+        p = torch.softmax(probs, dim=1)
         # print(p)
         if self.decode_type == "greedy":
             _, selected = p.max(1)

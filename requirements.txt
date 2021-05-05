@@ -5,25 +5,20 @@
 # backwards compatibility
 
 #Dev Requirements
-# distlib>=0.3.1
 imagesize>=1.2.0
 matplotlib>=3.2.1
 networkx>=2.4
-# nodeenv>=1.4.0
 numpy>=1.19.0
 pathlib2>=2.3.5
 Pillow>=7.1.2
-# pre-commit>=2.5.1
 pyflakes>=2.0.0
 pylint>=2.5.3
 python-dateutil>=2.8.1
-# python-dotenv>=0.13.0
-# pytorch-lightning>=0.8.3
 scipy>=1.4.0
 tensorboard>=2.2.2
 tensorboard-plugin-wit>=1.7.0
-torch>=1.5.1
-torchvision>=0.6.1
+torch==1.7.0
+torchvision==0.8.1
 tqdm>=4.47.0
 torch-scatter
 torch-sparse

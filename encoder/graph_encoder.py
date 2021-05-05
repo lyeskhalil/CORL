@@ -33,23 +33,24 @@ class MPNN(nn.Module):
         self.dropout = dropout
         self.node_dim = node_dim
         self.n_layers = n_layers
-        nn.init.xavier_uniform_(self.conv1.root)
-        nn.init.normal_(self.conv1.bias)
-        nn.init.xavier_uniform_(self.node_embed.weight)
-        nn.init.normal_(self.node_embed.bias)
-        nn.init.normal_(self.norm.module.weight)
-        nn.init.normal_(self.norm.module.bias)
+        #nn.init.xavier_uniform_(self.conv1.root)
+        #nn.init.normal_(self.conv1.bias)
+        #nn.init.xavier_uniform_(self.node_embed.weight)
+        #nn.init.normal_(self.node_embed.bias)
+        #nn.init.normal_(self.norm.module.weight)
+        #nn.init.normal_(self.norm.module.bias)
         #nn.init.xavier_uniform_(self.conv2.root)
         #nn.init.xavier_uniform_(self.conv3.root)
-        nn.init.xavier_uniform_(self.l1.weight)
+        #nn.init.xavier_uniform_(self.l1.weight)
         #nn.init.xavier_uniform_(self.l2.weight)
         #nn.init.xavier_uniform_(self.l3.weight)
-        self.init_parameters()
-    def init_parameters(self):
-        for name, param in self.named_parameters():
+        #self.init_parameters(self.norm)
+    def init_parameters(self, module):
+        for name, param in module.named_parameters():
             stdv = 1. / math.sqrt(param.size(-1))
             param.data.uniform_(-stdv, stdv)
-    def forward(self, x, edge_index, edge_attribute, i):
+    def forward(self, x, edge_index, edge_attribute, i, dummy):
+        i = i.item()
         if i < self.n_layers:
             n_encode_layers = i + 1
         else:
@@ -58,13 +59,13 @@ class MPNN(nn.Module):
         
 
         #x = F.relu(x)
-        for i in range(n_encode_layers):
+        for j in range(n_encode_layers):
             x = F.relu(x)
-            x = self.conv1(x, edge_index, edge_attribute.float() / 100.)
-            #x = F.relu(x)
-        #    x = self.norm(x.view(-1, x.size(-1))).view(*x.size())
+            x = self.conv1(x, edge_index, edge_attribute.float())
+#            x = F.relu(x)
+            #x = self.norm(x.view(-1, x.size(-1))).view(*x.size())
         
-        x = F.relu(x)
+        #x = F.relu(x)
         x = self.norm(x.view(-1, x.size(-1))).view(*x.size())
         #print(x)
         #x = F.dropout(x, p=self.dropout, training=self.training)

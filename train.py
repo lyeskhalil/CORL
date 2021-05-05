@@ -14,6 +14,7 @@ from functions import move_to
 
 import numpy as np
 from matplotlib.lines import Line2D
+from scipy.stats import wilcoxon
 
 
 def get_inner_model(model):
@@ -22,7 +23,7 @@ def get_inner_model(model):
 
 def evaluate(models, dataset, opts):
     print("Evaluating...")
-    cost, cr, p = rollout_eval(models, dataset, opts)
+    cost, cr, p, count1, count2, avg_j, wil = rollout_eval(models, dataset, opts)
     avg_cost = cost.mean()
 
     min_cr = min(cr)
@@ -42,7 +43,7 @@ def evaluate(models, dataset, opts):
     )
     print("\nEvaluation competitive ratio", min_cr.item())
 
-    return avg_cost, min_cr.item(), avg_cr, cr, p
+    return avg_cost, min_cr.item(), avg_cr, cr, p, count1, count2, avg_j, wil
 
 
 def validate(model, dataset, opts):
@@ -117,27 +118,60 @@ def rollout_eval(models, dataset, opts):
                 optimizer=None,
             )
         # print(-cost.data.flatten())
+        jaccard = (a == a1).float().sum(1) / (
+            2 * opts.v_size - (a == a1).float().sum(1)
+        )
         num_agree = ((a == a1).float()).sum(0)
+        count = torch.bincount(a[:, :20].flatten(), minlength=opts.u_size + 1)
+        count1 = torch.bincount(a1[:, :20].flatten(), minlength=opts.u_size + 1)
+        if (cost == cost1).all().item():
+            w, p = 0, 0
+        else:
+            w, p = wilcoxon(-cost.squeeze(), -cost1.squeeze(), alternative="greater")
         # print(bat[-1])
         cr = (
             -cost.data.flatten()
-            * opts.v_size
+            * opts.u_size
             / move_to(batch.y + (batch.y == 0).float(), opts.device)
         )
         # print(
         #     "\nBatch Competitive ratio: ", min(cr).item(),
         # )
-        return cost.data.cpu() * opts.v_size * 100, cr * 100, num_agree
+        return (
+            cost.data.cpu() * opts.u_size,
+            cr,
+            num_agree,
+            count,
+            count1,
+            jaccard,
+            [w, p],
+        )
 
     cost = []
     crs = []
     n = []
+    count_actions = []
+    count_actions1 = []
+    avg_jaccard = []
+    wp = []
     for batch in tqdm(dataset):
-        c, cr, num_agree = eval_model_bat(batch, None)
+        c, cr, num_agree, count, count1, j, wilcox = eval_model_bat(batch, None)
         cost.append(c)
         crs.append(cr)
         n.append(num_agree[None, :])
-    return torch.cat(cost, 0), torch.cat(crs, 0), torch.cat(n, 0).sum(0)
+        count_actions.append(count[None, :])
+        count_actions1.append(count1[None, :])
+        avg_jaccard.append(j[None, :])
+        wp.append(torch.tensor(wilcox)[None, :])
+    return (
+        torch.cat(cost, 0),
+        torch.cat(crs, 0),
+        torch.cat(n, 0).sum(0),
+        torch.cat(count_actions, 0).sum(0),
+        torch.cat(count_actions1, 0).sum(0),
+        torch.cat(avg_jaccard, 0).mean(),
+        torch.cat(wp, 0),
+    )
 
 
 def rollout(model, dataset, opts):
@@ -147,19 +181,17 @@ def rollout(model, dataset, opts):
 
     def eval_model_bat(bat, optimal):
         with torch.no_grad():
-            cost, _ = model(move_to(bat, opts.device), opts, None, None)
+            cost, *_ = model(move_to(bat, opts.device), opts, None, None)
 
         # print(-cost.data.flatten())
         # print(bat[-1])
-        cr = (
-            -cost.data.flatten()
-            * opts.v_size
-            / move_to(batch.y + (batch.y == 0).float(), opts.device)
+        cr = (-cost.data.flatten() * opts.u_size) / move_to(
+            batch.y + (batch.y == 0).float(), opts.device
         )
         # print(
         #     "\nBatch Competitive ratio: ", min(cr).item(),
         # )
-        return cost.data.cpu() * opts.v_size * 100, cr * 100
+        return cost.data.cpu() * opts.u_size, cr
 
     cost = []
     crs = []
@@ -295,7 +327,7 @@ def train_epoch(
 
     # lr_scheduler should be called at end of epoch
     lr_schedulers[0].step()
-    lr_schedulers[1].step()
+    #    lr_schedulers[1].step()
 
     return avg_reward, min_cr, avg_cr
 
@@ -359,7 +391,7 @@ def train_batch(
 
     # Evaluate model, get costs and log probabilities
 
-    cost, log_likelihood = model(x, opts, optimizers, baseline)
+    cost, log_likelihood, e = model(x, opts, optimizers, baseline)
     # Evaluate baseline, get baseline loss if any (only for critic)
     bl_val, bl_loss = baseline.eval(x, cost) if bl_val is None else (bl_val, 0)
 
@@ -369,14 +401,15 @@ def train_batch(
     reinforce_loss = torch.tensor(0)
     loss = 0
     if not opts.n_step:
-        reinforce_loss = ((cost.squeeze(1) - bl_val) * log_likelihood).mean()
+        reinforce_loss = (
+            (cost.squeeze(1) - bl_val) * log_likelihood
+        ).mean() - opts.ent_rate * e
         loss = reinforce_loss + bl_loss
-        # print(log_likelihood)
         # Perform backward pass and optimization step
         optimizers[0].zero_grad()
         loss.backward()
-        # for name, p in model.named_parameters():
-        #    print(p.grad)
+        #        for name, p in model.named_parameters():
+        #            print(p.grad)
         # print(name)
         # print(p.data)
         # Clip gradient norms and get (clipped) gradient norms for logging

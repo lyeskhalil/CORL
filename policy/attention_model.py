@@ -110,7 +110,7 @@ class AttentionModel(nn.Module):
         # node_dim = 0
         if self.is_bipartite:  # online bipartite matching
             step_context_dim = (
-                embedding_dim * 2
+                embedding_dim * 1
             )  # Embedding of edges chosen and current node
             # node_dim = 1  # edge weight
 
@@ -137,18 +137,27 @@ class AttentionModel(nn.Module):
         # For each node we compute (glimpse key, glimpse value, logit key) so 3 * embedding_dim
         self.project_node_embeddings = nn.Linear(embedding_dim, 3 * embedding_dim)
         self.project_fixed_context = nn.Linear(embedding_dim, embedding_dim)
-        self.project_step_context = nn.Linear(step_context_dim, embedding_dim)
+        self.project_step_context = nn.Linear(
+            step_context_dim + opts.u_size + 1, embedding_dim
+        )
         self.get_edge_embed = nn.Linear(2 * embedding_dim, embedding_dim)
         # self.project_node_features = nn.Linear(1, embedding_dim)
         assert embedding_dim % n_heads == 0
         # Note n_heads * val_dim == embedding_dim so input to project_out is embedding_dim
         self.project_out = nn.Linear(embedding_dim, embedding_dim)
-        nn.init.xavier_uniform_(self.project_node_embeddings.weight)
+        # nn.init.xavier_uniform_(self.project_node_embeddings.weight)
         # nn.init.xavier_uniform_(self.project_node_features.weight)
-        nn.init.xavier_uniform_(self.project_fixed_context.weight)
-        nn.init.xavier_uniform_(self.project_step_context.weight)
-        nn.init.xavier_uniform_(self.get_edge_embed.weight)
-        nn.init.xavier_uniform_(self.project_out.weight)
+        # nn.init.xavier_uniform_(self.project_fixed_context.weight)
+        # nn.init.xavier_uniform_(self.project_step_context.weight)
+        # nn.init.xavier_uniform_(self.get_edge_embed.weight)
+        # nn.init.xavier_uniform_(self.project_out.weight)
+        # self.init_parameters()
+        self.dummy = torch.ones(1, dtype=torch.float32, requires_grad=True)
+
+    def init_parameters(self):
+        for name, param in self.named_parameters():
+            stdv = 1.0 / math.sqrt(param.size(-1))
+            param.data.uniform_(-stdv, stdv)
 
     def set_decode_type(self, decode_type, temp=None):
         self.decode_type = decode_type
@@ -225,7 +234,13 @@ class AttentionModel(nn.Module):
 
             # Pass the graph to the Encoder 
             node_features = (
-                torch.arange(1, step_size + 1, device=opts.device)
+                torch.cat(
+                    (
+                        torch.ones(1, device=opts.device),
+                        torch.ones(opts.u_size, device=opts.device) * 2,
+                        torch.ones(step_size - opts.u_size - 1, device=opts.device) * 3,
+                    )
+                )
                 .unsqueeze(0)
                 .expand(batch_size, step_size)
                 .reshape(batch_size * step_size, 1)
@@ -248,11 +263,16 @@ class AttentionModel(nn.Module):
             )
             if i % opts.checkpoint_every == 0:
                 embeddings = checkpoint(
-                    self.embedder, node_features, edge_i, weights.float(), i
+                    self.embedder,
+                    node_features,
+                    edge_i,
+                    weights.float(),
+                    torch.tensor(i),
+                    self.dummy,
                 ).reshape(batch_size, step_size, -1)
             else:
                 embeddings = self.embedder(
-                    node_features, edge_i, weights.float()
+                    node_features, edge_i, weights.float(), i
                 ).reshape(batch_size, step_size, -1)
 
             # context node embedding
@@ -317,7 +337,7 @@ class AttentionModel(nn.Module):
         return (
             torch.stack(outputs, 1),
             torch.stack(sequences, 1),
-            state.size / (state.v_size * 100),
+            state.size / (state.v_size * 100.0),
         )
 
     def _select_node(self, probs, mask):
@@ -393,11 +413,12 @@ class AttentionModel(nn.Module):
     def _get_log_p(self, fixed, state, step_context, opts, curr_node, normalize=True):
 
         # Compute query = context node embedding
-        query = fixed.context_node_projected + self.project_step_context(
+        projected_step_context = self.project_step_context(
             self._get_parallel_step_context(
                 fixed.node_embeddings, state, step_context, curr_node
             )
         )
+        query = fixed.context_node_projected + projected_step_context
 
         # Compute keys and values for the nodes
         glimpse_K, glimpse_V, logit_K = self._get_attention_node_data(fixed, state)
@@ -430,7 +451,8 @@ class AttentionModel(nn.Module):
         """
 
         # current_node = state.get_current_node()
-        batch_size, num_steps = state.batch_size, 1
+        # batch_size = state.batch_size
+        num_steps = 1
 
         if self.is_bipartite:  # Bipartite matching
             if (
@@ -440,10 +462,11 @@ class AttentionModel(nn.Module):
                     # First and only step, ignore prev_a (this is a placeholder)
                     return torch.cat(
                         (
-                            self.W_placeholder[None, None, :].expand(
-                                batch_size, 1, self.W_placeholder.size(-1)
-                            ),
+                            # self.W_placeholder[None, None, :].expand(
+                            # batch_size, 1, self.W_placeholder.size(-1)
+                            # ),
                             curr_node.unsqueeze(1),
+                            state.adj[:, 0, :].float().unsqueeze(1),
                         ),
                         dim=2,
                     )
@@ -453,7 +476,11 @@ class AttentionModel(nn.Module):
                 #        return (curr_node.unsqueeze(1))
                 else:
                     return torch.cat(
-                        (step_context, curr_node.unsqueeze(1)), dim=2
+                        (
+                            curr_node.unsqueeze(1),
+                            state.adj[:, 0, :].float().unsqueeze(1),
+                        ),
+                        dim=2,
                     )  # add embedding of arriving node to context
                     # return step_context
 

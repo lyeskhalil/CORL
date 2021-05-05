@@ -14,6 +14,9 @@ class StateEdgeBipartite(NamedTuple):
     u_size: torch.Tensor
     v_size: torch.Tensor
     batch_size: torch.Tensor
+    hist_sum: torch.tensor
+    hist_sum_sq: torch.tensor
+    hist_deg: torch.tensor
     # If this state contains multiple copies (i.e. beam search) for the same instance, then for memory efficiency
     # the loc and dist tensors are not kept multiple times, so we need to use the ids to index the correct rows.
     ids: torch.Tensor  # Keeps track of original fixed data index of rows
@@ -44,8 +47,8 @@ class StateEdgeBipartite(NamedTuple):
                 u_size=self.u_size[key],
                 v_size=self.v_size[key],
             )
-        # return super(StateEdgeBipartite, self).__getitem__(key)
-        return self[key]
+        return super(StateEdgeBipartite, self).__getitem__(key)
+        #return self[key]
 
     @staticmethod
     def initialize(
@@ -56,6 +59,8 @@ class StateEdgeBipartite(NamedTuple):
         adj = to_dense_adj(input.edge_index, input.batch, input.weight.unsqueeze(1))[
             :, u_size + 1 :, : u_size + 1
         ].squeeze(-1)
+        idx = torch.randperm(adj.shape[1])
+        adj = adj[:, idx, :].view(adj.size())
         # size = torch.zeros(batch_size, 1, dtype=torch.long, device=graphs.device)
         # adj = (input[0] == 0).float()
         # adj[:, :, 0] = 0.0
@@ -69,6 +74,33 @@ class StateEdgeBipartite(NamedTuple):
             ids=None,
             # Keep visited with depot so we can scatter efficiently (if there is an action for depot)
             matched_nodes=(  # Visited as mask is easier to understand, as long more memory efficient
+                torch.zeros(
+                    batch_size,
+                    1,
+                    u_size + 1,
+                    dtype=torch.uint8,
+                    device=input.batch.device,
+                )
+            ),
+            hist_sum=(  # Visited as mask is easier to understand, as long more memory efficient
+                torch.zeros(
+                    batch_size,
+                    1,
+                    u_size + 1,
+                    dtype=torch.uint8,
+                    device=input.batch.device,
+                )
+            ),
+            hist_deg=(  # Visited as mask is easier to understand, as long more memory efficient
+                torch.zeros(
+                    batch_size,
+                    1,
+                    u_size + 1,
+                    dtype=torch.uint8,
+                    device=input.batch.device,
+                )
+            ),
+            hist_sum_sq=(  # Visited as mask is easier to understand, as long more memory efficient
                 torch.zeros(
                     batch_size,
                     1,
@@ -129,12 +161,18 @@ class StateEdgeBipartite(NamedTuple):
         # )[:, -1, : self.u_size + 1].squeeze(-1)
         # v = self.i - (self.u_size + 1)
         total_weights = self.size + self.adj[:, 0, :].gather(1, selected)
+        hist_sum = self.hist_sum + self.adj[:, 0, :].unsqueeze(1)
+        hist_sum_sq = self.hist_sum_sq + self.adj[:, 0, :].unsqueeze(1) ** 2
+        hist_deg = self.hist_deg + (self.adj[:, 0, :].unsqueeze(1) != 0).float()
         # total_weights = self.size + adj.gather(1, selected)
         return self._replace(
             matched_nodes=nodes,
             size=total_weights,
             i=self.i + 1,
             adj=self.adj[:, 1:, :],
+            hist_sum=hist_sum,
+            hist_sum_sq=hist_sum_sq,
+            hist_deg=hist_deg,
         )
 
     def all_finished(self):

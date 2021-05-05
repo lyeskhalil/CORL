@@ -87,3 +87,4 @@ target/
 # Mypy cache
 .mypy_cache/
 data/__pycache__/generate_data.cpython-38.pyc
+dataset/eval/*
