@@ -228,16 +228,11 @@ class AttentionModel(nn.Module):
         batch_size = state.batch_size
         graph_size = state.u_size + state.v_size + 1
         i = 1
-        # order = torch.arange(grap_size, device=opts.device).unsqueeze(0).expand(batch_size, graph_size)
-        # node_features = (
-        #    torch.arange(1, graph_size + 1, device=opts.device)
-        #    .unsqueeze(0)
-        #    .expand(batch_size, graph_size)
-        #    .reshape(batch_size * graph_size, 1)
-        # ).float()
-        # initial_embeddings = checkpoint(self.project_node_features, node_features).reshape(batch_size, graph_size, -1)
+        
         while not (state.all_finished()):
             step_size = state.i + 1
+
+            # Pass the graph to the Encoder 
             node_features = (
                 torch.cat(
                     (
@@ -279,45 +274,42 @@ class AttentionModel(nn.Module):
                 embeddings = self.embedder(
                     node_features, edge_i, weights.float(), i
                 ).reshape(batch_size, step_size, -1)
-            # print(time.time() - s)
-            # embeddings = self._init_embed(node_features.float()).view(
-            #   opts.batch_size, step_size, -1
-            # )
+
+            # context node embedding
             fixed = self._precompute(embeddings, step_size, opts, state)
+            
+            # Decoder
             log_p, mask = self._get_log_p(
                 fixed, state, step_context, opts, embeddings[:, -1, :]
             )
-            # Select the indices of the next nodes in the sequences, result (batch_size) long
+            
+            # Select a Node 
             selected = self._select_node(
                 log_p.exp()[:, 0, :], mask[:, 0, :].bool()
-            )  # Squeeze out steps dimension
-            # print(state.matched_nodes)
-            # print(embeddings)
-            # print(state.weights)
-            # print(selected)
-            # print(state.matched_nodes)
+            )  
+            
+            # Update state information
             state = state.update(selected[:, None])
-            # s = (selected[:, None].repeat(1, fixed.node_embeddings.size(-1)))[
-            #     :, None, :
-            # ]
-            # with torch.no_grad():
-            # step_context = (
-            #    step_context
-            #    + (
-            #        self.get_edge_embed(
-            #            torch.cat(
-            #                (
-            #                    torch.gather(fixed.node_embeddings, 1, s),
-            #                    embeddings[:, -1, :].unsqueeze(1),
-            #                ),
-            #                dim=2,
-            #            )
-            #        )
-            #          / 2
-            #         - step_context
-            #    )
-            #    / i
-            # )  # Incremental averaging of selected edges
+            s = (selected[:, None].repeat(1, fixed.node_embeddings.size(-1)))[
+                :, None, :
+            ]
+            step_context = (
+                step_context
+                + (
+                    self.get_edge_embed(
+                        torch.cat(
+                            (
+                                torch.gather(fixed.node_embeddings, 1, s),
+                                embeddings[:, -1, :].unsqueeze(1),
+                            ),
+                            dim=2,
+                        )
+                    )
+                    #                    / 2
+                    - step_context
+                )
+                / i
+            )  # Incremental averaging of selected edges
             # Collect output of step
             # step_size = ((state.i.item() - state.u_size.item() + 1) * (state.u_size + 1))
             outputs.append(log_p[:, 0, :])
@@ -333,6 +325,8 @@ class AttentionModel(nn.Module):
                     torch.stack(sequences[i - opts.max_steps : i], 1),
                     -state.size / i,
                 )
+
+                # policy gradient
                 ll = self._calc_log_likelihood(_log_p, pi, None)
                 train_n_step(cost, ll, None, optimizer, baseline, opts)
                 step_context = step_context.detach()
