@@ -255,7 +255,7 @@ def generate_weights_geometric(distribution, u_size, v_size, parameters, g1, see
             int(parameters[0]), int(parameters[1]), (u_size, v_size)
         )
         w = torch.cat(
-            (torch.zeros(v_size, 1).long(), torch.tensor(weights).T.long()), 1
+            (torch.zeros(v_size, 1).float(), torch.tensor(weights).T.float()), 1
         )
     elif distribution == "normal":
         weights = nx.bipartite.biadjacency_matrix(
@@ -269,7 +269,7 @@ def generate_weights_geometric(distribution, u_size, v_size, parameters, g1, see
             + 5
         )  # to make sure no edge has weight zero
         w = torch.cat(
-            (torch.zeros(v_size, 1).long(), torch.tensor(weights).T.long()), 1
+            (torch.zeros(v_size, 1).float(), torch.tensor(weights).T.float()), 1
         )
     elif distribution == "power":
         weights = nx.bipartite.biadjacency_matrix(
@@ -284,7 +284,7 @@ def generate_weights_geometric(distribution, u_size, v_size, parameters, g1, see
             + 5
         )  # to make sure no edge has weight zero
         w = torch.cat(
-            (torch.zeros(v_size, 1).long(), torch.tensor(weights).T.long()), 1
+            (torch.zeros(v_size, 1).float(), torch.tensor(weights).T.float()), 1
         )
     elif distribution == "degree":
         weights = nx.bipartite.biadjacency_matrix(
@@ -296,7 +296,7 @@ def generate_weights_geometric(distribution, u_size, v_size, parameters, g1, see
         )
         weights = np.where(graph, graph + noise, graph)
         w = torch.cat(
-            (torch.zeros(v_size, 1).long(), torch.tensor(weights).T.long()), 1
+            (torch.zeros(v_size, 1).float(), torch.tensor(weights).T.float()), 1
         )
     elif distribution == "node-normal":
         adj = nx.bipartite.biadjacency_matrix(
@@ -333,7 +333,7 @@ def generate_er_graph(
     )
     # s = sorted(list(g1.nodes))
     # c = nx.convert_matrix.to_numpy_array(g1, s)
-    d = [dict(weight=int(i)) for i in list(w)]
+    d = [dict(weight=float(i)) for i in list(w)]
     nx.set_edge_attributes(g1, dict(zip(list(g1.edges), d)))
 
     return g1, weights, w
