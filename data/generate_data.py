@@ -354,7 +354,7 @@ def generate_edge_obm_data_geometric(
     """
     Generates edge weighted bipartite graphs using the ER/BA schemes in pytorch geometric format
 
-    Supports unifrom, normal, and power distributions.
+    Supports uniformm, normal, and power distributions.
     """
     D, M = [], []
     edges, tasks, workers = None, None, None
@@ -364,6 +364,8 @@ def generate_edge_obm_data_geometric(
         g = generate_ba_graph
     elif graph_family == "gmission":
         edges, tasks = parse_gmission_dataset()
+        max_w = max(np.array(list(edges.values()), dtype="float"))
+        edges = {k: (float(v) / float(max_w)) for k, v in edges.items()}
         np.random.seed(100)
         workers = list(np.random.randint(1, 533, size=u_size))
         g = generate_gmission_graph
