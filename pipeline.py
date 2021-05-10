@@ -3,16 +3,16 @@ import os
 
 # Refer to opts.py for details about the flags
 # graph/dataset flags
-model_type = "ff-hist"
+model_type = "ff"
 problem = "e-obm"
-graph_family = "gmission"
-weight_distribution = "gmission"
-weight_distribution_param = "-1 -1"  # seperate by a space
-graph_family_parameters = "-1"
+graph_family = "er"
+weight_distribution = "uniform"
+weight_distribution_param = "0 1"  # seperate by a space
+graph_family_parameters = "0.15"
 u_size = 10  # 10
 v_size = 30  # 30
 dataset_size = 10000
-val_size = 100
+val_size = 1000
 eval_size = 1000
 num_edges = 100
 extention = "/{}_{}_{}_{}_{}by{}".format(
@@ -26,7 +26,7 @@ extention = "/{}_{}_{}_{}_{}by{}".format(
 
 train_dataset = "dataset/train" + extention
 
-val_dataset = "dataset/val" + extention
+val_dataset = "dataset/eval" + extention
 
 eval_dataset = "dataset/eval" + extention
 
@@ -37,9 +37,10 @@ n_heads = 2  # 3
 n_epochs = 30
 checkpoint_epochs = 0
 eval_baselines = "greedy"  # ******
-lr_model = 0.03
-lr_decay = 0.98
-beta_decay = 0.8
+lr_model = 0.001
+lr_decay = 1.0
+beta_decay = 0.9
+ent_rate = 0.0
 n_encode_layers = 3
 baseline = "exponential"
 # directory io flags
@@ -214,8 +215,8 @@ def generate_data():
             n,
         )
 
-        print(generate_train)
-        # os.system(generate_train)
+        # print(generate_train)
+        os.system(generate_train)
 
         # print(generate_val)
         os.system(generate_val)
@@ -232,7 +233,7 @@ def train_model():
         save_dir = output_dir + extention + "/parameter_{}".format(n)
         train = """python run.py --encoder mpnn --model {} --problem {} --batch_size {} --embedding_dim {} --n_heads {} --u_size {}  --v_size {} --n_epochs {} \
                     --train_dataset {} --val_dataset {} --dataset_size {} --val_size {} --checkpoint_epochs {} --baseline {} \
-                    --lr_model {} --lr_decay {} --output_dir {} --log_dir {} --n_encode_layers {} --num_edges {} --save_dir {} --graph_family_parameter {} --exp_beta {}""".format(
+                    --lr_model {} --lr_decay {} --output_dir {} --log_dir {} --n_encode_layers {} --num_edges {} --save_dir {} --graph_family_parameter {} --exp_beta {} --ent_rate {}""".format(
             model_type,
             problem,
             batch_size,
@@ -256,6 +257,7 @@ def train_model():
             save_dir,
             n,
             beta_decay,
+            ent_rate,
         )
 
         # print(train)
@@ -298,6 +300,6 @@ def evaluate_model():
 if __name__ == "__main__":
     # make the directories if they do not exist
     make_dir()
-    generate_data()
-    # train_model()
-    evaluate_model()
+    # generate_data()
+    train_model()
+    # evaluate_model()
