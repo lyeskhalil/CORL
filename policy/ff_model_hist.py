@@ -33,13 +33,13 @@ class FeedForwardModelHist(nn.Module):
         self.problem = problem
         self.shrink_size = None
         self.ff = nn.Sequential(
-            nn.Linear(self.num_actions, 500),
+            nn.Linear(self.num_actions, 100),
             nn.ReLU(),
-            nn.Linear(500, 500),
+            nn.Linear(100, 100),
             nn.ReLU(),
-            nn.Linear(500, 500),
+            nn.Linear(100, 100),
             nn.ReLU(),
-            nn.Linear(500, opts.u_size + 1),
+            nn.Linear(100, opts.u_size + 1),
         )
 
         def init_weights(m):
@@ -47,7 +47,7 @@ class FeedForwardModelHist(nn.Module):
                 torch.nn.init.xavier_uniform_(m.weight)
                 m.bias.data.fill_(0.0001)
 
-        self.ff.apply(init_weights)
+        #self.ff.apply(init_weights)
         # self.init_parameters()
 
     def init_parameters(self):
@@ -106,13 +106,13 @@ class FeedForwardModelHist(nn.Module):
             # step_size = state.i.item() + 1
             # v = state.i - (state.u_size + 1)
             # su = (state.weights[:, v, :]).float().sum(1)
-            w = (state.adj[:, 0, :]).float()
+            w = (state.adj[:, 0, :]).float().clone()
             mask = state.get_mask()
             s = w
-            h_mean = state.hist_sum.squeeze(1) / i
-            h_var = ((state.hist_sum_sq - ((state.hist_sum ** 2) / i)) / i).squeeze(1)
-            h_mean_degree = state.hist_deg.squeeze(1) / i
-            h_mean[:, 0], h_var[:, 0], h_mean_degree[:, 0] = -1.0, -1.0, -1.0
+            h_mean = state.hist_sum.squeeze(1).clone() / i
+            h_var = ((state.hist_sum_sq.clone() - ((state.hist_sum.clone() ** 2) / i)) / i).squeeze(1)
+            h_mean_degree = state.hist_deg.squeeze(1).clone() / i
+            h_mean[:, 0], h_var[:, 0], h_mean_degree[:, 0], s[:, 0] = -1.0, -1.0, -1.0, -1.0
             s = torch.cat((s, h_mean, h_var, h_mean_degree,), dim=1,)
             # s = w
             pi = self.ff(s)
@@ -129,7 +129,7 @@ class FeedForwardModelHist(nn.Module):
         return (
             torch.stack(outputs, 1),
             torch.stack(sequences, 1),
-            state.size / opts.u_size,
+            state.size,
         )
 
     def _select_node(self, probs, mask):
