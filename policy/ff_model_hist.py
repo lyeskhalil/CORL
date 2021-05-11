@@ -4,6 +4,8 @@ from torch.utils.checkpoint import checkpoint
 import math
 from typing import NamedTuple
 
+# torch.set_printoptions(edgeitems=15)
+
 
 class FeedForwardModelHist(nn.Module):
     def __init__(
@@ -28,7 +30,7 @@ class FeedForwardModelHist(nn.Module):
 
         self.embedding_dim = embedding_dim
         self.decode_type = None
-        self.num_actions = 4 * (opts.u_size + 1)
+        self.num_actions = 4 * (opts.u_size + 1) + 2
         self.is_bipartite = problem.NAME == "bipartite"
         self.problem = problem
         self.shrink_size = None
@@ -47,7 +49,11 @@ class FeedForwardModelHist(nn.Module):
                 torch.nn.init.xavier_uniform_(m.weight)
                 m.bias.data.fill_(0.0001)
 
+<<<<<<< HEAD
         #self.ff.apply(init_weights)
+=======
+        # self.ff.apply(init_weights)
+>>>>>>> e05401c565038e9574bc1ef9d5adf00306171e76
         # self.init_parameters()
 
     def init_parameters(self):
@@ -109,11 +115,12 @@ class FeedForwardModelHist(nn.Module):
             w = (state.adj[:, 0, :]).float().clone()
             mask = state.get_mask()
             s = w
-            h_mean = state.hist_sum.squeeze(1).clone() / i
-            h_var = ((state.hist_sum_sq.clone() - ((state.hist_sum.clone() ** 2) / i)) / i).squeeze(1)
-            h_mean_degree = state.hist_deg.squeeze(1).clone() / i
-            h_mean[:, 0], h_var[:, 0], h_mean_degree[:, 0], s[:, 0] = -1.0, -1.0, -1.0, -1.0
-            s = torch.cat((s, h_mean, h_var, h_mean_degree,), dim=1,)
+            h_mean = state.hist_sum.squeeze(1) / i
+            h_var = ((state.hist_sum_sq - ((state.hist_sum ** 2) / i)) / i).squeeze(1)
+            h_mean_degree = state.hist_deg.squeeze(1) / i
+            h_mean[:, 0], h_var[:, 0], h_mean_degree[:, 0] = -1.0, -1.0, -1.0
+            ind = torch.ones(state.batch_size, 1) * i
+            s = torch.cat((s, h_mean, h_var, h_mean_degree, state.size, ind), dim=1,)
             # s = w
             pi = self.ff(s)
             # Select the indices of the next nodes in the sequences, result (batch_size) long
@@ -134,7 +141,7 @@ class FeedForwardModelHist(nn.Module):
 
     def _select_node(self, probs, mask):
         assert (probs == probs).all(), "Probs should not contain any nans"
-        probs[mask] = -1e6
+        probs[mask] = -1e8
         p = torch.log_softmax(probs, dim=1)
         if self.decode_type == "greedy":
             _, selected = p.max(1)
@@ -146,9 +153,9 @@ class FeedForwardModelHist(nn.Module):
             selected = p.exp().multinomial(1).squeeze(1)
             # Check if sampling went OK, can go wrong due to bug on GPU
             # See https://discuss.pytorch.org/t/bad-behavior-of-multinomial-function/10232
-            # while mask.gather(1, selected.unsqueeze(-1)).data.any():
-            #     print("Sampled bad values, resampling!")
-            #     selected = probs.multinomial(1).squeeze(1)
+            while mask.gather(1, selected.unsqueeze(-1)).data.any():
+                print("Sampled bad values, resampling!")
+                selected = p.exp().multinomial(1).squeeze(1)
 
         else:
             assert False, "Unknown decode type"
