@@ -217,7 +217,7 @@ def parse_gmission_dataset():
 
 
 def generate_gmission_graph(
-    u, v, tasks, edges, workers, p, seed, weight_dist, weight_param
+    u, v, tasks, edges, workers, p, seed, weight_dist, weight_param, vary_fixed=False
 ):
     np.random.seed(seed)
 
@@ -225,7 +225,8 @@ def generate_gmission_graph(
     G = _add_nodes_with_bipartite_label(G, u, v)
 
     G.name = f"gmission_random_graph({u},{v})"
-
+    if vary_fixed:
+        workers = list(np.random.randint(1, 533, size=u))
     availableWorkers = workers.copy()
     weights = []
     for i in range(v):
@@ -362,13 +363,14 @@ def generate_edge_obm_data_geometric(
         g = generate_er_graph
     elif graph_family == "ba":
         g = generate_ba_graph
-    elif graph_family == "gmission":
+    elif graph_family == "gmission" or graph_family == "gmission-var":
         edges, tasks = parse_gmission_dataset()
         max_w = max(np.array(list(edges.values()), dtype="float"))
         edges = {k: (float(v) / float(max_w)) for k, v in edges.items()}
         np.random.seed(100)
         workers = list(np.random.randint(1, 533, size=u_size))
         g = generate_gmission_graph
+        vary_fixed = graph_family == "gmission-var"
     for i in tqdm(range(dataset_size)):
         g1, weights, w = g(
             u_size,
@@ -380,6 +382,7 @@ def generate_edge_obm_data_geometric(
             seed + i,
             weight_distribution,
             weight_param,
+            vary_fixed,
         )
         # d_old = np.array(sorted(g1.degree))[u_size:, 1]
 
