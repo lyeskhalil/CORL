@@ -183,15 +183,16 @@ def rollout(model, dataset, opts):
         with torch.no_grad():
             cost, *_ = model(move_to(bat, opts.device), opts, None, None)
 
-        # print(-cost.data.flatten())
+        #print(-cost.data.flatten())
         # print(bat[-1])
-        cr = (-cost.data.flatten() * opts.u_size) / move_to(
+        #print(batch.y)
+        cr = (-cost.data.flatten()) / move_to(
             batch.y + (batch.y == 0).float(), opts.device
         )
         # print(
         #     "\nBatch Competitive ratio: ", min(cr).item(),
         # )
-        return cost.data.cpu() * opts.u_size, cr
+        return cost.data.cpu(), cr
 
     cost = []
     crs = []
@@ -403,8 +404,8 @@ def train_batch(
     if not opts.n_step:
         reinforce_loss = (
             (cost.squeeze(1) - bl_val) * log_likelihood
-        ).mean() - opts.ent_rate * e
-        loss = reinforce_loss + bl_loss
+        ).mean()
+        loss = reinforce_loss + bl_loss - opts.ent_rate * e
         # Perform backward pass and optimization step
         optimizers[0].zero_grad()
         loss.backward()

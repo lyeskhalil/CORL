@@ -31,7 +31,7 @@ class InvariantFFHist(nn.Module):
         self.is_bipartite = problem.NAME == "bipartite"
         self.problem = problem
         self.shrink_size = None
-        self.ff = nn.Sequential(nn.Linear(5, 100), nn.ReLU(), nn.Linear(100, 1),)
+        self.ff = nn.Sequential(nn.Linear(7, 100), nn.ReLU(), nn.Linear(100, 1),)
 
         # def init_weights(m):
         #     if type(m) == nn.Linear:
@@ -96,6 +96,8 @@ class InvariantFFHist(nn.Module):
             h_var = (state.hist_sum_sq - ((state.hist_sum ** 2) / i)) / i
             h_mean_degree = state.hist_deg / i
             h_mean[:, :, 0], h_var[:, :, 0], h_mean_degree[:, :, 0] = -1., -1., -1.
+            idx = torch.ones(state.batch_size, 1, 1, device=opts.device) * i
+            
             s = torch.cat(
                 (
                     s,
@@ -103,6 +105,8 @@ class InvariantFFHist(nn.Module):
                     h_mean.transpose(1, 2),
                     h_var.transpose(1, 2),
                     h_mean_degree.transpose(1, 2),
+                    idx,
+                    state.size.unsqueeze(2)
                 ),
                 dim=2,
             )
