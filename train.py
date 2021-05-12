@@ -185,13 +185,14 @@ def rollout(model, dataset, opts):
 
         # print(-cost.data.flatten())
         # print(bat[-1])
-        cr = (-cost.data.flatten() * opts.u_size) / move_to(
+        # print(batch.y)
+        cr = (-cost.data.flatten()) / move_to(
             batch.y + (batch.y == 0).float(), opts.device
         )
         # print(
         #     "\nBatch Competitive ratio: ", min(cr).item(),
         # )
-        return cost.data.cpu() * opts.u_size, cr
+        return cost.data.cpu(), cr
 
     cost = []
     crs = []
@@ -401,16 +402,17 @@ def train_batch(
     reinforce_loss = torch.tensor(0)
     loss = 0
     if not opts.n_step:
-        reinforce_loss = (
-            (cost.squeeze(1) - bl_val) * log_likelihood
-        ).mean() - opts.ent_rate * e
-        loss = reinforce_loss + bl_loss
+        reinforce_loss = ((cost.squeeze(1) - bl_val) * log_likelihood).mean()
+        loss = reinforce_loss + bl_loss - opts.ent_rate * e
+
         # Perform backward pass and optimization step
         optimizers[0].zero_grad()
         loss.backward()
-        #        for name, p in model.named_parameters():
-        #            print(p.grad)
-        # print(name)
+
+        # sum_grad = 0
+        # for name, p in model.named_parameters():
+        #     print(name, p.grad.norm())
+        # print(sum_grad)
         # print(p.data)
         # Clip gradient norms and get (clipped) gradient norms for logging
         grad_norms = clip_grad_norms(optimizers[0].param_groups, opts.max_grad_norm)

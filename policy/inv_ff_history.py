@@ -31,7 +31,7 @@ class InvariantFFHist(nn.Module):
         self.is_bipartite = problem.NAME == "bipartite"
         self.problem = problem
         self.shrink_size = None
-        self.ff = nn.Sequential(nn.Linear(5, 100), nn.ReLU(), nn.Linear(100, 1),)
+        self.ff = nn.Sequential(nn.Linear(7, 100), nn.ReLU(), nn.Linear(100, 1),)
 
         # def init_weights(m):
         #     if type(m) == nn.Linear:
@@ -47,15 +47,16 @@ class InvariantFFHist(nn.Module):
         # cost, mask = self.problem.get_costs(input, pi)
         # Log likelyhood is calculated within the model since returning it per action does not work well with
         # DataParallel since sequences can be of different lengths
-        ll = self._calc_log_likelihood(_log_p, pi, None)
+        ll, e = self._calc_log_likelihood(_log_p, pi, None)
         if return_pi:
-            return -cost, ll, pi
+            return -cost, ll, pi, e
         # print(ll)
-        return -cost, ll
+        return -cost, ll, e
 
     def _calc_log_likelihood(self, _log_p, a, mask):
 
         # Get log_p corresponding to selected actions
+        entropy = -(_log_p * _log_p.exp()).sum(2).sum(1).mean()
         log_p = _log_p.gather(2, a.unsqueeze(-1)).squeeze(-1)
 
         # Optional: mask out actions irrelevant to objective so they do not get reinforced
@@ -68,7 +69,7 @@ class InvariantFFHist(nn.Module):
         ).data.all(), "Logprobs should not be -inf, check sampling procedure!"
 
         # Calculate log_likelihood
-        return log_p.sum(1)
+        return log_p.sum(1), entropy
 
     def _inner(self, input, opts):
 
@@ -95,7 +96,8 @@ class InvariantFFHist(nn.Module):
             h_mean = state.hist_sum / i
             h_var = (state.hist_sum_sq - ((state.hist_sum ** 2) / i)) / i
             h_mean_degree = state.hist_deg / i
-            h_mean[:, :, 0], h_var[:, :, 0], h_mean_degree[:, :, 0] = -1., -1., -1.
+            h_mean[:, :, 0], h_var[:, :, 0], h_mean_degree[:, :, 0] = -1.0, -1.0, -1.0
+            idx = torch.ones(state.batch_size, 1, 1, device=opts.device) * i
             s = torch.cat(
                 (
                     s,
@@ -103,6 +105,8 @@ class InvariantFFHist(nn.Module):
                     h_mean.transpose(1, 2),
                     h_var.transpose(1, 2),
                     h_mean_degree.transpose(1, 2),
+                    idx.repeat(1, state.u_size + 1, 1),
+                    state.size.unsqueeze(2).repeat(1, state.u_size + 1, 1),
                 ),
                 dim=2,
             )
@@ -121,7 +125,7 @@ class InvariantFFHist(nn.Module):
         return (
             torch.stack(outputs, 1),
             torch.stack(sequences, 1),
-            state.size / (opts.u_size),
+            state.size,
         )
 
     def _select_node(self, probs, mask):
