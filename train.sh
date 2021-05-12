@@ -2,7 +2,7 @@
 #SBATCH --gres=gpu:v100l:1       # Request GPU "generic resources"
 #SBATCH --cpus-per-task=6  # Cores proportional to GPUs: 6 on Cedar, 16 on Graham.
 #SBATCH --mem=32000M       # Memory proportional to GPUs: 32000 Cedar, 64000 Graham.
-#SBATCH --time=04:00:00
+#SBATCH --time=02:00:00
 #SBATCH --output=%N-%j.out
 
 U_SIZE=$1
@@ -36,7 +36,7 @@ MODEL=$8
 #tar xf ~/projects/def-khalile2/alomrani/$DATASET.tar -C $SLURM_TMPDIR/
 #mkdir $SLURM_TMPDIR/logs_$DATASET
 
-python run.py --problem $PROBLEM --encoder mpnn --batch_size 200 --eval_batch_size 200 --embedding_dim $EMBEDDING_SIZE --n_heads 1 --u_size $U_SIZE --v_size $V_SIZE --n_epochs 100 --train_dataset $SLURM_TMPDIR/$DATASET/train --val_dataset $SLURM_TMPDIR/$DATASET/val --dataset_size $TRAIN_SIZE --val_size $VAL_SIZE --checkpoint_epochs 10 --baseline exponential --exp_beta 0.95 --lr_model 0.002 --lr_decay 0.99 --output_dir $SLURM_TMPDIR/output_$DATASET --log_dir $SLURM_TMPDIR/logs_$DATASET --max_grad_norm 1.0 --n_encode_layers 3 --model $MODEL --no_tensorboard
+python run.py --seed 89759 --problem $PROBLEM --encoder mpnn --batch_size 200 --eval_batch_size 200 --embedding_dim $EMBEDDING_SIZE --n_heads 1 --u_size $U_SIZE --v_size $V_SIZE --n_epochs 120 --train_dataset $SLURM_TMPDIR/$DATASET/train --val_dataset $SLURM_TMPDIR/$DATASET/val --dataset_size $TRAIN_SIZE --val_size $VAL_SIZE --checkpoint_epochs 10 --baseline exponential --exp_beta ${11} --lr_model $9 --lr_decay ${10} --ent_rate ${12} --output_dir $SLURM_TMPDIR/output_$DATASET --log_dir $SLURM_TMPDIR/logs_$DATASET --max_grad_norm 1.0 --n_encode_layers 3 --model $MODEL
 
 cp -r $SLURM_TMPDIR/output_$DATASET ~/projects/def-khalile2/alomrani/
 cp -r $SLURM_TMPDIR/logs_$DATASET ~/projects/def-khalile2/alomrani/

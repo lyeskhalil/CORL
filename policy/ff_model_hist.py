@@ -49,7 +49,11 @@ class FeedForwardModelHist(nn.Module):
                 torch.nn.init.xavier_uniform_(m.weight)
                 m.bias.data.fill_(0.0001)
 
+<<<<<<< HEAD
+        #self.ff.apply(init_weights)
+=======
         # self.ff.apply(init_weights)
+>>>>>>> e05401c565038e9574bc1ef9d5adf00306171e76
         # self.init_parameters()
 
     def init_parameters(self):
@@ -108,7 +112,7 @@ class FeedForwardModelHist(nn.Module):
             # step_size = state.i.item() + 1
             # v = state.i - (state.u_size + 1)
             # su = (state.weights[:, v, :]).float().sum(1)
-            w = (state.adj[:, 0, :]).float()
+            w = (state.adj[:, 0, :]).float().clone()
             mask = state.get_mask()
             s = w
             h_mean = state.hist_sum.squeeze(1) / i
