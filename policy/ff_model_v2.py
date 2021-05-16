@@ -33,13 +33,13 @@ class FeedForwardModel(nn.Module):
         self.problem = problem
         self.shrink_size = None
         self.ff = nn.Sequential(
-            nn.Linear(self.num_actions, 500),
+            nn.Linear(self.num_actions, 100),
             nn.ReLU(),
-            nn.Linear(500, 500),
+            nn.Linear(100, 100),
             nn.ReLU(),
-            nn.Linear(500, 500),
+            nn.Linear(100, 100),
             nn.ReLU(),
-            nn.Linear(500, opts.u_size + 1),
+            nn.Linear(100, opts.u_size + 1),
         )
 
         def init_weights(m):
@@ -47,7 +47,7 @@ class FeedForwardModel(nn.Module):
                 torch.nn.init.xavier_uniform_(m.weight)
                 m.bias.data.fill_(0.0001)
 
-        self.ff.apply(init_weights)
+        #self.ff.apply(init_weights)
 
     def forward(self, x, opts, optimizer, baseline, return_pi=False):
 
@@ -56,14 +56,15 @@ class FeedForwardModel(nn.Module):
         # cost, mask = self.problem.get_costs(input, pi)
         # Log likelyhood is calculated within the model since returning it per action does not work well with
         # DataParallel since sequences can be of different lengths
-        ll = self._calc_log_likelihood(_log_p, pi, None)
+        ll, e = self._calc_log_likelihood(_log_p, pi, None)
         if return_pi:
             return -cost, ll, pi
         # print(ll)
-        return -cost, ll
+        return -cost, ll, e
 
     def _calc_log_likelihood(self, _log_p, a, mask):
 
+        entropy = -(_log_p * _log_p.exp()).sum(2).sum(1).mean()
         # Get log_p corresponding to selected actions
         log_p = _log_p.gather(2, a.unsqueeze(-1)).squeeze(-1)
 
@@ -78,7 +79,7 @@ class FeedForwardModel(nn.Module):
 
         # Calculate log_likelihood
         # print(log_p.sum(1))
-        return log_p.sum(1)
+        return log_p.sum(1), entropy
 
     def _inner(self, input, opts):
 
@@ -110,20 +111,20 @@ class FeedForwardModel(nn.Module):
             )  # Squeeze out steps dimension
             # entropy += torch.sum(p * (p.log()), dim=1)
             state = state.update((selected)[:, None])
-            outputs.append(p.log())
+            outputs.append(p)
             sequences.append(selected)
             i += 1
         # Collected lists, return Tensor
         return (
             torch.stack(outputs, 1),
             torch.stack(sequences, 1),
-            state.size / (opts.u_size),
+            state.size,
         )
 
     def _select_node(self, probs, mask):
         assert (probs == probs).all(), "Probs should not contain any nans"
         probs[mask] = -1e6
-        p = torch.softmax(probs, dim=1)
+        p = torch.log_softmax(probs, dim=1)
         # print(p)
         if self.decode_type == "greedy":
             _, selected = p.max(1)
@@ -132,7 +133,7 @@ class FeedForwardModel(nn.Module):
             # ).data.any(), "Decode greedy: infeasible action has maximum probability"
 
         elif self.decode_type == "sampling":
-            selected = p.multinomial(1).squeeze(1)
+            selected = p.exp().multinomial(1).squeeze(1)
             # Check if sampling went OK, can go wrong due to bug on GPU
             # See https://discuss.pytorch.org/t/bad-behavior-of-multinomial-function/10232
             # while mask.gather(1, selected.unsqueeze(-1)).data.any():
@@ -141,7 +142,7 @@ class FeedForwardModel(nn.Module):
 
         else:
             assert False, "Unknown decode type"
-        return selected, p + 1e-6
+        return selected, p
 
     def set_decode_type(self, decode_type, temp=None):
         self.decode_type = decode_type

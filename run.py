@@ -106,9 +106,10 @@ def run(opts):
     if opts.eval_only:
         validate(model, val_dataloader, opts)
     elif opts.tune_wandb:
+        #wandb.login(key="e49f6e29371d2198953129649f6352f26d5a6fd5", relogin=True)
         wandb.agent(
-            opts.sweep_id,
-            lambda config=None: train_wandb(
+            sweep_id=opts.sweep_id,
+            function=lambda config=None: train_wandb(
                 model_class, problem, tb_logger, opts, config=config
             ),
             count=opts.num_per_agent,
@@ -285,7 +286,7 @@ def train_wandb(model_class, problem, tb_logger, opts, config=None):
                 tb_logger,
                 opts,
             )
-            wandb.log({"val_reward": abs(avg_reward), "epoch": epoch})
+            wandb.log({"val_reward": abs(avg_reward), "avg_cr": abs(avg_cr), "min_cr": abs(min_cr)})
 
 
 def setup_training_env(opts, model_class, problem, load_data, tb_logger):
@@ -392,7 +393,7 @@ def setup_training_env(opts, model_class, problem, load_data, tb_logger):
         opts.val_dataset, opts.val_size, opts.problem, seed=None, opts=opts
     )
     val_dataloader = geoDataloader(
-        val_dataset, batch_size=opts.eval_batch_size, num_workers=1
+        val_dataset, batch_size=opts.batch_size, num_workers=1
     )
     if opts.resume:  # TODO: This does not resume both optimizers
         epoch_resume = int(

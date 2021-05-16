@@ -49,11 +49,7 @@ class FeedForwardModelHist(nn.Module):
                 torch.nn.init.xavier_uniform_(m.weight)
                 m.bias.data.fill_(0.0001)
 
-<<<<<<< HEAD
-        #self.ff.apply(init_weights)
-=======
         # self.ff.apply(init_weights)
->>>>>>> e05401c565038e9574bc1ef9d5adf00306171e76
         # self.init_parameters()
 
     def init_parameters(self):
@@ -119,8 +115,8 @@ class FeedForwardModelHist(nn.Module):
             h_var = ((state.hist_sum_sq - ((state.hist_sum ** 2) / i)) / i).squeeze(1)
             h_mean_degree = state.hist_deg.squeeze(1) / i
             h_mean[:, 0], h_var[:, 0], h_mean_degree[:, 0] = -1.0, -1.0, -1.0
-            ind = torch.ones(state.batch_size, 1) * i
-            s = torch.cat((s, h_mean, h_var, h_mean_degree, state.size, ind), dim=1,)
+            ind = torch.ones(state.batch_size, 1, device=opts.device) * i
+            s = torch.cat((s, h_mean, h_var, h_mean_degree, state.size, ind.float()), dim=1,)
             # s = w
             pi = self.ff(s)
             # Select the indices of the next nodes in the sequences, result (batch_size) long

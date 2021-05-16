@@ -185,7 +185,7 @@ def rollout(model, dataset, opts):
 
         #print(-cost.data.flatten())
         # print(bat[-1])
-        #print(batch.y)
+        # print(batch.y)
         cr = (-cost.data.flatten()) / move_to(
             batch.y + (batch.y == 0).float(), opts.device
         )
@@ -409,9 +409,11 @@ def train_batch(
         # Perform backward pass and optimization step
         optimizers[0].zero_grad()
         loss.backward()
-        #        for name, p in model.named_parameters():
-        #            print(p.grad)
-        # print(name)
+
+        # sum_grad = 0
+        # for name, p in model.named_parameters():
+        #     print(name, p.grad.norm())
+        # print(sum_grad)
         # print(p.data)
         # Clip gradient norms and get (clipped) gradient norms for logging
         grad_norms = clip_grad_norms(optimizers[0].param_groups, opts.max_grad_norm)

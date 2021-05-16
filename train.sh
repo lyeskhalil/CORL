@@ -22,19 +22,19 @@ DATASET="$PROBLEM"_"$GRAPH_FAMILY"_"$U_SIZE"by"$V_SIZE"_"p=$FAMILY_PARAMETER"_"$
 MODEL=$8
 
 
-module load python/3.7
-module load scipy-stack
+#module load python/3.7
+#module load scipy-stack
 
-virtualenv --no-download $SLURM_TMPDIR/env
-source $SLURM_TMPDIR/env/bin/activate
-pip install --no-index --upgrade pip
+#virtualenv --no-download $SLURM_TMPDIR/env
+#source $SLURM_TMPDIR/env/bin/activate
+#pip install --no-index --upgrade pip
 
-pip install --no-index --no-cache-dir --upgrade --force-reinstall -r requirements.txt
+#pip install --no-index --no-cache-dir --upgrade --force-reinstall -r requirements.txt
 
 
 # Prepare data
-tar xf ~/projects/def-khalile2/alomrani/$DATASET.tar -C $SLURM_TMPDIR/
-mkdir $SLURM_TMPDIR/logs_$DATASET
+#tar xf ~/projects/def-khalile2/alomrani/$DATASET.tar -C $SLURM_TMPDIR/
+#mkdir $SLURM_TMPDIR/logs_$DATASET
 
 python run.py --seed 89759 --problem $PROBLEM --encoder mpnn --batch_size 200 --eval_batch_size 200 --embedding_dim $EMBEDDING_SIZE --n_heads 1 --u_size $U_SIZE --v_size $V_SIZE --n_epochs 120 --train_dataset $SLURM_TMPDIR/$DATASET/train --val_dataset $SLURM_TMPDIR/$DATASET/val --dataset_size $TRAIN_SIZE --val_size $VAL_SIZE --checkpoint_epochs 10 --baseline exponential --exp_beta ${11} --lr_model $9 --lr_decay ${10} --ent_rate ${12} --output_dir $SLURM_TMPDIR/output_$DATASET --log_dir $SLURM_TMPDIR/logs_$DATASET --max_grad_norm 1.0 --n_encode_layers 3 --model $MODEL
 
