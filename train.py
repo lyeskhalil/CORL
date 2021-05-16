@@ -132,7 +132,7 @@ def rollout_eval(models, dataset, opts):
         cr = (
             -cost.data.flatten()
             * opts.u_size
-            / move_to(batch.y + (batch.y == 0).float(), opts.device)
+            / move_to(batch.y[1] + (batch.y[1] == 0).float(), opts.device)
         )
         # print(
         #     "\nBatch Competitive ratio: ", min(cr).item(),
@@ -185,9 +185,14 @@ def rollout(model, dataset, opts):
 
         #print(-cost.data.flatten())
         # print(bat[-1])
+<<<<<<< HEAD
+        cr = (-cost.data.flatten() * opts.u_size) / move_to(
+            batch.y[1] + (batch.y[1] == 0).float(), opts.device
+=======
         # print(batch.y)
         cr = (-cost.data.flatten()) / move_to(
             batch.y + (batch.y == 0).float(), opts.device
+>>>>>>> 9f0d0b77cfdad9243c610f341197816bf5df513a
         )
         # print(
         #     "\nBatch Competitive ratio: ", min(cr).item(),
@@ -271,21 +276,43 @@ def train_epoch(
     # Put model in train mode!
     model.train()
     set_decode_type(model, "sampling")
-    for batch_id, batch in enumerate(
-        tqdm(training_dataloader, disable=opts.no_progress_bar)
-    ):
-        train_batch(
-            model, optimizers, baseline, epoch, batch_id, step, batch, tb_logger, opts
+
+    # if the model is supervised, train differently
+    if opts.model == 'supervised':
+
+        for batch_id, batch in enumerate(
+            tqdm(training_dataloader, disable=opts.no_progress_bar)
+        ):
+            train_batch_supervised(
+                model, optimizers, epoch, batch_id, step, batch, tb_logger, opts
+            )
+
+            step += 1
+
+        epoch_duration = time.time() - start_time
+        print(
+            "Finished epoch {}, took {} s".format(
+                epoch, time.strftime("%H:%M:%S", time.gmtime(epoch_duration))
+            )
         )
 
-        step += 1
+    # use train_batch if the model is not supervised
+    else:
+        for batch_id, batch in enumerate(
+            tqdm(training_dataloader, disable=opts.no_progress_bar)
+        ):
+            train_batch(
+                model, optimizers, baseline, epoch, batch_id, step, batch, tb_logger, opts
+            )
 
-    epoch_duration = time.time() - start_time
-    print(
-        "Finished epoch {}, took {} s".format(
-            epoch, time.strftime("%H:%M:%S", time.gmtime(epoch_duration))
+            step += 1
+
+        epoch_duration = time.time() - start_time
+        print(
+            "Finished epoch {}, took {} s".format(
+                epoch, time.strftime("%H:%M:%S", time.gmtime(epoch_duration))
+            )
         )
-    )
 
     if (
         opts.checkpoint_epochs == 0 and (epoch == opts.n_epochs - 1) and not opts.tune
@@ -435,3 +462,24 @@ def train_batch(
             tb_logger,
             opts,
         )
+
+
+def  train_batch_supervised(model, optimizers, epoch, batch_id, step, batch, tb_logger, opts):
+    # Evaluate model, get costs and log probabilities
+    batch = move_to(batch, opts.device)
+    matchings = batch.y[0]
+    cost, log_likelihood, e = model(batch, matchings, opts, optimizers)
+    
+    # Logging
+    log_values(
+        cost,
+        grad_norms,
+        epoch,
+        batch_id,
+        step,
+        log_likelihood,
+        reinforce_loss,
+        bl_loss,
+        tb_logger,
+        opts,
+    )
