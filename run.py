@@ -35,6 +35,7 @@ from policy.inv_ff_history import InvariantFFHist
 from policy.greedy import Greedy
 from policy.greedy_rt import GreedyRt
 from policy.simple_greedy import SimpleGreedy
+from polict.supervised import SupervisedModel
 
 # from nets.pointer_network import PointerNetwork, CriticNetworkLSTM
 from functions import torch_load_cpu, load_problem
@@ -89,6 +90,7 @@ def run(opts):
         "inv-ff": InvariantFF,
         "inv-ff-hist": InvariantFFHist,
         "ff-hist": FeedForwardModelHist,
+        "supervised": SupervisedModel,
     }.get(opts.model, None)
     assert model_class is not None, "Unknown model: {}".format(model_class)
     # if not opts.tune:
@@ -106,9 +108,10 @@ def run(opts):
     if opts.eval_only:
         validate(model, val_dataloader, opts)
     elif opts.tune_wandb:
+        # wandb.login(key="e49f6e29371d2198953129649f6352f26d5a6fd5", relogin=True)
         wandb.agent(
-            opts.sweep_id,
-            lambda config=None: train_wandb(
+            sweep_id=opts.sweep_id,
+            function=lambda config=None: train_wandb(
                 model_class, problem, tb_logger, opts, config=config
             ),
             count=opts.num_per_agent,
@@ -285,7 +288,13 @@ def train_wandb(model_class, problem, tb_logger, opts, config=None):
                 tb_logger,
                 opts,
             )
-            wandb.log({"val_reward": abs(avg_reward), "epoch": epoch})
+            wandb.log(
+                {
+                    "val_reward": abs(avg_reward),
+                    "avg_cr": abs(avg_cr),
+                    "min_cr": abs(min_cr),
+                }
+            )
 
 
 def setup_training_env(opts, model_class, problem, load_data, tb_logger):

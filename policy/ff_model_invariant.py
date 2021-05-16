@@ -89,7 +89,7 @@ class InvariantFF(nn.Module):
             # step_size = state.i.item() + 1
             # v = state.i - (state.u_size + 1)
             # su = (state.weights[:, v, :]).float().sum(1)
-            w = (state.adj[:, 0, :]).float()
+            w = (state.adj[:, 0, :]).clone().float()
             mean_w = w.mean(1)[:, None, None].repeat(1, state.u_size + 1, 1)
             mask = state.get_mask()
             s = w.reshape(state.batch_size, state.u_size + 1, 1)
@@ -97,6 +97,7 @@ class InvariantFF(nn.Module):
             # h_var = (state.hist_sum_sq - ((state.hist_sum ** 2) / i)) / i
             # h_mean_degree = state.hist_deg / i
             # h_mean[:, :, 0], h_var[:, :, 0], h_mean_degree[:, :, 0] = -1, -1, -1
+            s[:, 0, :], mean_w[:, 0, :] = -1.0, -1.0
             # print(h_mean_degree)
             s = torch.cat((s, mean_w,), dim=2,)
             # print(s)

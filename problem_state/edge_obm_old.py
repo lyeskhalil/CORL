@@ -160,6 +160,7 @@ class StateEdgeBipartite(NamedTuple):
         #    weights,
         # )[:, -1, : self.u_size + 1].squeeze(-1)
         # v = self.i - (self.u_size + 1)
+        # print(self.adj[:, 0, :].gather(1, selected))
         total_weights = self.size + self.adj[:, 0, :].gather(1, selected)
         hist_sum = self.hist_sum + self.adj[:, 0, :].unsqueeze(1)
         hist_sum_sq = self.hist_sum_sq + self.adj[:, 0, :].unsqueeze(1) ** 2

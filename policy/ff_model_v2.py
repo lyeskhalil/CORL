@@ -64,6 +64,7 @@ class FeedForwardModel(nn.Module):
 
     def _calc_log_likelihood(self, _log_p, a, mask):
 
+        entropy = -(_log_p * _log_p.exp()).sum(2).sum(1).mean()
         # Get log_p corresponding to selected actions
         entropy = -(_log_p * _log_p.exp()).sum(2).sum(1).mean()
         log_p = _log_p.gather(2, a.unsqueeze(-1)).squeeze(-1)
