@@ -35,7 +35,8 @@ from policy.inv_ff_history import InvariantFFHist
 from policy.greedy import Greedy
 from policy.greedy_rt import GreedyRt
 from policy.simple_greedy import SimpleGreedy
-from polict.supervised import SupervisedModel
+from policy.supervised import SupervisedModel
+from policy.gnn_hist import GNNHist
 
 # from nets.pointer_network import PointerNetwork, CriticNetworkLSTM
 from functions import torch_load_cpu, load_problem
@@ -91,6 +92,7 @@ def run(opts):
         "inv-ff-hist": InvariantFFHist,
         "ff-hist": FeedForwardModelHist,
         "supervised": SupervisedModel,
+        "gnn-hist": GNNHist,
     }.get(opts.model, None)
     assert model_class is not None, "Unknown model: {}".format(model_class)
     # if not opts.tune:
