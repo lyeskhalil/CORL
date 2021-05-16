@@ -48,17 +48,17 @@ class InvariantFF(nn.Module):
         # cost, mask = self.problem.get_costs(input, pi)
         # Log likelyhood is calculated within the model since returning it per action does not work well with
         # DataParallel since sequences can be of different lengths
-        ll = self._calc_log_likelihood(_log_p, pi, None)
+        ll, e = self._calc_log_likelihood(_log_p, pi, None)
         if return_pi:
-            return -cost, ll, pi
+            return -cost, ll, pi, e
         # print(ll)
-        return -cost, ll
+        return -cost, ll, e
 
     def _calc_log_likelihood(self, _log_p, a, mask):
 
         # Get log_p corresponding to selected actions
         log_p = _log_p.gather(2, a.unsqueeze(-1)).squeeze(-1)
-
+        entropy = -(_log_p * _log_p.exp()).sum(2).sum(1).mean()
         # Optional: mask out actions irrelevant to objective so they do not get reinforced
         if mask is not None:
             log_p[mask] = 0
@@ -69,7 +69,7 @@ class InvariantFF(nn.Module):
         ).data.all(), "Logprobs should not be -inf, check sampling procedure!"
 
         # Calculate log_likelihood
-        return log_p.sum(1)
+        return log_p.sum(1), entropy
 
     def _inner(self, input, opts):
 
@@ -114,7 +114,7 @@ class InvariantFF(nn.Module):
         return (
             torch.stack(outputs, 1),
             torch.stack(sequences, 1),
-            state.size / (opts.u_size),
+            state.size,
         )
 
     def _select_node(self, probs, mask):

@@ -103,14 +103,14 @@ def rollout_eval(models, dataset, opts):
 
     def eval_model_bat(bat, optimal):
         with torch.no_grad():
-            cost, _, a = model(
+            cost, _, a, _ = model(
                 move_to(bat, opts.device),
                 opts,
                 baseline=None,
                 return_pi=True,
                 optimizer=None,
             )
-            cost1, _, a1 = g(
+            cost1, _, a1, _ = g(
                 move_to(bat, opts.device),
                 opts,
                 baseline=None,
@@ -129,16 +129,14 @@ def rollout_eval(models, dataset, opts):
         else:
             w, p = wilcoxon(-cost.squeeze(), -cost1.squeeze(), alternative="greater")
         # print(bat[-1])
-        cr = (
-            -cost.data.flatten()
-            * opts.u_size
-            / move_to(batch.y + (batch.y == 0).float(), opts.device)
+        cr = -cost.data.flatten() / move_to(
+            batch.y + (batch.y == 0).float(), opts.device
         )
         # print(
         #     "\nBatch Competitive ratio: ", min(cr).item(),
         # )
         return (
-            cost.data.cpu() * opts.u_size,
+            cost.data.cpu(),
             cr,
             num_agree,
             count,

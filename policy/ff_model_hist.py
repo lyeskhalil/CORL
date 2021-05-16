@@ -49,11 +49,7 @@ class FeedForwardModelHist(nn.Module):
                 torch.nn.init.xavier_uniform_(m.weight)
                 m.bias.data.fill_(0.0001)
 
-<<<<<<< HEAD
-        #self.ff.apply(init_weights)
-=======
         # self.ff.apply(init_weights)
->>>>>>> e05401c565038e9574bc1ef9d5adf00306171e76
         # self.init_parameters()
 
     def init_parameters(self):
@@ -70,7 +66,7 @@ class FeedForwardModelHist(nn.Module):
         # DataParallel since sequences can be of different lengths
         ll, e = self._calc_log_likelihood(_log_p, pi, None)
         if return_pi:
-            return -cost, ll, pi
+            return -cost, ll, pi, e
         # print(ll)
         return -cost, ll, e
 
