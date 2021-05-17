@@ -103,14 +103,14 @@ def rollout_eval(models, dataset, opts):
 
     def eval_model_bat(bat, optimal):
         with torch.no_grad():
-            cost, _, a = model(
+            cost, _, a, _ = model(
                 move_to(bat, opts.device),
                 opts,
                 baseline=None,
                 return_pi=True,
                 optimizer=None,
             )
-            cost1, _, a1 = g(
+            cost1, _, a1, _ = g(
                 move_to(bat, opts.device),
                 opts,
                 baseline=None,
@@ -129,16 +129,14 @@ def rollout_eval(models, dataset, opts):
         else:
             w, p = wilcoxon(-cost.squeeze(), -cost1.squeeze(), alternative="greater")
         # print(bat[-1])
-        cr = (
-            -cost.data.flatten()
-            * opts.u_size
-            / move_to(batch.y[1] + (batch.y[1] == 0).float(), opts.device)
+        cr = -cost.data.flatten() / move_to(
+            batch.y[1] + (batch.y[1] == 0).float(), opts.device
         )
         # print(
         #     "\nBatch Competitive ratio: ", min(cr).item(),
         # )
         return (
-            cost.data.cpu() * opts.u_size,
+            cost.data.cpu(),
             cr,
             num_agree,
             count,
@@ -185,14 +183,8 @@ def rollout(model, dataset, opts):
 
         # print(-cost.data.flatten())
         # print(bat[-1])
-<<<<<<< HEAD
-        cr = (-cost.data.flatten() * opts.u_size) / move_to(
-            batch.y[1] + (batch.y[1] == 0).float(), opts.device
-=======
-        # print(batch.y)
         cr = (-cost.data.flatten()) / move_to(
-            batch.y + (batch.y == 0).float(), opts.device
->>>>>>> 9f0d0b77cfdad9243c610f341197816bf5df513a
+            batch.y[1] + (batch.y[1] == 0).float(), opts.device
         )
         # print(
         #     "\nBatch Competitive ratio: ", min(cr).item(),
@@ -278,7 +270,7 @@ def train_epoch(
     set_decode_type(model, "sampling")
 
     # if the model is supervised, train differently
-    if opts.model == 'supervised':
+    if opts.model == "supervised":
 
         for batch_id, batch in enumerate(
             tqdm(training_dataloader, disable=opts.no_progress_bar)
@@ -302,7 +294,15 @@ def train_epoch(
             tqdm(training_dataloader, disable=opts.no_progress_bar)
         ):
             train_batch(
-                model, optimizers, baseline, epoch, batch_id, step, batch, tb_logger, opts
+                model,
+                optimizers,
+                baseline,
+                epoch,
+                batch_id,
+                step,
+                batch,
+                tb_logger,
+                opts,
             )
 
             step += 1
@@ -431,7 +431,6 @@ def train_batch(
     if not opts.n_step:
         reinforce_loss = ((cost.squeeze(1) - bl_val) * log_likelihood).mean()
         loss = reinforce_loss + bl_loss - opts.ent_rate * e
-
         # Perform backward pass and optimization step
         optimizers[0].zero_grad()
         loss.backward()
@@ -463,12 +462,16 @@ def train_batch(
         )
 
 
-def  train_batch_supervised(model, optimizers, epoch, batch_id, step, batch, tb_logger, opts):
+def train_batch_supervised(
+    model, optimizers, epoch, batch_id, step, batch, tb_logger, opts
+):
     # Evaluate model, get costs and log probabilities
     batch = move_to(batch, opts.device)
     matchings = batch.y[0]
     cost, log_likelihood, e = model(batch, matchings, opts, optimizers)
-    
+    grad_norms = [[0, 0], [0, 0]]
+    reinforce_loss = torch.tensor(0)
+    bl_loss = 0
     # Logging
     log_values(
         cost,

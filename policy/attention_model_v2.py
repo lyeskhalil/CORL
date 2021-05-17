@@ -300,7 +300,7 @@ class AttentionModel(nn.Module):
         return (
             torch.stack(outputs, 1),
             torch.stack(sequences, 1),
-            state.size / state.v_size,
+            state.size,
         )
 
     def _select_node(self, probs, mask):

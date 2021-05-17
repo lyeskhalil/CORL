@@ -2,7 +2,7 @@ import argparse
 import os
 from networkx.classes.function import number_of_edges
 import numpy as np
-from data_utils import check_extension, save_dataset
+from data.data_utils import check_extension, save_dataset
 import networkx as nx
 from scipy.optimize import linear_sum_assignment
 import torch
@@ -398,7 +398,10 @@ def generate_edge_obm_data_geometric(
         # s = sorted(list(g1.nodes))
         # m = 1 - nx.convert_matrix.to_numpy_array(g1, s)
         data = from_networkx(g1)
-        data.y = (i2, torch.tensor(optimal).float())  #tuple of optimla and size of matching
+        data.y = (
+            i2,
+            torch.tensor(optimal).float(),
+        )  # tuple of optimla and size of matching
         if save_data:
             torch.save(
                 data, "{}/data_{}.pt".format(dataset_folder, i),
@@ -407,11 +410,7 @@ def generate_edge_obm_data_geometric(
             D.append(data)
             M.append(optimal)
         # ordered_m = np.take(np.take(m, order, axis=1), order, axis=0)
-    return (
-        list(D),
-        torch.tensor(M),
-        torch.tensor(S)
-    )
+    return (list(D), torch.tensor(M), torch.tensor(S))
 
 
 def generate_edge_obm_data(
