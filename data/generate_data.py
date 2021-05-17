@@ -367,7 +367,16 @@ def generate_weights_geometric(distribution, u_size, v_size, parameters, g1, see
 
 
 def generate_er_graph(
-    u, v, tasks, edges, workers, p, seed, weight_distribution, weight_param, vary_fixed=False
+    u,
+    v,
+    tasks,
+    edges,
+    workers,
+    p,
+    seed,
+    weight_distribution,
+    weight_param,
+    vary_fixed=False,
 ):
 
     g1 = nx.bipartite.random_graph(u, v, p, seed=seed)
@@ -399,18 +408,14 @@ def generate_edge_obm_data_geometric(
 
     Supports uniformm, normal, and power distributions.
     """
-    D, M , S = [], [], []
+    D, M, S = [], [], []
     vary_fixed = False
     edges, tasks, workers = None, None, None
     if graph_family == "er":
         g = generate_er_graph
     elif graph_family == "ba":
         g = generate_ba_graph
-    elif (
-        graph_family == "gmission"
-        or graph_family == "gmission-var"
-        or graph_family == "gmission-max"
-    ):
+    elif "gmission" in graph_family:
         edges, tasks, reduced_tasks, reduced_workers = parse_gmission_dataset()
         max_w = max(np.array(list(edges.values()), dtype="float"))
         edges = {k: (float(v) / float(max_w)) for k, v in edges.items()}
@@ -443,13 +448,14 @@ def generate_edge_obm_data_geometric(
             list(zip([-1] * v_size, range(u_size, u_size + v_size))), weight=0
         )
         i1, i2 = linear_sum_assignment(weights, maximize=True)
-        print(weights.T.sum(0).mean())
         optimal = weights[i1, i2].sum()
         # s = sorted(list(g1.nodes))
         # m = 1 - nx.convert_matrix.to_numpy_array(g1, s)
         data = from_networkx(g1)
-        data.x = i2.tolist() # this is a list, must convert to tensor when a batch is called
-        data.y = torch.tensor(optimal).float()  #tuple of optimla and size of matching
+        data.x = (
+            i2.tolist()
+        )  # this is a list, must convert to tensor when a batch is called
+        data.y = torch.tensor(optimal).float()  # tuple of optimla and size of matching
         if save_data:
             torch.save(
                 data, "{}/data_{}.pt".format(dataset_folder, i),
