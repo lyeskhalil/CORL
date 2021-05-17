@@ -14,9 +14,11 @@ import math
 
 # from torch_geometric.utils import from_networkx
 
-gMission_edges = "data/edges.txt"
+gMission_edges = "data/gMission/edges.txt"
 
-gMission_tasks = "data/tasks.txt"
+gMission_tasks = "data/gMission/tasks.txt"
+gMission_reduced_tasks = "data/gMission/reduced_tasks.txt"
+gMission_reduced_workers = "data/gMission/reduced_workers.txt"
 
 
 def _add_nodes_with_bipartite_label(G, lena, lenb):
@@ -194,6 +196,8 @@ def from_networkx(G):
 def parse_gmission_dataset():
     f_edges = open(gMission_edges, "r")
     f_tasks = open(gMission_tasks, "r")
+    f_reduced_tasks = open(gMission_reduced_tasks, "r")
+    f_reduced_workers = open(gMission_reduced_workers, "r")
     edgeWeights = dict()
     edgeNumber = dict()
     count = 0
@@ -204,6 +208,8 @@ def parse_gmission_dataset():
         count += 1
 
     tasks = list()
+    reduced_tasks = []
+    reduced_workers = []
     tasks_x = dict()
     tasks_y = dict()
 
@@ -213,7 +219,43 @@ def parse_gmission_dataset():
         tasks_x[vals[0]] = float(vals[2])
         tasks_y[vals[0]] = float(vals[3])
 
-    return edgeWeights, tasks
+    for t in f_reduced_tasks:
+        reduced_tasks.append(t)
+
+    for w in f_reduced_workers:
+        reduced_workers.append(w)
+
+    return edgeWeights, tasks, reduced_tasks, reduced_workers
+
+
+def find_best_tasks(tasks, edges):
+    task_total = {}
+    f_open = open("data/gMission/reduced_tasks.txt", "a")
+    for e in edges.items():
+        task = e[0].split(";")[1]
+        if task not in task_total:
+            task_total[task] = 1
+        else:
+            task_total[task] += 1
+    top_tasks = sorted(task_total.items(), key=lambda k: k[1], reverse=True)[:300]
+    for t in top_tasks:
+        f_open.write(t[0] + "\n")
+    return top_tasks
+
+
+def find_best_workers(tasks, edges):
+    task_total = {}
+    f_open = open("data/gMission/reduced_workers.txt", "a")
+    for e in edges.items():
+        task = e[0].split(";")[0]
+        if task not in task_total:
+            task_total[task] = 1
+        else:
+            task_total[task] += 1
+    top_tasks = sorted(task_total.items(), key=lambda k: k[1], reverse=True)[:200]
+    for t in top_tasks:
+        f_open.write(t[0] + "\n")
+    return top_tasks
 
 
 def generate_gmission_graph(
@@ -363,12 +405,19 @@ def generate_edge_obm_data_geometric(
         g = generate_er_graph
     elif graph_family == "ba":
         g = generate_ba_graph
-    elif graph_family == "gmission" or graph_family == "gmission-var":
-        edges, tasks = parse_gmission_dataset()
+    elif (
+        graph_family == "gmission"
+        or graph_family == "gmission-var"
+        or graph_family == "gmission-max"
+    ):
+        edges, tasks, reduced_tasks, reduced_workers = parse_gmission_dataset()
         max_w = max(np.array(list(edges.values()), dtype="float"))
         edges = {k: (float(v) / float(max_w)) for k, v in edges.items()}
         np.random.seed(100)
         workers = list(np.random.randint(1, 533, size=u_size))
+        if graph_family == "gmission-max":
+            tasks = reduced_tasks
+            workers = np.random.choice(reduced_workers, size=u_size, replace=False)
         g = generate_gmission_graph
         vary_fixed = graph_family == "gmission-var"
     for i in tqdm(range(dataset_size)):
@@ -393,6 +442,7 @@ def generate_edge_obm_data_geometric(
             list(zip([-1] * v_size, range(u_size, u_size + v_size))), weight=0
         )
         i1, i2 = linear_sum_assignment(weights, maximize=True)
+        print(weights.T.sum(0).mean())
         optimal = weights[i1, i2].sum()
         # s = sorted(list(g1.nodes))
         # m = 1 - nx.convert_matrix.to_numpy_array(g1, s)
