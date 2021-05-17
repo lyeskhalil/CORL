@@ -132,7 +132,7 @@ def rollout_eval(models, dataset, opts):
         cr = (
             -cost.data.flatten()
             * opts.u_size
-            / move_to(batch.y[1] + (batch.y[1] == 0).float(), opts.device)
+            / move_to(batch.y + (batch.y == 0).float(), opts.device)
         )
         # print(
         #     "\nBatch Competitive ratio: ", min(cr).item(),
@@ -185,14 +185,8 @@ def rollout(model, dataset, opts):
 
         # print(-cost.data.flatten())
         # print(bat[-1])
-<<<<<<< HEAD
         cr = (-cost.data.flatten() * opts.u_size) / move_to(
-            batch.y[1] + (batch.y[1] == 0).float(), opts.device
-=======
-        # print(batch.y)
-        cr = (-cost.data.flatten()) / move_to(
             batch.y + (batch.y == 0).float(), opts.device
->>>>>>> 9f0d0b77cfdad9243c610f341197816bf5df513a
         )
         # print(
         #     "\nBatch Competitive ratio: ", min(cr).item(),
@@ -459,6 +453,7 @@ def train_batch(
             reinforce_loss,
             bl_loss,
             tb_logger,
+            batch_loss = None,
             opts,
         )
 
@@ -466,19 +461,23 @@ def train_batch(
 def  train_batch_supervised(model, optimizers, epoch, batch_id, step, batch, tb_logger, opts):
     # Evaluate model, get costs and log probabilities
     batch = move_to(batch, opts.device)
-    matchings = batch.y[0]
-    cost, log_likelihood, e = model(batch, matchings, opts, optimizers)
+    matchings = torch.tensor(batch.x)
+    print('b ', batch)
+    print('m ', matchings)
+    print('batch.y ', batch.y)
+    cost, log_likelihood, e, batch_loss = model(batch, matchings, opts, optimizers)
     
     # Logging
     log_values(
         cost,
-        grad_norms,
+        grad_norms = None,
         epoch,
         batch_id,
         step,
         log_likelihood,
-        reinforce_loss,
-        bl_loss,
+        reinforce_loss = None,
+        bl_loss = None,
         tb_logger,
+        batch_loss
         opts,
     )

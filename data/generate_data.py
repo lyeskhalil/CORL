@@ -2,7 +2,7 @@ import argparse
 import os
 from networkx.classes.function import number_of_edges
 import numpy as np
-from data_utils import check_extension, save_dataset
+from data.data_utils import check_extension, save_dataset
 import networkx as nx
 from scipy.optimize import linear_sum_assignment
 import torch
@@ -325,7 +325,7 @@ def generate_weights_geometric(distribution, u_size, v_size, parameters, g1, see
 
 
 def generate_er_graph(
-    u, v, tasks, edges, workers, p, seed, weight_distribution, weight_param
+    u, v, tasks, edges, workers, p, seed, weight_distribution, weight_param, vary_fixed=False
 ):
 
     g1 = nx.bipartite.random_graph(u, v, p, seed=seed)
@@ -358,6 +358,7 @@ def generate_edge_obm_data_geometric(
     Supports uniformm, normal, and power distributions.
     """
     D, M , S = [], [], []
+    vary_fixed = False
     edges, tasks, workers = None, None, None
     if graph_family == "er":
         g = generate_er_graph
@@ -397,7 +398,8 @@ def generate_edge_obm_data_geometric(
         # s = sorted(list(g1.nodes))
         # m = 1 - nx.convert_matrix.to_numpy_array(g1, s)
         data = from_networkx(g1)
-        data.y = (i2, torch.tensor(optimal).float())  #tuple of optimla and size of matching
+        data.x = i2.tolist() # this is a list, must convert to tensor when a batch is called
+        data.y = torch.tensor(optimal).float()  #tuple of optimla and size of matching
         if save_data:
             torch.save(
                 data, "{}/data_{}.pt".format(dataset_folder, i),

@@ -47,8 +47,8 @@ class StateEdgeBipartite(NamedTuple):
                 u_size=self.u_size[key],
                 v_size=self.v_size[key],
             )
-        return super(StateEdgeBipartite, self).__getitem__(key)
-        #return self[key]
+        #return super(StateEdgeBipartite, self).__getitem__(key)
+        return self[key]
 
     @staticmethod
     def initialize(
