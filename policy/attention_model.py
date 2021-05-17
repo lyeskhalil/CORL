@@ -11,7 +11,7 @@ import torch.nn.functional as F
 from encoder.graph_encoder_v2 import GraphAttentionEncoder
 from train import clip_grad_norms
 
-from encoder.graph_encoder import MPNN
+#from encoder.graph_encoder import MPNN
 from torch.nn import DataParallel
 from torch_geometric.utils import subgraph
 
@@ -121,7 +121,7 @@ class AttentionModel(nn.Module):
             )  # Placeholder should be in range of activations
         # self.init_embed = nn.Linear(node_dim, embedding_dim)
 
-        encoder_class = {"attention": GraphAttentionEncoder, "mpnn": MPNN}.get(
+        encoder_class = {"attention": GraphAttentionEncoder}.get(
             encoder, None
         )
 
