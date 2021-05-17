@@ -59,8 +59,10 @@ class StateEdgeBipartite(NamedTuple):
         adj = to_dense_adj(input.edge_index, input.batch, input.weight.unsqueeze(1))[
             :, u_size + 1 :, : u_size + 1
         ].squeeze(-1)
-        idx = torch.randperm(adj.shape[1])
-        adj = adj[:, idx, :].view(adj.size())
+
+        #permute the nodes for data 
+        # idx = torch.randperm(adj.shape[1])
+        # adj = adj[:, idx, :].view(adj.size())
         # size = torch.zeros(batch_size, 1, dtype=torch.long, device=graphs.device)
         # adj = (input[0] == 0).float()
         # adj[:, :, 0] = 0.0
@@ -160,6 +162,7 @@ class StateEdgeBipartite(NamedTuple):
         #    weights,
         # )[:, -1, : self.u_size + 1].squeeze(-1)
         # v = self.i - (self.u_size + 1)
+        # print(self.adj[:, 0, :].gather(1, selected))
         total_weights = self.size + self.adj[:, 0, :].gather(1, selected)
         hist_sum = self.hist_sum + self.adj[:, 0, :].unsqueeze(1)
         hist_sum_sq = self.hist_sum_sq + self.adj[:, 0, :].unsqueeze(1) ** 2

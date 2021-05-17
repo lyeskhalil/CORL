@@ -67,7 +67,7 @@ class FeedForwardModelHist(nn.Module):
         # DataParallel since sequences can be of different lengths
         ll, e = self._calc_log_likelihood(_log_p, pi, None)
         if return_pi:
-            return -cost, ll, pi
+            return -cost, ll, pi, e
         # print(ll)
         return -cost, ll, e
 
@@ -116,8 +116,10 @@ class FeedForwardModelHist(nn.Module):
             h_var = ((state.hist_sum_sq - ((state.hist_sum ** 2) / i)) / i).squeeze(1)
             h_mean_degree = state.hist_deg.squeeze(1) / i
             h_mean[:, 0], h_var[:, 0], h_mean_degree[:, 0] = -1.0, -1.0, -1.0
-            ind = torch.ones(state.batch_size, 1) * i
-            s = torch.cat((s, h_mean, h_var, h_mean_degree, state.size, ind), dim=1,)
+            ind = torch.ones(state.batch_size, 1, device=opts.device) * i
+            s = torch.cat(
+                (s, h_mean, h_var, h_mean_degree, state.size, ind.float()), dim=1,
+            )
             # s = w
             pi = self.ff(s)
             # Select the indices of the next nodes in the sequences, result (batch_size) long

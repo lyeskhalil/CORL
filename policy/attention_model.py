@@ -228,11 +228,11 @@ class AttentionModel(nn.Module):
         batch_size = state.batch_size
         graph_size = state.u_size + state.v_size + 1
         i = 1
-        
+
         while not (state.all_finished()):
             step_size = state.i + 1
 
-            # Pass the graph to the Encoder 
+            # Pass the graph to the Encoder
             node_features = (
                 torch.cat(
                     (
@@ -277,17 +277,15 @@ class AttentionModel(nn.Module):
 
             # context node embedding
             fixed = self._precompute(embeddings, step_size, opts, state)
-            
+
             # Decoder
             log_p, mask = self._get_log_p(
                 fixed, state, step_context, opts, embeddings[:, -1, :]
             )
-            
-            # Select a Node 
-            selected = self._select_node(
-                log_p.exp()[:, 0, :], mask[:, 0, :].bool()
-            )  
-            
+
+            # Select a Node
+            selected = self._select_node(log_p.exp()[:, 0, :], mask[:, 0, :].bool())
+
             # Update state information
             state = state.update(selected[:, None])
             s = (selected[:, None].repeat(1, fixed.node_embeddings.size(-1)))[
@@ -337,7 +335,7 @@ class AttentionModel(nn.Module):
         return (
             torch.stack(outputs, 1),
             torch.stack(sequences, 1),
-            state.size / (state.v_size * 100.0),
+            state.size,
         )
 
     def _select_node(self, probs, mask):

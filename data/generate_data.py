@@ -408,11 +408,7 @@ def generate_edge_obm_data_geometric(
             D.append(data)
             M.append(optimal)
         # ordered_m = np.take(np.take(m, order, axis=1), order, axis=0)
-    return (
-        list(D),
-        torch.tensor(M),
-        torch.tensor(S)
-    )
+    return (list(D), torch.tensor(M), torch.tensor(S))
 
 
 def generate_edge_obm_data(

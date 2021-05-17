@@ -36,6 +36,7 @@ from policy.greedy import Greedy
 from policy.greedy_rt import GreedyRt
 from policy.simple_greedy import SimpleGreedy
 from policy.supervised import SupervisedModel
+from policy.gnn_hist import GNNHist
 
 # from nets.pointer_network import PointerNetwork, CriticNetworkLSTM
 from functions import torch_load_cpu, load_problem
@@ -91,6 +92,7 @@ def run(opts):
         "inv-ff-hist": InvariantFFHist,
         "ff-hist": FeedForwardModelHist,
         "supervised": SupervisedModel,
+        "gnn-hist": GNNHist,
     }.get(opts.model, None)
     assert model_class is not None, "Unknown model: {}".format(model_class)
     # if not opts.tune:
@@ -108,9 +110,10 @@ def run(opts):
     if opts.eval_only:
         validate(model, val_dataloader, opts)
     elif opts.tune_wandb:
+        # wandb.login(key="e49f6e29371d2198953129649f6352f26d5a6fd5", relogin=True)
         wandb.agent(
-            opts.sweep_id,
-            lambda config=None: train_wandb(
+            sweep_id=opts.sweep_id,
+            function=lambda config=None: train_wandb(
                 model_class, problem, tb_logger, opts, config=config
             ),
             count=opts.num_per_agent,
@@ -287,7 +290,13 @@ def train_wandb(model_class, problem, tb_logger, opts, config=None):
                 tb_logger,
                 opts,
             )
-            wandb.log({"val_reward": abs(avg_reward), "epoch": epoch})
+            wandb.log(
+                {
+                    "val_reward": abs(avg_reward),
+                    "avg_cr": abs(avg_cr),
+                    "min_cr": abs(min_cr),
+                }
+            )
 
 
 def setup_training_env(opts, model_class, problem, load_data, tb_logger):
@@ -350,28 +359,27 @@ def setup_training_env(opts, model_class, problem, load_data, tb_logger):
     # Load baseline from data, make sure script is called with same type of baseline
     if "baseline" in load_data:
         baseline.load_state_dict(load_data["baseline"])
-    init_node_embedding_weights = (
-        "project_node_features.weight",
-        "project_node_features.bias",
-    )
-    parameters = (
-        p
-        for name, p in model.named_parameters()
-        if name not in init_node_embedding_weights
-    )
-    parameters1 = (
-        p for name, p in model.named_parameters() if name in init_node_embedding_weights
-    )
+    # init_node_embedding_weights = (
+    #     "project_node_features.weight",
+    #     "project_node_features.bias",
+    # )
+    # parameters = (
+    #     p
+    #     for name, p in model.named_parameters()
+    # )
+    # parameters1 = (
+    #     p for name, p in model.named_parameters() if name in init_node_embedding_weights
+    # )
     # Initialize optimizer
     optimizer = optim.Adam(
-        [{"params": parameters, "lr": opts.lr_model}]
+        [{"params": model.parameters(), "lr": opts.lr_model}]
         + (
             [{"params": baseline.get_learnable_parameters(), "lr": opts.lr_critic}]
             if len(baseline.get_learnable_parameters()) > 0
             else []
         )
     )
-    optimizer1 = optim.Adam([{"params": parameters1, "lr": opts.lr_model}])
+    # optimizer1 = optim.Adam([{"params": parameters1, "lr": opts.lr_model}])
 
     # Load optimizer state
     if "optimizer" in load_data:
@@ -386,15 +394,15 @@ def setup_training_env(opts, model_class, problem, load_data, tb_logger):
     lr_scheduler = optim.lr_scheduler.LambdaLR(
         optimizer, lambda epoch: opts.lr_decay ** epoch
     )
-    lr_scheduler1 = optim.lr_scheduler.LambdaLR(
-        optimizer1, lambda epoch: opts.lr_decay ** epoch
-    )
+    # lr_scheduler1 = optim.lr_scheduler.LambdaLR(
+    #     optimizer1, lambda epoch: opts.lr_decay ** epoch
+    # )
     # Start the actual training loop
     val_dataset = problem.make_dataset(
         opts.val_dataset, opts.val_size, opts.problem, seed=None, opts=opts
     )
     val_dataloader = geoDataloader(
-        val_dataset, batch_size=opts.eval_batch_size, num_workers=1
+        val_dataset, batch_size=opts.batch_size, num_workers=1
     )
     if opts.resume:  # TODO: This does not resume both optimizers
         epoch_resume = int(
@@ -411,8 +419,8 @@ def setup_training_env(opts, model_class, problem, load_data, tb_logger):
         opts.epoch_start = epoch_resume + 1
     return (
         model,
-        [lr_scheduler, lr_scheduler1],
-        [optimizer, optimizer1],
+        [lr_scheduler],
+        [optimizer],
         val_dataloader,
         baseline,
     )
