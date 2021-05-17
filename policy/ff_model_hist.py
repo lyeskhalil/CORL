@@ -49,7 +49,8 @@ class FeedForwardModelHist(nn.Module):
                 torch.nn.init.xavier_uniform_(m.weight)
                 m.bias.data.fill_(0.0001)
 
-        # self.ff.apply(init_weights)
+
+        #self.ff.apply(init_weights)
         # self.init_parameters()
 
     def init_parameters(self):
