@@ -325,7 +325,7 @@ def generate_weights_geometric(distribution, u_size, v_size, parameters, g1, see
 
 
 def generate_er_graph(
-    u, v, tasks, edges, workers, p, seed, weight_distribution, weight_param
+    u, v, tasks, edges, workers, p, seed, weight_distribution, weight_param, vary_fixed=False
 ):
 
     g1 = nx.bipartite.random_graph(u, v, p, seed=seed)
@@ -358,6 +358,7 @@ def generate_edge_obm_data_geometric(
     Supports uniformm, normal, and power distributions.
     """
     D, M , S = [], [], []
+    vary_fixed = False
     edges, tasks, workers = None, None, None
     if graph_family == "er":
         g = generate_er_graph
