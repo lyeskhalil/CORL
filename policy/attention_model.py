@@ -221,7 +221,7 @@ class AttentionModel(nn.Module):
         outputs = []
         sequences = []
 
-        state = self.problem.make_state(input, opts.u_size, opts.v_size, opts.num_edges)
+        state = self.problem.make_state(input, opts.u_size, opts.v_size, opts)
         # Compute keys, values for the glimpse and keys for the logits once as they can be reused in every step
         # fixed = self._precompute(embeddings)
         step_context = 0
