@@ -9,7 +9,7 @@ import torch.nn.functional as F
 # from utils.tensor_functions import compute_in_batches
 
 from encoder.graph_encoder_v2 import GraphAttentionEncoder
-from encoder.mpnn import MPNN
+#from encoder.mpnn import MPNN
 from torch.nn import DataParallel
 
 # from utils.functions import sample_many
@@ -115,7 +115,7 @@ class AttentionModel(nn.Module):
             )  # Placeholder should be in range of activations
         self.init_embed = nn.Linear(node_dim, embedding_dim)
 
-        encoder_class = {"attention": GraphAttentionEncoder, "mpnn": MPNN}.get(
+        encoder_class = {"attention": GraphAttentionEncoder}.get(
             encoder, None
         )
 

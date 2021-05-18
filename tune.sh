@@ -1,6 +1,6 @@
 #!/bin/bash
-#SBATCH --array=0-170
-#SBATCH --time=4:00:00
+#SBATCH --array=0-100
+#SBATCH --time=5:00:00
 #SBATCH --gres=gpu:v100l:1      # Request GPU "generic resources"
 #SBATCH --cpus-per-task=6  # Cores proportional to GPUs: 6 on Cedar, 16 on Graham.
 #SBATCH --mem=32000M       # Memory proportional to GPUs: 32000 Cedar, 64000 Graham.
@@ -8,19 +8,19 @@
 
 U_SIZE=10
 V_SIZE=30
-GRAPH_FAMILY="er"
+GRAPH_FAMILY="gmission"
 PROBLEM="e-obm"
-FAMILY_PARAMETER=0.15
+FAMILY_PARAMETER=-1
 TRAIN_SIZE=10000
 VAL_SIZE=1000
-EMBEDDING_SIZE=30
+EMBEDDING_SIZE=20
 MAX_WEIGHT=100
-WEIGHT_DIST="uniform"
-MEAN=5
-VARIANCE=100
+WEIGHT_DIST="gmission"
+MEAN=-1
+VARIANCE=-1
 a=3
 DATASET="$PROBLEM"_"$GRAPH_FAMILY"_"$U_SIZE"by"$V_SIZE"_"p=$FAMILY_PARAMETER"_"$WEIGHT_DIST"_"m=$MEAN"_"v=$VARIANCE"_"a=$a"
-MODEL="attention"
+MODEL="gnn-hist"
 
 module load python/3.7
 module load scipy-stack
@@ -35,7 +35,10 @@ pip install --no-index --no-cache-dir --upgrade --force-reinstall -r requirement
 tar xf ~/projects/def-khalile2/alomrani/$DATASET.tar -C $SLURM_TMPDIR/
 mkdir $SLURM_TMPDIR/logs_$DATASET
 
-python run.py --problem $PROBLEM --batch_size 200 --eval_batch_size 200 --embedding_dim $EMBEDDING_SIZE --n_heads 1 --u_size $U_SIZE --v_size $V_SIZE --n_epochs 200 --train_dataset $SLURM_TMPDIR/$DATASET/train --val_dataset $SLURM_TMPDIR/$DATASET/val --tune --dataset_size $TRAIN_SIZE --val_size $VAL_SIZE --checkpoint_epochs 0 --baseline exponential --lr_model 0.0001 --lr_decay 0.99 --output_dir $SLURM_TMPDIR/outputs_$DATASET --log_dir $SLURM_TMPDIR/logs_$DATASET --n_encode_layers 3 --encoder mpnn --model $MODEL --max_grad_norm 1.0 --graph_family_parameter $FAMILY_PARAMETER
+#wandb login b572b7949a645fde3201f8d08431c58506b9f542
+
+
+python run.py --problem $PROBLEM --no_tensorboard --sweep_id "rwjoo9op" --tune_wandb --num_per_agent 4 --batch_size 200 --eval_batch_size 200 --embedding_dim $EMBEDDING_SIZE --n_heads 1 --u_size $U_SIZE --v_size $V_SIZE --n_epochs 120 --train_dataset $SLURM_TMPDIR/$DATASET/train --val_dataset $SLURM_TMPDIR/$DATASET/val --tune --dataset_size $TRAIN_SIZE --val_size $VAL_SIZE --checkpoint_epochs 0 --baseline exponential --lr_model 0.0001 --lr_decay 0.99 --output_dir $SLURM_TMPDIR/outputs_$DATASET --log_dir $SLURM_TMPDIR/logs_$DATASET --n_encode_layers 3 --encoder mpnn --model $MODEL --max_grad_norm 1.0 --graph_family_parameter $FAMILY_PARAMETER --graph_family $GRAPH_FAMILY
 
 #cp -r $SLURM_TMPDIR/outputs_$DATASET/* ~/projects/def-khalile2/alomrani/tune_models/
 #cp -r $SLURM_TMPDIR/logs_$DATASET/* ~/projects/def-khalile2/alomrani/tune_logs/
