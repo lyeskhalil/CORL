@@ -35,7 +35,7 @@ class GreedyRt(nn.Module):
         self.problem = problem
 
     def forward(self, x, opts):
-        state = self.problem.make_state(x, opts.u_size, opts.v_size, opts.num_edges)
+        state = self.problem.make_state(x, opts.u_size, opts.v_size, opts)
         t = torch.tensor(
             np.e
             ** np.random.randint(

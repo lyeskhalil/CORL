@@ -49,8 +49,7 @@ class FeedForwardModelHist(nn.Module):
                 torch.nn.init.xavier_uniform_(m.weight)
                 m.bias.data.fill_(0.0001)
 
-
-        #self.ff.apply(init_weights)
+        # self.ff.apply(init_weights)
         # self.init_parameters()
 
     def init_parameters(self):
@@ -95,7 +94,7 @@ class FeedForwardModelHist(nn.Module):
 
         outputs = []
         sequences = []
-        state = self.problem.make_state(input, opts.u_size, opts.v_size, opts.num_edges)
+        state = self.problem.make_state(input, opts.u_size, opts.v_size, opts)
 
         # step_context = 0
         # batch_size = state.ids.size(0)

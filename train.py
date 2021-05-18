@@ -268,7 +268,7 @@ def train_epoch(
         tb_logger.add_scalar("learnrate_pg0", optimizers[0].param_groups[0]["lr"], step)
 
     # Generate new training data for each epoch
-    ## TODO: MODIFY SO THAT WE CAN ALSO USE A PRE-GENERATED DATASET
+    # TODO: MODIFY SO THAT WE CAN ALSO USE A PRE-GENERATED DATASET
     # training_dataset = baseline.wrap_dataset(problem.make_dataset(opts))
     # training_dataloader = DataLoader(
     #     training_dataset, batch_size=opts.batch_size, num_workers=1

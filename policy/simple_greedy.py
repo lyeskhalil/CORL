@@ -33,7 +33,7 @@ class SimpleGreedy(nn.Module):
         self.rank = 0
 
     def forward(self, x, opts):
-        state = self.problem.make_state(x, opts.u_size, opts.v_size, opts.num_edges)
+        state = self.problem.make_state(x, opts.u_size, opts.v_size, opts)
 
         self.rank = self.permute_uniform(
             torch.arange(1, state.u_size.item() + 2, device=x.device)

@@ -86,7 +86,7 @@ class FeedForwardModel(nn.Module):
 
         outputs = []
         sequences = []
-        state = self.problem.make_state(input, opts.u_size, opts.v_size, opts.num_edges)
+        state = self.problem.make_state(input, opts.u_size, opts.v_size, opts)
 
         # step_context = 0
         # batch_size = state.ids.size(0)

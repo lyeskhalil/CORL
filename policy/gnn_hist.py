@@ -132,7 +132,7 @@ class GNNHist(nn.Module):
         outputs = []
         sequences = []
 
-        state = self.problem.make_state(input, opts.u_size, opts.v_size, opts.num_edges)
+        state = self.problem.make_state(input, opts.u_size, opts.v_size, opts)
 
         batch_size = state.batch_size
         graph_size = state.u_size + state.v_size + 1
@@ -190,10 +190,6 @@ class GNNHist(nn.Module):
                 torch.tensor(i),
                 self.dummy,
             ).reshape(batch_size, step_size, -1)
-            # incoming_nodes = (torch.ones(batch_size, 1, device=opts.device, dtype=torch.int64) * state.i) + torch.arange(
-            #     0, batch_size * step_size, step_size, device=opts.device, dtype=torch.int64,
-            # ).unsqueeze(1)
-            # incoming_node_embeddings = torch.index_select(embeddings, 0, incoming_nodes.flatten()).reshape(batch_size, 1, opts.embedding_dim)
             incoming_node_embeddings = embeddings[:, -1, :].unsqueeze(1)
             # print(incoming_node_embeddings)
             w = (state.adj[:, 0, :]).float()

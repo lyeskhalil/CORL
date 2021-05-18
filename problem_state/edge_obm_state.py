@@ -7,52 +7,23 @@ from torch_geometric.utils import to_dense_adj, subgraph
 
 class StateEdgeBipartite(NamedTuple):
     # Fixed input
-    graphs: torch.Tensor  # full adjacency matrix of all graphs in a batch
-    # adj: torch.Tensor # full adjacency matrix of all graphs in a batch
-    weights: torch.Tensor  # weights of all edges of each graph in a batch
-    # edges: torch.Tensor  # edges of each graph in a batch
-    u_size: torch.Tensor
-    v_size: torch.Tensor
+    graphs: torch.Tensor  # graphs objects in a batch
+    u_size: int
+    v_size: int
     batch_size: torch.Tensor
     hist_sum: torch.tensor
     hist_sum_sq: torch.tensor
     hist_deg: torch.tensor
-    # If this state contains multiple copies (i.e. beam search) for the same instance, then for memory efficiency
-    # the loc and dist tensors are not kept multiple times, so we need to use the ids to index the correct rows.
-    ids: torch.Tensor  # Keeps track of original fixed data index of rows
+
     adj: torch.Tensor
     # State
-    # curr_edge: torch.Tensor  # current edge number
     matched_nodes: torch.Tensor  # Keeps track of nodes that have been matched
-    # picked_edges: torch.Tensor
     size: torch.Tensor  # size of current matching
-    i: torch.Tensor  # Keeps track of step
-    # mask: torch.Tensor  # mask for each step
-
-    @property
-    def visited(self):
-        if self.visited_.dtype == torch.uint8:
-            return self.matched_nodes
-
-    def __getitem__(self, key):
-        if torch.is_tensor(key) or isinstance(
-            key, slice
-        ):  # If tensor, idx all tensors by this tensor:
-            return self._replace(
-                ids=self.ids[key],
-                graphs=self.graphs[key],
-                weights=self.weights[key],
-                matched_nodes=self.matched_nodes[key],
-                size=self.size[key],
-                u_size=self.u_size[key],
-                v_size=self.v_size[key],
-            )
-        # return super(StateEdgeBipartite, self).__getitem__(key)
-        return self[key]
+    i: int  # Keeps track of step
 
     @staticmethod
     def initialize(
-        input, u_size, v_size, num_edges, visited_dtype=torch.uint8,
+        input, u_size, v_size, opts,
     ):
         graph_size = u_size + v_size + 1
         batch_size = int(input.batch.size(0) / graph_size)
@@ -61,8 +32,9 @@ class StateEdgeBipartite(NamedTuple):
         ].squeeze(-1)
 
         # permute the nodes for data
-        idx = torch.randperm(adj.shape[1])
-        adj = adj[:, idx, :].view(adj.size())
+        if opts.model != "supervised":
+            idx = torch.randperm(adj.shape[1])
+            adj = adj[:, idx, :].view(adj.size())
         # size = torch.zeros(batch_size, 1, dtype=torch.long, device=graphs.device)
         # adj = (input[0] == 0).float()
         # adj[:, :, 0] = 0.0
@@ -71,45 +43,19 @@ class StateEdgeBipartite(NamedTuple):
             adj=adj,
             u_size=u_size,
             v_size=v_size,
-            weights=None,
             batch_size=batch_size,
-            ids=None,
             # Keep visited with depot so we can scatter efficiently (if there is an action for depot)
             matched_nodes=(  # Visited as mask is easier to understand, as long more memory efficient
-                torch.zeros(
-                    batch_size,
-                    1,
-                    u_size + 1,
-                    dtype=torch.uint8,
-                    device=input.batch.device,
-                )
+                torch.zeros(batch_size, 1, u_size + 1, device=input.batch.device,)
             ),
             hist_sum=(  # Visited as mask is easier to understand, as long more memory efficient
-                torch.zeros(
-                    batch_size,
-                    1,
-                    u_size + 1,
-                    dtype=torch.uint8,
-                    device=input.batch.device,
-                )
+                torch.zeros(batch_size, 1, u_size + 1, device=input.batch.device,)
             ),
             hist_deg=(  # Visited as mask is easier to understand, as long more memory efficient
-                torch.zeros(
-                    batch_size,
-                    1,
-                    u_size + 1,
-                    dtype=torch.uint8,
-                    device=input.batch.device,
-                )
+                torch.zeros(batch_size, 1, u_size + 1, device=input.batch.device,)
             ),
             hist_sum_sq=(  # Visited as mask is easier to understand, as long more memory efficient
-                torch.zeros(
-                    batch_size,
-                    1,
-                    u_size + 1,
-                    dtype=torch.uint8,
-                    device=input.batch.device,
-                )
+                torch.zeros(batch_size, 1, u_size + 1, device=input.batch.device,)
             ),
             size=torch.zeros(batch_size, 1, device=input.batch.device),
             i=u_size + 1,
