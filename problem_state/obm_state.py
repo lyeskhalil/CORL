@@ -41,7 +41,7 @@ class StateBipartite(NamedTuple):
                 u_size=self.u_size[key],
                 v_size=self.v_size[key],
             )
-        #return super(StateBipartite, self).__getitem__(key)
+        # return super(StateBipartite, self).__getitem__(key)
         return self[key]
 
     @staticmethod
