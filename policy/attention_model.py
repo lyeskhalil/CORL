@@ -67,7 +67,7 @@ class AttentionModelFixed(NamedTuple):
                 glimpse_val=self.glimpse_val[:, key],  # dim 0 are the heads
                 logit_key=self.logit_key[key],
             )
-        #return super(AttentionModelFixed, self).__getitem__(key)
+        # return super(AttentionModelFixed, self).__getitem__(key)
         return self[key]
 
 

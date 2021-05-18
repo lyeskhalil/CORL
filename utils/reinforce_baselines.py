@@ -4,6 +4,7 @@ from torch.utils.data import Dataset
 from scipy.stats import ttest_rel
 import copy
 from train import rollout, get_inner_model
+from torch_geometric.data import DataLoader
 
 
 class Baseline(object):
@@ -49,6 +50,7 @@ class WarmupBaseline(Baseline):
     def unwrap_batch(self, batch):
         if self.alpha > 0:
             return self.baseline.unwrap_batch(batch)
+            # return batch
         return self.warmup_baseline.unwrap_batch(batch)
 
     def eval(self, x, c):
@@ -137,6 +139,18 @@ class CriticBaseline(Baseline):
         self.critic.load_state_dict({**self.critic.state_dict(), **critic_state_dict})
 
 
+class GreedyBaseline(Baseline):
+    def __init__(self, greedymodel, opts):
+        super(Baseline, self).__init__()
+
+        self.baseline = greedymodel
+        self.opts = opts
+
+    def eval(self, x, c):
+
+        return self.baseline(x, opts=self.opts)[0].detach(), 0  # No loss
+
+
 class RolloutBaseline(Baseline):
     def __init__(self, model, problem, opts, epoch=0):
         super(Baseline, self).__init__()
@@ -165,18 +179,23 @@ class RolloutBaseline(Baseline):
                 dataset = None
 
         if dataset is None:
-            self.dataset = self.problem.make_dataset(
-                u_size=self.opts.u_size,
-                v_size=self.opts.v_size,
-                num_edges=self.opts.num_edges,
-                max_weight=self.opts.max_weight,
-                num_samples=self.opts.val_size,
-                distribution=self.opts.data_distribution,
+            self.dataset = DataLoader(
+                self.problem.make_dataset(
+                    None,
+                    self.opts.val_size,
+                    self.opts.problem,
+                    seed=epoch * 1000,
+                    opts=self.opts,
+                ),
+                batch_size=self.opts.eval_batch_size,
+                num_workers=1,
             )
         else:
             self.dataset = dataset
         print("Evaluating baseline model on evaluation dataset")
-        self.bl_vals = rollout(self.model, self.dataset, self.opts)[0].cpu().numpy()
+        self.bl_vals = (
+            rollout(self.model, self.dataset, self.opts)[0].cpu().numpy() / 100.0
+        )
         self.mean = self.bl_vals.mean()
         self.epoch = epoch
 
@@ -184,20 +203,24 @@ class RolloutBaseline(Baseline):
         print("Evaluating baseline on dataset...")
         # Need to convert baseline to 2D to prevent converting to double, see
         # https://discuss.pytorch.org/t/dataloader-gives-double-instead-of-float/717/3
-        return BaselineDataset(
-            dataset, rollout(self.model, dataset, self.opts)[0].view(-1, 1)
+        dataloader = DataLoader(
+            dataset, batch_size=self.opts.eval_batch_size, num_workers=1
         )
+        return BaselineDataset(
+            dataset, rollout(self.model, dataloader, self.opts)[0].view(-1, 1)
+        )
+        # return dataset
 
     def unwrap_batch(self, batch):
         return (
             batch["data"],
-            batch["baseline"].view(-1),
+            None,
         )  # Flatten result to undo wrapping as 2D
 
     def eval(self, x, c):
         # Use volatile mode for efficient inference (single batch so we do not use rollout function)
         with torch.no_grad():
-            v, _ = self.model(x)
+            v, _ = self.model(x, self.opts, None, None)
 
         # There is no loss
         return v, 0
@@ -209,7 +232,9 @@ class RolloutBaseline(Baseline):
         :param epoch: The current epoch
         """
         print("Evaluating candidate model on evaluation dataset")
-        candidate_vals = rollout(model, self.dataset, self.opts)[0].cpu().numpy()
+        candidate_vals = (
+            rollout(model, self.dataset, self.opts)[0].cpu().numpy() / 100.0
+        )
 
         candidate_mean = candidate_vals.mean()
 
