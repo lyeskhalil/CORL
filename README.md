@@ -3,6 +3,9 @@ corl
 
 Exploring Online Bipartite Matching using Reinforcement Learning
 
+**Environment Details**:
+- Python 3.7
+
 Setting up
 ------------
 To get started, run:  
