@@ -131,7 +131,6 @@ def rollout_eval(models, dataset, opts):
         # print(bat[-1])
         cr = (
             -cost.data.flatten()
-            * opts.u_size
             / move_to(batch.y + (batch.y == 0).float(), opts.device)
         )
         # print(
@@ -186,7 +185,7 @@ def rollout(model, dataset, opts):
         # print(-cost.data.flatten())
         # print(bat[-1])
 
-        cr = (-cost.data.flatten() * opts.u_size) / move_to(
+        cr = (-cost.data.flatten()) / move_to(
             batch.y + (batch.y == 0).float(), opts.device
         )
         # print(
