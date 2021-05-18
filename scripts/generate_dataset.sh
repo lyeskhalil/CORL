@@ -28,7 +28,7 @@ DATASET="$PROBLEM"_"$GRAPH_FAMILY"_"$U_SIZE"by"$V_SIZE"_"p=$FAMILY_PARAMETER"_"$
 
 
 # python data/generate_data.py --dataset_size $TRAIN_SIZE --seed 50000 --u_size $U_SIZE --v_size $V_SIZE --graph_family_parameter $FAMILY_PARAMETER  --dataset_folder $SLURM_TMPDIR/$DATASET/train
-python data/generate_data.py --weight_distribution_param $MEAN $VARIANCE --weight_distribution $WEIGHT_DIST --graph_family $GRAPH_FAMILY --problem $PROBLEM --dataset_size $TRAIN_SIZE --u_size $U_SIZE --v_size $V_SIZE --graph_family_parameter $FAMILY_PARAMETER --dataset_folder $DATASET/train
+python data/generate_data.py --weight_distribution_param $MEAN $VARIANCE --weight_distribution $WEIGHT_DIST --graph_family $GRAPH_FAMILY --problem $PROBLEM --dataset_size $TRAIN_SIZE --u_size $U_SIZE --v_size $V_SIZE --graph_family_parameter $FAMILY_PARAMETER --dataset_folder $SLURM_TMPDIR/$DATASET/train
 
 python data/generate_data.py --problem $PROBLEM --weight_distribution_param $MEAN $VARIANCE --weight_distribution $WEIGHT_DIST --graph_family $GRAPH_FAMILY --dataset_size $VAL_SIZE --u_size $U_SIZE --v_size $V_SIZE --graph_family_parameter $FAMILY_PARAMETER --seed 20000 --dataset_folder $SLURM_TMPDIR/$DATASET/val
 
