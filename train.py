@@ -8,9 +8,9 @@ import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 from torch.nn import DataParallel
 
-from policy.attention_model_v2 import set_decode_type
-from log_utils import log_values
-from functions import move_to
+from utils.log_utils import log_values
+from utils.functions import move_to
+
 
 import numpy as np
 from matplotlib.lines import Line2D
@@ -19,6 +19,12 @@ from scipy.stats import wilcoxon
 
 def get_inner_model(model):
     return model.module if isinstance(model, DataParallel) else model
+
+
+def set_decode_type(model, decode_type):
+    if isinstance(model, DataParallel):
+        model = model.module
+    model.set_decode_type(decode_type)
 
 
 def evaluate(models, dataset, opts):

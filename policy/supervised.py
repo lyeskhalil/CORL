@@ -31,7 +31,6 @@ def train_supervised(log_p, y, optimizers, opts):
     # Calculate loss
     loss = -(torch.dot(y, log_p)).mean()
     # Perform backward pass and optimization step
-    s = time.time()
     optimizers[0].zero_grad()
     loss.backward()
     return
@@ -141,6 +140,9 @@ class SupervisedModel(nn.Module):
         nn.init.xavier_uniform_(self.get_edge_embed.weight)
         nn.init.xavier_uniform_(self.project_out.weight)
 
+        # This variable must be passed to the checkpoint function, or else it won't backprop through encoder
+        self.dummy = torch.ones(1, dtype=torch.float32, requires_grad=True)
+
     def set_decode_type(self, decode_type, temp=None):
         self.decode_type = decode_type
         if temp is not None:  # Do not change temperature if not provided
@@ -150,7 +152,7 @@ class SupervisedModel(nn.Module):
         """
         :param input: (batch_size, graph_size, node_dim) input node features or dictionary with multiple tensors
         :param return_pi: whether to return the output sequences, this is optional as it is not compatible with
-        :param opt_match: (batch_size, U_size, V_size), the optimal matching of the graphs in the batch 
+        :param opt_match: (batch_size, U_size, V_size), the optimal matching of the graphs in the batch
         using DataParallel as the results may be of different lengths on different GPUs
         :return:
         """
@@ -211,11 +213,11 @@ class SupervisedModel(nn.Module):
         batch_size = state.batch_size
         graph_size = state.u_size + state.v_size + 1
         i = 1
-        
+
         while not (state.all_finished()):
             step_size = state.i + 1
 
-            # Pass the graph to the Encoder 
+            # Pass the graph to the Encoder
             node_features = (
                 torch.arange(1, step_size + 1, device=opts.device)
                 .unsqueeze(0)
@@ -240,26 +242,29 @@ class SupervisedModel(nn.Module):
             )
             if i % opts.checkpoint_every == 0:
                 embeddings = checkpoint(
-                    self.embedder, node_features, edge_i, weights.float(), i
+                    self.embedder,
+                    node_features,
+                    edge_i,
+                    weights.float(),
+                    i,
+                    self.dummy,
                 ).reshape(batch_size, step_size, -1)
             else:
                 embeddings = self.embedder(
-                    node_features, edge_i, weights.float()
+                    node_features, edge_i, weights.float(), self.dummy,
                 ).reshape(batch_size, step_size, -1)
 
             # context node embedding
             fixed = self._precompute(embeddings, step_size, opts, state)
-            
+
             # Decoder
             log_p, mask = self._get_log_p(
                 fixed, state, step_context, opts, embeddings[:, -1, :]
             )
-            
-            # Select a Node 
-            selected = self._select_node(
-                log_p.exp()[:, 0, :], mask[:, 0, :].bool()
-            )  
-            
+
+            # Select a Node
+            selected = self._select_node(log_p.exp()[:, 0, :], mask[:, 0, :].bool())
+
             # Update state information
             state = state.update(selected[:, None])
             s = (selected[:, None].repeat(1, fixed.node_embeddings.size(-1)))[
@@ -288,15 +293,15 @@ class SupervisedModel(nn.Module):
             sequences.append(selected)
 
             if optimizer is not None:
-                _log_p, pi, cost = (
+                _log_p, pi, _ = (
                     torch.stack(outputs[i - opts.max_steps : i], 1),
                     torch.stack(sequences[i - opts.max_steps : i], 1),
                     -state.size / i,
                 )
 
                 # supervised learning
-                y = opt_match[:,i] #index into it
-                ll = self._calc_log_likelihood(_log_p, pi, None)
+                y = opt_match[:, i]  # index into it
+                self._calc_log_likelihood(_log_p, pi, None)
                 train_supervised(log_p, y, optimizer, opts)
                 step_context = step_context.detach()
                 # initial_embeddings = self.project_node_features(node_features).reshape(batch_size, graph_size, -1)
