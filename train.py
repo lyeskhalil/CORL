@@ -453,16 +453,16 @@ def train_batch(
     if step % int(opts.log_step) == 0:
         log_values(
             cost,
-            grad_norms,
             epoch,
             batch_id,
             step,
             log_likelihood,
-            reinforce_loss,
-            bl_loss,
             tb_logger,
-            batch_loss = None,
-            opts,
+            opts=opts,
+            batch_loss=None,
+            grad_norms=grad_norms,
+            reinforce_loss=reinforce_loss,
+            bl_loss=bl_loss,
         )
 
 
@@ -472,22 +472,18 @@ def train_batch_supervised(
     # Evaluate model, get costs and log probabilities
     batch = move_to(batch, opts.device)
     matchings = torch.tensor(batch.x)
-    print('b ', batch)
-    print('m ', matchings)
-    print('batch.y ', batch.y)
+    print("b ", batch)
+    print("m ", matchings)
+    print("batch.y ", batch.y)
     cost, log_likelihood, e, batch_loss = model(batch, matchings, opts, optimizers)
-    
     # Logging
     log_values(
         cost,
-        grad_norms = None,
         epoch,
         batch_id,
         step,
         log_likelihood,
-        reinforce_loss = None,
-        bl_loss = None,
         tb_logger,
-        batch_loss
-        opts,
+        batch_loss=batch_loss,
+        opts=opts,
     )
