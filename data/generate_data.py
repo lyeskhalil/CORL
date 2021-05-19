@@ -21,6 +21,19 @@ gMission_reduced_tasks = "data/gMission/reduced_tasks.txt"
 gMission_reduced_workers = "data/gMission/reduced_workers.txt"
 
 
+def get_solution(row_ind, col_in):
+    """
+    returns a np vector where the index at i is the the node in u that v_i connect to. If index is zero, then v[i] 
+    is connected to no node in U.
+    """
+    row_ind.sort()
+    col_in = col_in + 1
+    for i in range(0, len(row_ind)-1): 
+        for j in range(row_ind[i] + 1, row_ind[i+1]):
+            col_in = np.concatenate([col_in[:j] , np.zeros(1), col_in[j:]], 0)
+    col_in = np.concatenate([col_in, np.zeros(5- len(col_in))])
+    return col_in
+
 def _add_nodes_with_bipartite_label(G, lena, lenb):
     """
     Helper for generate_ba_graph that initializes the initial empty graph with nodes
@@ -449,11 +462,15 @@ def generate_edge_obm_data_geometric(
         )
         i1, i2 = linear_sum_assignment(weights, maximize=True)
         optimal = weights[i1, i2].sum()
+        if v_size > u_size:
+            solution = get_solution(i1, i2)
+        else:
+            solution = i2
         # s = sorted(list(g1.nodes))
         # m = 1 - nx.convert_matrix.to_numpy_array(g1, s)
         data = from_networkx(g1)
         data.x = torch.tensor(
-            i2.tolist()
+            solution.tolist()
         )  # this is a list, must convert to tensor when a batch is called
         data.y = torch.tensor(optimal).float()  # tuple of optimla and size of matching
         if save_data:
