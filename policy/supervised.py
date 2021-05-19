@@ -31,7 +31,7 @@ def train_supervised(log_p, y, optimizers, opts):
     total_loss = torch.zeros(y.shape)
 
     # Calculate loss of v_t
-    loss_t = -torch.gather(log_p, 1, torch.unsqueeze(y,1))
+    loss_t = -torch.gather(log_p, 1, torch.unsqueeze(y, 1))
 
     # Update the loss for the whole graph
     total_loss = total_loss + loss_t
