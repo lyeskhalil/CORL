@@ -187,7 +187,12 @@ def rollout(model, dataset, opts):
 
     def eval_model_bat(bat, optimal):
         with torch.no_grad():
-            cost, *_ = model(move_to(bat, opts.device), opts, None, None)
+            
+            if opts.model == "supervised":
+                matchings = torch.tensor(bat.x)
+                cost, *_ = model(move_to(bat, opts.device), matchings, opts, None)
+            else:
+                cost, *_ = model(move_to(bat, opts.device), opts, None, None)
 
         # print(-cost.data.flatten())
         # print(bat[-1])
