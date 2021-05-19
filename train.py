@@ -8,9 +8,9 @@ import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 from torch.nn import DataParallel
 
-from policy.attention_model_v2 import set_decode_type
-from log_utils import log_values
-from functions import move_to
+from utils.log_utils import log_values
+from utils.functions import move_to
+
 
 import numpy as np
 from matplotlib.lines import Line2D
@@ -19,6 +19,12 @@ from scipy.stats import wilcoxon
 
 def get_inner_model(model):
     return model.module if isinstance(model, DataParallel) else model
+
+
+def set_decode_type(model, decode_type):
+    if isinstance(model, DataParallel):
+        model = model.module
+    model.set_decode_type(decode_type)
 
 
 def evaluate(models, dataset, opts):
@@ -262,7 +268,7 @@ def train_epoch(
         tb_logger.add_scalar("learnrate_pg0", optimizers[0].param_groups[0]["lr"], step)
 
     # Generate new training data for each epoch
-    ## TODO: MODIFY SO THAT WE CAN ALSO USE A PRE-GENERATED DATASET
+    # TODO: MODIFY SO THAT WE CAN ALSO USE A PRE-GENERATED DATASET
     # training_dataset = baseline.wrap_dataset(problem.make_dataset(opts))
     # training_dataloader = DataLoader(
     #     training_dataset, batch_size=opts.batch_size, num_workers=1
@@ -453,16 +459,16 @@ def train_batch(
     if step % int(opts.log_step) == 0:
         log_values(
             cost,
-            grad_norms,
             epoch,
             batch_id,
             step,
             log_likelihood,
-            reinforce_loss,
-            bl_loss,
             tb_logger,
-            batch_loss = None,
-            opts,
+            opts=opts,
+            batch_loss=None,
+            grad_norms=grad_norms,
+            reinforce_loss=reinforce_loss,
+            bl_loss=bl_loss,
         )
 
 
@@ -472,22 +478,18 @@ def train_batch_supervised(
     # Evaluate model, get costs and log probabilities
     batch = move_to(batch, opts.device)
     matchings = torch.tensor(batch.x)
-    print('b ', batch)
-    print('m ', matchings)
-    print('batch.y ', batch.y)
+    print("b ", batch)
+    print("m ", matchings)
+    print("batch.y ", batch.y)
     cost, log_likelihood, e, batch_loss = model(batch, matchings, opts, optimizers)
-    
     # Logging
     log_values(
         cost,
-        grad_norms = None,
         epoch,
         batch_id,
         step,
         log_likelihood,
-        reinforce_loss = None,
-        bl_loss = None,
         tb_logger,
-        batch_loss
-        opts,
+        batch_loss=batch_loss,
+        opts=opts,
     )

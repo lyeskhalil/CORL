@@ -38,7 +38,6 @@ def train_supervised(log_p, y, optimizers, opts):
     loss = total_loss.sum()
 
     # Perform backward pass and optimization step
-    s = time.time()
     optimizers[0].zero_grad()
     loss.backward()
     return loss
@@ -149,6 +148,9 @@ class SupervisedModel(nn.Module):
         nn.init.xavier_uniform_(self.get_edge_embed.weight)
         nn.init.xavier_uniform_(self.project_out.weight)
 
+        # This variable must be passed to the checkpoint function, or else it won't backprop through encoder
+        self.dummy = torch.ones(1, dtype=torch.float32, requires_grad=True)
+
     def set_decode_type(self, decode_type, temp=None):
         self.decode_type = decode_type
         if temp is not None:  # Do not change temperature if not provided
@@ -158,7 +160,7 @@ class SupervisedModel(nn.Module):
         """
         :param input: (batch_size, graph_size, node_dim) input node features or dictionary with multiple tensors
         :param return_pi: whether to return the output sequences, this is optional as it is not compatible with
-        :param opt_match: (batch_size, U_size, V_size), the optimal matching of the graphs in the batch 
+        :param opt_match: (batch_size, U_size, V_size), the optimal matching of the graphs in the batch
         using DataParallel as the results may be of different lengths on different GPUs
         :return:
         """
@@ -211,7 +213,7 @@ class SupervisedModel(nn.Module):
         sequences = []
         losses = []
 
-        state = self.problem.make_state(input, opts.u_size, opts.v_size, opts.num_edges)
+        state = self.problem.make_state(input, opts.u_size, opts.v_size, opts)
         # Compute keys, values for the glimpse and keys for the logits once as they can be reused in every step
         print('state: ', state)
         # fixed = self._precompute(embeddings)
@@ -219,11 +221,11 @@ class SupervisedModel(nn.Module):
         batch_size = state.batch_size
         graph_size = state.u_size + state.v_size + 1
         i = 1
-        
+
         while not (state.all_finished()):
             step_size = state.i + 1
 
-            # Pass the graph to the Encoder 
+            # Pass the graph to the Encoder
             node_features = (
                 torch.arange(1, step_size + 1, device=opts.device)
                 .unsqueeze(0)
@@ -257,23 +259,21 @@ class SupervisedModel(nn.Module):
                 ).reshape(batch_size, step_size, -1)
             else:
                 embeddings = self.embedder(
-                    node_features, edge_i, weights.float()
+                    node_features, edge_i, weights.float(), self.dummy,
                 ).reshape(batch_size, step_size, -1)
             
             print('embeddings: ',embeddings)
             # context node embedding
             fixed = self._precompute(embeddings, step_size, opts, state)
-            
+
             # Decoder
             log_p, mask = self._get_log_p(
                 fixed, state, step_context, opts, embeddings[:, -1, :]
             )
-            
-            # Select a Node 
-            selected = self._select_node(
-                log_p.exp()[:, 0, :], mask[:, 0, :].bool()
-            )  
-            
+
+            # Select a Node
+            selected = self._select_node(log_p.exp()[:, 0, :], mask[:, 0, :].bool())
+
             # Update state information
             state = state.update(selected[:, None])
             s = (selected[:, None].repeat(1, fixed.node_embeddings.size(-1)))[
@@ -300,7 +300,7 @@ class SupervisedModel(nn.Module):
             # step_size = ((state.i.item() - state.u_size.item() + 1) * (state.u_size + 1))
 
             if optimizer is not None:
-                _log_p, pi, cost = (
+                _log_p, pi, _ = (
                     torch.stack(outputs[i - opts.max_steps : i], 1),
                     torch.stack(sequences[i - opts.max_steps : i], 1),
                     -state.size / i,

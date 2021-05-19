@@ -12,13 +12,12 @@ import wandb
 
 # from tensorboard_logger import Logger as TbLogger
 from torch.utils.tensorboard import SummaryWriter
-from torch.utils.data import DataLoader
 from torch_geometric.data import DataLoader as geoDataloader
 
 # from nets.critic_network import CriticNetwork
 from options import get_options
 from train import train_epoch, validate, get_inner_model, eval_model
-from reinforce_baselines import (
+from utils.reinforce_baselines import (
     NoBaseline,
     ExponentialBaseline,
     CriticBaseline,
@@ -26,9 +25,8 @@ from reinforce_baselines import (
     WarmupBaseline,
     GreedyBaseline,
 )
-from policy.attention_model_v2 import AttentionModel
 from policy.attention_model import AttentionModel as AttentionModelgeo
-from policy.ff_model_v2 import FeedForwardModel
+from policy.ff_model import FeedForwardModel
 from policy.ff_model_invariant import InvariantFF
 from policy.ff_model_hist import FeedForwardModelHist
 from policy.inv_ff_history import InvariantFFHist
@@ -39,7 +37,7 @@ from policy.supervised import SupervisedModel
 from policy.gnn_hist import GNNHist
 
 # from nets.pointer_network import PointerNetwork, CriticNetworkLSTM
-from functions import torch_load_cpu, load_problem
+from utils.functions import torch_load_cpu, load_problem
 
 
 def run(opts):

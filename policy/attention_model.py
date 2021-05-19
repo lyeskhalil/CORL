@@ -67,7 +67,7 @@ class AttentionModelFixed(NamedTuple):
                 glimpse_val=self.glimpse_val[:, key],  # dim 0 are the heads
                 logit_key=self.logit_key[key],
             )
-        #return super(AttentionModelFixed, self).__getitem__(key)
+        # return super(AttentionModelFixed, self).__getitem__(key)
         return self[key]
 
 
@@ -221,7 +221,7 @@ class AttentionModel(nn.Module):
         outputs = []
         sequences = []
 
-        state = self.problem.make_state(input, opts.u_size, opts.v_size, opts.num_edges)
+        state = self.problem.make_state(input, opts.u_size, opts.v_size, opts)
         # Compute keys, values for the glimpse and keys for the logits once as they can be reused in every step
         # fixed = self._precompute(embeddings)
         step_context = 0
