@@ -27,13 +27,20 @@ def set_decode_type(model, decode_type):
 
 
 def train_supervised(log_p, y, optimizers, opts):
+    # The cross entrophy loss of v_1, ..., v_{t-1} (this is a batch_size by 1 vector)
+    total_loss = torch.zeros(y.shape)
 
-    # Calculate loss
-    loss = -(torch.dot(y, log_p)).mean()
+    # Calculate loss of v_t
+    loss_t = -torch.gather(log_p, 1, torch.unsqueeze(y, 1))
+
+    # Update the loss for the whole graph
+    total_loss = total_loss + loss_t
+    loss = total_loss.sum()
+
     # Perform backward pass and optimization step
     optimizers[0].zero_grad()
     loss.backward()
-    return
+    return loss
 
 
 class AttentionModelFixed(NamedTuple):
@@ -98,6 +105,7 @@ class SupervisedModel(nn.Module):
         # Problem specific context parameters (placeholder and step context dimension)
         step_context_dim = 0
         # node_dim = 0
+        self.dummy = torch.ones(1, dtype=torch.float32, requires_grad=True)
         if self.is_bipartite:  # online bipartite matching
             step_context_dim = (
                 embedding_dim * 2
@@ -164,16 +172,14 @@ class SupervisedModel(nn.Module):
         # # else:
         #     embeddings, _ = self.embedder(self._init_embed(input))
         # s = time.time()
-        _log_p, pi, cost = self._inner(input, opt_match, opts, optimizer)
+        _log_p, pi, cost, batch_loss = self._inner(input, opt_match, opts, optimizer)
         # print(time.time() - s)
         # cost, mask = self.problem.get_costs(input, pi)
         # Log likelyhood is calculated within the model since returning it per action does not work well with
         # DataParallel since sequences can be of different lengths
         ll = self._calc_log_likelihood(_log_p, pi, None)
-        if return_pi:
-            return -cost, ll, pi
+        return -cost, ll, pi, batch_loss
 
-        return -cost, ll
 
     def beam_search(self, *args, **kwargs):
         return self.problem.beam_search(*args, **kwargs, model=self)
@@ -187,7 +193,7 @@ class SupervisedModel(nn.Module):
     def _calc_log_likelihood(self, _log_p, a, mask):
         # Get log_p corresponding to selected actions
         log_p = _log_p.gather(2, a.unsqueeze(-1)).squeeze(-1)
-
+        
         # Optional: mask out actions irrelevant to objective so they do not get reinforced
         if mask is not None:
             log_p[mask] = 0
@@ -205,9 +211,11 @@ class SupervisedModel(nn.Module):
 
         outputs = []
         sequences = []
+        losses = []
 
         state = self.problem.make_state(input, opts.u_size, opts.v_size, opts)
         # Compute keys, values for the glimpse and keys for the logits once as they can be reused in every step
+        print('state: ', state)
         # fixed = self._precompute(embeddings)
         step_context = 0
         batch_size = state.batch_size
@@ -242,18 +250,19 @@ class SupervisedModel(nn.Module):
             )
             if i % opts.checkpoint_every == 0:
                 embeddings = checkpoint(
-                    self.embedder,
-                    node_features,
+                    self.embedder, 
+                    node_features, 
                     edge_i,
                     weights.float(),
-                    i,
-                    self.dummy,
+                    torch.tensor(i),
+                    self.dummy
                 ).reshape(batch_size, step_size, -1)
             else:
                 embeddings = self.embedder(
                     node_features, edge_i, weights.float(), self.dummy,
                 ).reshape(batch_size, step_size, -1)
-
+            
+            print('embeddings: ',embeddings)
             # context node embedding
             fixed = self._precompute(embeddings, step_size, opts, state)
 
@@ -289,8 +298,6 @@ class SupervisedModel(nn.Module):
             )  # Incremental averaging of selected edges
             # Collect output of step
             # step_size = ((state.i.item() - state.u_size.item() + 1) * (state.u_size + 1))
-            outputs.append(log_p[:, 0, :])
-            sequences.append(selected)
 
             if optimizer is not None:
                 _log_p, pi, _ = (
@@ -300,18 +307,29 @@ class SupervisedModel(nn.Module):
                 )
 
                 # supervised learning
-                y = opt_match[:, i]  # index into it
-                self._calc_log_likelihood(_log_p, pi, None)
-                train_supervised(log_p, y, optimizer, opts)
+                y = opt_match[:,i-1] 
+                ll = self._calc_log_likelihood(_log_p, pi, None)
+                print('y: ', y)
+                print('log_p: ', log_p)
+                print('mask: ', mask)
+                print('_log_p: ', _log_p)
+                print('ll: ', ll)
+                loss = train_supervised(log_p[:,0,:], y, optimizer, opts)
+                # keep track for logging
                 step_context = step_context.detach()
+                outputs.append(log_p[:, 0, :])
+                losses.append(loss)
+                sequences.append(selected)
                 # initial_embeddings = self.project_node_features(node_features).reshape(batch_size, graph_size, -1)
                 # state = state._replace(size=state.size.detach())
             i += 1
         # Collected lists, return Tensor
+        batch_loss = losses.sum()
         return (
             torch.stack(outputs, 1),
             torch.stack(sequences, 1),
             state.size / (state.v_size * 100),
+            batch_loss 
         )
 
     def _select_node(self, probs, mask):
