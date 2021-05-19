@@ -12,13 +12,19 @@ from scipy.stats import powerlaw
 import torch_geometric
 import math
 
-# from torch_geometric.utils import from_networkx
 
+# gMission files
 gMission_edges = "data/gMission/edges.txt"
-
 gMission_tasks = "data/gMission/tasks.txt"
 gMission_reduced_tasks = "data/gMission/reduced_tasks.txt"
 gMission_reduced_workers = "data/gMission/reduced_workers.txt"
+
+# MovieLense files
+movie_lense_movies = "data/MovieLense/movies.txt"
+movie_lense_users = "data/MovieLense/users.txt"
+movie_lense_edges = "data/MovieLense/edges.txt"
+movie_lense_ratings = "data/MovieLense/ratings.txt"
+movie_lense_feature_weights = "data/MovieLense/feature_weights.txt"
 
 
 def _add_nodes_with_bipartite_label(G, lena, lenb):
@@ -228,6 +234,36 @@ def parse_gmission_dataset():
     return edgeWeights, tasks, reduced_tasks, reduced_workers
 
 
+def parse_movie_lense_dataset():
+    f_edges = open(movie_lense_edges, "r")
+    f_movies = open(movie_lense_movies, "r")
+    f_users = open(movie_lense_users, "r")
+    f_feature_weights = open(movie_lense_feature_weights, "r")
+
+    users = {}
+    movies = {}
+    edges = {}
+    feature_weights = {}
+
+    for u in f_users:
+        info = u.split(",")
+        users[info[0]] = info[1:3]
+
+    for m in f_movies:
+        info = m.split(",")
+        movies[info[0]] = info[2].split("|")
+
+    for e in f_edges:
+        info = e.split(",")
+        edges[(info[2], info[1])] = info[3].split("|")
+
+    for w in f_feature_weights:
+        feature = w.split(",")
+        feature_weights[(feature[1], feature[0])] = float(feature[2])
+
+    return users, movies, edges, feature_weights
+
+
 def find_best_tasks(tasks, edges):
     task_total = {}
     f_open = open("data/gMission/reduced_tasks.txt", "a")
@@ -256,6 +292,21 @@ def find_best_workers(tasks, edges):
     for t in top_tasks:
         f_open.write(t[0] + "\n")
     return top_tasks
+
+
+def generate_movie_lense_graph(
+    u, v, users, edges, movies, p, seed, weight_dist, weight_param, vary_fixed=False
+):
+    np.random.seed(seed)
+
+    G = nx.Graph()
+    G = _add_nodes_with_bipartite_label(G, u, v)
+
+    G.name = f"movielense_random_graph({u},{v})"
+    movies_id = np.array(list(movies.items()))[:, 0].flatten()
+    if vary_fixed:
+        movies_id = list(np.random.choice(movies_id, size=u))
+    # weights = []
 
 
 def generate_gmission_graph(
