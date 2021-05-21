@@ -187,7 +187,7 @@ def rollout(model, dataset, opts):
 
     def eval_model_bat(bat, optimal):
         with torch.no_grad():
-            
+
             if opts.model == "supervised":
                 matchings = torch.tensor(bat.x)
                 cost, *_ = model(move_to(bat, opts.device), matchings, opts, None)
@@ -486,7 +486,8 @@ def train_batch_supervised(
     print("b ", batch)
     print("m ", matchings)
     print("batch.y ", batch.y)
-    cost, log_likelihood, e, batch_loss = model(batch, matchings, opts, optimizers)
+    cost, log_likelihood, e, batch_loss = model(batch, matchings, opts, optimizers, training=True)
+     
     # Logging
     log_values(
         cost,

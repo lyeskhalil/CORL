@@ -156,7 +156,7 @@ class SupervisedModel(nn.Module):
         if temp is not None:  # Do not change temperature if not provided
             self.temp = temp
 
-    def forward(self, input, opt_match, opts, optimizer, return_pi=False):
+    def forward(self, input, opt_match, opts, optimizer, training=False):
         """
         :param input: (batch_size, graph_size, node_dim) input node features or dictionary with multiple tensors
         :param return_pi: whether to return the output sequences, this is optional as it is not compatible with
@@ -164,19 +164,9 @@ class SupervisedModel(nn.Module):
         using DataParallel as the results may be of different lengths on different GPUs
         :return:
         """
+    
+        _log_p, pi, cost, batch_loss = self._inner(input, opt_match, opts, optimizer, training)
 
-        # if (
-        #     self.checkpoint_encoder and self.training
-        # ):  # Only checkpoint if we need gradients
-        #     embeddings, _ = checkpoint(self.embedder, self._init_embed(input))
-        # # else:
-        #     embeddings, _ = self.embedder(self._init_embed(input))
-        # s = time.time()
-        _log_p, pi, cost, batch_loss = self._inner(input, opt_match, opts, optimizer)
-        # print(time.time() - s)
-        # cost, mask = self.problem.get_costs(input, pi)
-        # Log likelyhood is calculated within the model since returning it per action does not work well with
-        # DataParallel since sequences can be of different lengths
         ll = self._calc_log_likelihood(_log_p, pi, None)
         return -cost, ll, pi, batch_loss
 
@@ -262,7 +252,6 @@ class SupervisedModel(nn.Module):
                     node_features, edge_i, weights.float(), self.dummy,
                 ).reshape(batch_size, step_size, -1)
             
-            print('embeddings: ',embeddings)
             # context node embedding
             fixed = self._precompute(embeddings, step_size, opts, state)
 
@@ -298,6 +287,9 @@ class SupervisedModel(nn.Module):
             )  # Incremental averaging of selected edges
             # Collect output of step
             # step_size = ((state.i.item() - state.u_size.item() + 1) * (state.u_size + 1))
+ 
+            sequences.append(selected)
+            outputs.append(log_p[:, 0, :])
 
             if optimizer is not None:
                 _log_p, pi, _ = (
@@ -305,23 +297,15 @@ class SupervisedModel(nn.Module):
                     torch.stack(sequences[i - opts.max_steps : i], 1),
                     -state.size / i,
                 )
+                # do backprop
+                if training:
+                    # supervised learning
+                    y = opt_match[:,i-1] 
+                    ll = self._calc_log_likelihood(_log_p, pi, None)
+                    loss = train_supervised(log_p[:,0,:], y, optimizer, opts)
+                    step_context = step_context.detach()
+                    losses.append(loss)
 
-                # supervised learning
-                y = opt_match[:,i-1] 
-                ll = self._calc_log_likelihood(_log_p, pi, None)
-                print('y: ', y)
-                print('log_p: ', log_p)
-                print('mask: ', mask)
-                print('_log_p: ', _log_p)
-                print('ll: ', ll)
-                loss = train_supervised(log_p[:,0,:], y, optimizer, opts)
-                # keep track for logging
-                step_context = step_context.detach()
-                outputs.append(log_p[:, 0, :])
-                losses.append(loss)
-                sequences.append(selected)
-                # initial_embeddings = self.project_node_features(node_features).reshape(batch_size, graph_size, -1)
-                # state = state._replace(size=state.size.detach())
             i += 1
         # Collected lists, return Tensor
         batch_loss = losses.sum()
