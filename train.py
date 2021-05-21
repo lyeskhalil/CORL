@@ -187,8 +187,8 @@ def rollout(model, dataset, opts):
 
     def eval_model_bat(bat, optimal):
         with torch.no_grad():
-            
-            if opts.model == "supervised":
+
+            if opts.model == "supervised" or opts.model == "ff-supervised":
                 matchings = bat.x.reshape(opts.batch_size, opts.v_size)
                 cost, *_ = model(move_to(bat, opts.device), matchings, opts, None)
             else:
@@ -284,7 +284,7 @@ def train_epoch(
     set_decode_type(model, "sampling")
 
     # if the model is supervised, train differently
-    if opts.model == "supervised":
+    if opts.model == "supervised" or opts.model == "ff-supervised":
 
         for batch_id, batch in enumerate(
             tqdm(training_dataloader, disable=opts.no_progress_bar)
@@ -484,7 +484,8 @@ def train_batch_supervised(
     batch = move_to(batch, opts.device)
     matchings = batch.x.reshape(opts.batch_size, opts.v_size)
     #print("batch.y ", batch.y)
-    cost, log_likelihood, e, batch_loss = model(batch, matchings, opts, optimizers)
+    cost, log_likelihood, e, batch_loss = model(batch, matchings, opts, optimizers, training=True)
+     
     # Logging
     log_values(
         cost,

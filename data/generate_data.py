@@ -465,12 +465,14 @@ def generate_edge_obm_data_geometric(
         if v_size > u_size:
             solution = get_solution(i1, i2)
         else:
-            solution = i2
+            solution = i2 + 1
         # s = sorted(list(g1.nodes))
         # m = 1 - nx.convert_matrix.to_numpy_array(g1, s)
         data = from_networkx(g1)
+        print('solution: ', solution)
+        print('lsolution: ', solution.tolist())
         data.x = torch.tensor(
-            solution.tolist()
+            solution
         )  # this is a list, must convert to tensor when a batch is called
         data.y = torch.tensor(optimal).float()  # tuple of optimla and size of matching
         if save_data:
