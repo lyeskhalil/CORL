@@ -31,7 +31,10 @@ def train_supervised(log_p, y, optimizers, opts):
     total_loss = torch.zeros(y.shape)
 
     # Calculate loss of v_t
-    loss_t = -torch.gather(log_p, 1, torch.unsqueeze(y, 1))
+    if opts.batch_size == 1:
+        loss_t = -torch.gather(log_p, 1, torch.unsqueeze(y, 0))
+    else:
+        loss_t = -torch.gather(log_p, 1, torch.unsqueeze(y, 1))
 
     # Update the loss for the whole graph
     total_loss = total_loss + loss_t
@@ -215,7 +218,7 @@ class SupervisedModel(nn.Module):
 
         state = self.problem.make_state(input, opts.u_size, opts.v_size, opts)
         # Compute keys, values for the glimpse and keys for the logits once as they can be reused in every step
-        print('state: ', state)
+        #print('state: ', state)
         # fixed = self._precompute(embeddings)
         step_context = 0
         batch_size = state.batch_size
@@ -262,7 +265,7 @@ class SupervisedModel(nn.Module):
                     node_features, edge_i, weights.float(), self.dummy,
                 ).reshape(batch_size, step_size, -1)
             
-            print('embeddings: ',embeddings)
+            #print('embeddings: ',embeddings)
             # context node embedding
             fixed = self._precompute(embeddings, step_size, opts, state)
 
@@ -298,7 +301,9 @@ class SupervisedModel(nn.Module):
             )  # Incremental averaging of selected edges
             # Collect output of step
             # step_size = ((state.i.item() - state.u_size.item() + 1) * (state.u_size + 1))
-
+            
+            outputs.append(log_p[:, 0, :])
+            sequences.append(selected)
             if optimizer is not None:
                 _log_p, pi, _ = (
                     torch.stack(outputs[i - opts.max_steps : i], 1),
@@ -307,24 +312,28 @@ class SupervisedModel(nn.Module):
                 )
 
                 # supervised learning
-                y = opt_match[:,i-1] 
+                if opts.batch_size == 1:
+                    y = opt_match[i-1]
+                else:
+                    y = opt_match[:,i-1] 
                 ll = self._calc_log_likelihood(_log_p, pi, None)
                 print('y: ', y)
                 print('log_p: ', log_p)
-                print('mask: ', mask)
-                print('_log_p: ', _log_p)
-                print('ll: ', ll)
+                #print('mask: ', mask)
+                #print('_log_p: ', _log_p)
+                #print('ll: ', ll)
                 loss = train_supervised(log_p[:,0,:], y, optimizer, opts)
                 # keep track for logging
                 step_context = step_context.detach()
-                outputs.append(log_p[:, 0, :])
                 losses.append(loss)
-                sequences.append(selected)
                 # initial_embeddings = self.project_node_features(node_features).reshape(batch_size, graph_size, -1)
                 # state = state._replace(size=state.size.detach())
             i += 1
         # Collected lists, return Tensor
-        batch_loss = losses.sum()
+        batch_loss = sum(losses)
+        #print('sequences: ',sequences)
+        #print('batch loss: ', batch_loss)
+        #print('outputs: ', outputs)
         return (
             torch.stack(outputs, 1),
             torch.stack(sequences, 1),
