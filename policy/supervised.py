@@ -31,7 +31,10 @@ def train_supervised(log_p, y, optimizers, opts):
     total_loss = torch.zeros(y.shape)
 
     # Calculate loss of v_t
-    loss_t = -torch.gather(log_p, 1, torch.unsqueeze(y, 1))
+    if opts.batch_size == 1:
+        loss_t = -torch.gather(log_p, 1, torch.unsqueeze(y, 0))
+    else:
+        loss_t = -torch.gather(log_p, 1, torch.unsqueeze(y, 1))
 
     # Update the loss for the whole graph
     total_loss = total_loss + loss_t
@@ -156,7 +159,7 @@ class SupervisedModel(nn.Module):
         if temp is not None:  # Do not change temperature if not provided
             self.temp = temp
 
-    def forward(self, input, opt_match, opts, optimizer, return_pi=False):
+    def forward(self, input, opt_match, opts, optimizer, training=False):
         """
         :param input: (batch_size, graph_size, node_dim) input node features or dictionary with multiple tensors
         :param return_pi: whether to return the output sequences, this is optional as it is not compatible with
@@ -164,19 +167,9 @@ class SupervisedModel(nn.Module):
         using DataParallel as the results may be of different lengths on different GPUs
         :return:
         """
+    
+        _log_p, pi, cost, batch_loss = self._inner(input, opt_match, opts, optimizer, training)
 
-        # if (
-        #     self.checkpoint_encoder and self.training
-        # ):  # Only checkpoint if we need gradients
-        #     embeddings, _ = checkpoint(self.embedder, self._init_embed(input))
-        # # else:
-        #     embeddings, _ = self.embedder(self._init_embed(input))
-        # s = time.time()
-        _log_p, pi, cost, batch_loss = self._inner(input, opt_match, opts, optimizer)
-        # print(time.time() - s)
-        # cost, mask = self.problem.get_costs(input, pi)
-        # Log likelyhood is calculated within the model since returning it per action does not work well with
-        # DataParallel since sequences can be of different lengths
         ll = self._calc_log_likelihood(_log_p, pi, None)
         return -cost, ll, pi, batch_loss
 
@@ -215,7 +208,7 @@ class SupervisedModel(nn.Module):
 
         state = self.problem.make_state(input, opts.u_size, opts.v_size, opts)
         # Compute keys, values for the glimpse and keys for the logits once as they can be reused in every step
-        print('state: ', state)
+        #print('state: ', state)
         # fixed = self._precompute(embeddings)
         step_context = 0
         batch_size = state.batch_size
@@ -262,7 +255,6 @@ class SupervisedModel(nn.Module):
                     node_features, edge_i, weights.float(), self.dummy,
                 ).reshape(batch_size, step_size, -1)
             
-            print('embeddings: ',embeddings)
             # context node embedding
             fixed = self._precompute(embeddings, step_size, opts, state)
 
@@ -299,32 +291,31 @@ class SupervisedModel(nn.Module):
             # Collect output of step
             # step_size = ((state.i.item() - state.u_size.item() + 1) * (state.u_size + 1))
 
+            
+            outputs.append(log_p[:, 0, :])
+            sequences.append(selected)
+
             if optimizer is not None:
                 _log_p, pi, _ = (
                     torch.stack(outputs[i - opts.max_steps : i], 1),
                     torch.stack(sequences[i - opts.max_steps : i], 1),
                     -state.size / i,
                 )
-
-                # supervised learning
-                y = opt_match[:,i-1] 
-                ll = self._calc_log_likelihood(_log_p, pi, None)
-                print('y: ', y)
-                print('log_p: ', log_p)
-                print('mask: ', mask)
-                print('_log_p: ', _log_p)
-                print('ll: ', ll)
-                loss = train_supervised(log_p[:,0,:], y, optimizer, opts)
-                # keep track for logging
-                step_context = step_context.detach()
-                outputs.append(log_p[:, 0, :])
-                losses.append(loss)
-                sequences.append(selected)
-                # initial_embeddings = self.project_node_features(node_features).reshape(batch_size, graph_size, -1)
-                # state = state._replace(size=state.size.detach())
+                # do backprop
+                if training:
+                    # supervised learning
+                    y = opt_match[:,i-1] 
+                    ll = self._calc_log_likelihood(_log_p, pi, None)
+                    loss = train_supervised(log_p[:,0,:], y, optimizer, opts)
+                    step_context = step_context.detach()
+                    losses.append(loss)
+  
             i += 1
         # Collected lists, return Tensor
-        batch_loss = losses.sum()
+        batch_loss = sum(losses)
+        #print('sequences: ',sequences)
+        #print('batch loss: ', batch_loss)
+        #print('outputs: ', outputs)
         return (
             torch.stack(outputs, 1),
             torch.stack(sequences, 1),
