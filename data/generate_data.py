@@ -1,54 +1,18 @@
 import argparse
 import os
-from networkx.classes.function import number_of_edges
 import numpy as np
-from data.data_utils import check_extension, save_dataset
+from data.data_utils import (
+    add_nodes_with_bipartite_label,
+    get_solution,
+    parse_gmission_dataset,
+    parse_movie_lense_dataset,
+    from_networkx,
+    generate_weights_geometric,
+)
 import networkx as nx
 from scipy.optimize import linear_sum_assignment
 import torch
-import pickle as pk
 from tqdm import tqdm
-from scipy.stats import powerlaw
-import torch_geometric
-import math
-
-
-# gMission files
-gMission_edges = "data/gMission/edges.txt"
-gMission_tasks = "data/gMission/tasks.txt"
-gMission_reduced_tasks = "data/gMission/reduced_tasks.txt"
-gMission_reduced_workers = "data/gMission/reduced_workers.txt"
-
-# MovieLense files
-movie_lense_movies = "data/MovieLense/movies.txt"
-movie_lense_users = "data/MovieLense/users.txt"
-movie_lense_edges = "data/MovieLense/edges.txt"
-movie_lense_ratings = "data/MovieLense/ratings.txt"
-movie_lense_feature_weights = "data/MovieLense/feature_weights.txt"
-
-
-def get_solution(row_ind, col_in):
-    """
-    returns a np vector where the index at i is the the node in u that v_i connect to. If index is zero, then v[i] 
-    is connected to no node in U.
-    """
-    row_ind.sort()
-    col_in = col_in + 1
-    for i in range(0, len(row_ind)-1): 
-        for j in range(row_ind[i] + 1, row_ind[i+1]):
-            col_in = np.concatenate([col_in[:j] , np.zeros(1), col_in[j:]], 0)
-    col_in = np.concatenate([col_in, np.zeros(5- len(col_in))])
-    return col_in
-
-def _add_nodes_with_bipartite_label(G, lena, lenb):
-    """
-    Helper for generate_ba_graph that initializes the initial empty graph with nodes
-    """
-    G.add_nodes_from(range(0, lena + lenb))
-    b = dict(zip(range(0, lena), [0] * lena))
-    b.update(dict(zip(range(lena, lena + lenb), [1] * lenb)))
-    nx.set_node_attributes(G, b, "bipartite")
-    return G
 
 
 def generate_ba_graph(u, v, p, seed):
@@ -58,7 +22,7 @@ def generate_ba_graph(u, v, p, seed):
     np.random.seed(seed)
 
     G = nx.Graph()
-    G = _add_nodes_with_bipartite_label(G, u, v)
+    G = add_nodes_with_bipartite_label(G, u, v)
 
     G.name = f"ba_random_graph({u},{v},{p})"
 
@@ -84,242 +48,33 @@ def generate_ba_graph(u, v, p, seed):
     return G
 
 
-def generate_obm_data(
-    u_size,
-    v_size,
-    graph_family_parameter,
-    seed,
-    graph_family,
-    dataset_folder,
-    dataset_size,
-    save_data,
-):
-    """
-    Generates graphs using the ER/BA scheme
-
-    """
-    G, M = [], []
-    if graph_family == "er":
-        g = nx.bipartite.random_graph
-    if graph_family == "ba":
-        g = generate_ba_graph
-    for i in tqdm(range(dataset_size)):
-        g1 = g(u_size, v_size, p=graph_family_parameter, seed=seed + i)
-
-        cost = nx.bipartite.biadjacency_matrix(
-            g1, range(0, u_size), range(u_size, u_size + v_size)
-        ).toarray()
-        # d_old = np.array(sorted(g1.degree))[u_size:, 1]
-
-        # c = nx.convert_matrix.to_numpy_array(g1, s)
-
-        g1.add_node(
-            -1, bipartite=0
-        )  # add extra node in U that represents not matching the current node to anything
-        g1.add_edges_from(list(zip([-1] * v_size, range(u_size, u_size + v_size))))
-        s = sorted(list(g1.nodes))
-        m = 1 - nx.convert_matrix.to_numpy_array(g1, s)
-
-        # ordered_m = np.take(np.take(m, order, axis=1), order, axis=0)
-        if save_data:
-            torch.save(torch.tensor(m), "{}/graphs/{}.pt".format(dataset_folder, i))
-        else:
-            G.append(m.tolist())
-        i1, i2 = linear_sum_assignment(cost, maximize=True)
-        M.append(cost[i1, i2].sum())
-    if save_data:
-        torch.save(torch.tensor(M), "{}/optimal_match.pt".format(dataset_folder))
-    return (
-        torch.tensor(G),
-        torch.tensor(M),
-    )
-
-
-def generate_weights(distribution, u_size, v_size, parameters, g1):
-
-    edges = nx.bipartite.biadjacency_matrix(
-        g1, range(0, u_size), range(u_size, u_size + v_size)
-    ).toarray()  # U by V array of adjacacy matrix
-
-    if distribution == "uniform":
-        weights = edges * np.random.randint(
-            int(parameters[0]), int(parameters[1]), (u_size, v_size)
-        )
-
-    elif distribution == "normal":
-        weights = edges * (
-            np.abs(
-                np.random.normal(
-                    int(parameters[0]), int(parameters[1]), (u_size, v_size)
-                )
-            )
-            + 5
-        )  # to make sure no edge has weight zero
-
-    elif distribution == "power":
-        weights = edges * (
-            powerlaw.rvs(
-                int(parameters[0]),
-                int(parameters[1]),
-                int(parameters[2]),
-                (u_size, v_size),
-            )
-            + 5
-        )  # to make sure no edge has weight zero
-    elif distribution == "degree":
-        graph = 10 * edges * edges.sum(axis=1).reshape(-1, 1)
-        noise = np.random.randint(
-            int(parameters[0]), int(parameters[1]), (u_size, v_size)
-        )
-        weights = np.where(graph, graph + noise, graph)
-    w = torch.cat((torch.zeros(v_size, 1).long(), torch.tensor(weights).T.long()), 1)
-
-    return weights, w
-
-
-def from_networkx(G):
-    r"""Converts a :obj:`networkx.Graph` or :obj:`networkx.DiGraph` to a
-    :class:`torch_geometric.data.Data` instance.
-
-    Args:
-        G (networkx.Graph or networkx.DiGraph): A networkx graph.
-    """
-
-    G = nx.convert_node_labels_to_integers(G, ordering="sorted")
-    G = G.to_directed() if not nx.is_directed(G) else G
-    edge_index = torch.LongTensor(list(G.edges)).t().contiguous()
-
-    data = {}
-
-    for i, (_, feat_dict) in enumerate(G.nodes(data=True)):
-        for key, value in feat_dict.items():
-            data[str(key)] = [value] if i == 0 else data[str(key)] + [value]
-
-    for i, (_, _, feat_dict) in enumerate(G.edges(data=True)):
-        for key, value in feat_dict.items():
-            data[str(key)] = [value] if i == 0 else data[str(key)] + [value]
-
-    for key, item in data.items():
-        try:
-            data[key] = torch.tensor(item)
-        except ValueError:
-            pass
-
-    data["edge_index"] = edge_index.view(2, -1)
-    data = torch_geometric.data.Data.from_dict(data)
-    data.num_nodes = G.number_of_nodes()
-
-    return data
-
-
-def parse_gmission_dataset():
-    f_edges = open(gMission_edges, "r")
-    f_tasks = open(gMission_tasks, "r")
-    f_reduced_tasks = open(gMission_reduced_tasks, "r")
-    f_reduced_workers = open(gMission_reduced_workers, "r")
-    edgeWeights = dict()
-    edgeNumber = dict()
-    count = 0
-    for line in f_edges:
-        vals = line.split(",")
-        edgeWeights[vals[0]] = vals[1].split("\n")[0]
-        edgeNumber[vals[0]] = count
-        count += 1
-
-    tasks = list()
-    reduced_tasks = []
-    reduced_workers = []
-    tasks_x = dict()
-    tasks_y = dict()
-
-    for line in f_tasks:
-        vals = line.split(",")
-        tasks.append(vals[0])
-        tasks_x[vals[0]] = float(vals[2])
-        tasks_y[vals[0]] = float(vals[3])
-
-    for t in f_reduced_tasks:
-        reduced_tasks.append(t)
-
-    for w in f_reduced_workers:
-        reduced_workers.append(w)
-
-    return edgeWeights, tasks, reduced_tasks, reduced_workers
-
-
-def parse_movie_lense_dataset():
-    f_edges = open(movie_lense_edges, "r")
-    f_movies = open(movie_lense_movies, "r")
-    f_users = open(movie_lense_users, "r")
-    f_feature_weights = open(movie_lense_feature_weights, "r")
-
-    users = {}
-    movies = {}
-    edges = {}
-    feature_weights = {}
-
-    for u in f_users:
-        info = u.split(",")
-        users[info[0]] = info[1:3]
-
-    for m in f_movies:
-        info = m.split(",")
-        movies[info[0]] = info[2].split("|")
-
-    for e in f_edges:
-        info = e.split(",")
-        edges[(info[2], info[1])] = info[3].split("|")
-
-    for w in f_feature_weights:
-        feature = w.split(",")
-        feature_weights[(feature[1], feature[0])] = float(feature[2])
-
-    return users, movies, edges, feature_weights
-
-
-def find_best_tasks(tasks, edges):
-    task_total = {}
-    f_open = open("data/gMission/reduced_tasks.txt", "a")
-    for e in edges.items():
-        task = e[0].split(";")[1]
-        if task not in task_total:
-            task_total[task] = 1
-        else:
-            task_total[task] += 1
-    top_tasks = sorted(task_total.items(), key=lambda k: k[1], reverse=True)[:300]
-    for t in top_tasks:
-        f_open.write(t[0] + "\n")
-    return top_tasks
-
-
-def find_best_workers(tasks, edges):
-    task_total = {}
-    f_open = open("data/gMission/reduced_workers.txt", "a")
-    for e in edges.items():
-        task = e[0].split(";")[0]
-        if task not in task_total:
-            task_total[task] = 1
-        else:
-            task_total[task] += 1
-    top_tasks = sorted(task_total.items(), key=lambda k: k[1], reverse=True)[:200]
-    for t in top_tasks:
-        f_open.write(t[0] + "\n")
-    return top_tasks
-
-
 def generate_movie_lense_graph(
-    u, v, users, edges, movies, p, seed, weight_dist, weight_param, vary_fixed=False
+    u, v, users, edges, movies, sampled_movies, weight_features, seed, vary_fixed=False
 ):
     np.random.seed(seed)
-
     G = nx.Graph()
-    G = _add_nodes_with_bipartite_label(G, u, v)
+    G = add_nodes_with_bipartite_label(G, u, v)
 
     G.name = f"movielense_random_graph({u},{v})"
-    movies_id = np.array(list(movies.items()))[:, 0].flatten()
+
+    movies_id = np.array(list(movies.keys())).flatten()
+    users_id = np.array(list(users.keys())).flatten()
     if vary_fixed:
-        movies_id = list(np.random.choice(movies_id, size=u))
-    # weights = []
+        sampled_movies = list(np.random.choice(movies_id, size=u))
+
+    movies_features = list(map(lambda m: movies[m], sampled_movies))
+    users_features = []
+    for i in range(v):
+        sampled_user = np.random.choice(users_id)
+        user_info = list(weight_features[sampled_user]) + users[sampled_user]
+        for w in range(len(sampled_movies)):
+            movie = sampled_movies[w]
+            edge = (sampled_user, movie)
+            if edge in edges and (w, i + u) not in G.edges:
+                G.add_edge(w, i + u)
+        users_features.append(user_info)
+
+    return G, np.array(movies_features), np.array(users_features)
 
 
 def generate_gmission_graph(
@@ -328,7 +83,7 @@ def generate_gmission_graph(
     np.random.seed(seed)
 
     G = nx.Graph()
-    G = _add_nodes_with_bipartite_label(G, u, v)
+    G = add_nodes_with_bipartite_label(G, u, v)
 
     G.name = f"gmission_random_graph({u},{v})"
     if vary_fixed:
@@ -345,89 +100,11 @@ def generate_gmission_graph(
             if edge in edges and (w, i + u) not in G.edges:
                 G.add_edge(w, i + u, weight=float(edges[edge]))
                 weights.append(float(edges[edge]))
-            else:
+            elif edge not in edges:
                 weights.append(float(0))
     weights = np.array(weights).reshape(v, u).T
     w = np.delete(weights.flatten(), weights.flatten() == 0)
     return G, weights, w
-
-
-def generate_weights_geometric(distribution, u_size, v_size, parameters, g1, seed):
-    weights, w = 0, 0
-    np.random.seed(seed)
-    if distribution == "uniform":
-        weights = nx.bipartite.biadjacency_matrix(
-            g1, range(0, u_size), range(u_size, u_size + v_size)
-        ).toarray() * np.random.uniform(
-            int(parameters[0]), int(parameters[1]), (u_size, v_size)
-        )
-        w = torch.cat(
-            (torch.zeros(v_size, 1).float(), torch.tensor(weights).T.float()), 1
-        )
-    elif distribution == "normal":
-        weights = nx.bipartite.biadjacency_matrix(
-            g1, range(0, u_size), range(u_size, u_size + v_size)
-        ).toarray() * (
-            np.abs(
-                np.random.normal(
-                    int(parameters[0]), int(parameters[1]), (u_size, v_size)
-                )
-            )
-            + 5
-        )  # to make sure no edge has weight zero
-        w = torch.cat(
-            (torch.zeros(v_size, 1).float(), torch.tensor(weights).T.float()), 1
-        )
-    elif distribution == "power":
-        weights = nx.bipartite.biadjacency_matrix(
-            g1, range(0, u_size), range(u_size, u_size + v_size)
-        ).toarray() * (
-            powerlaw.rvs(
-                int(parameters[0]),
-                int(parameters[1]),
-                int(parameters[2]),
-                (u_size, v_size),
-            )
-            + 5
-        )  # to make sure no edge has weight zero
-        w = torch.cat(
-            (torch.zeros(v_size, 1).float(), torch.tensor(weights).T.float()), 1
-        )
-    elif distribution == "degree":
-        weights = nx.bipartite.biadjacency_matrix(
-            g1, range(0, u_size), range(u_size, u_size + v_size)
-        ).toarray()
-        graph = 10 * weights * weights.sum(axis=1).reshape(-1, 1)
-        noise = np.random.randint(
-            int(parameters[0]), int(parameters[1]), (u_size, v_size)
-        )
-        weights = np.where(graph, graph + noise, graph)
-        w = torch.cat(
-            (torch.zeros(v_size, 1).float(), torch.tensor(weights).T.float()), 1
-        )
-    elif distribution == "node-normal":
-        adj = nx.bipartite.biadjacency_matrix(
-            g1, range(0, u_size), range(u_size, u_size + v_size)
-        ).toarray()
-        mean = np.random.randint(int(parameters[0]), int(parameters[1]), (u_size, 1))
-        variance = np.sqrt(
-            np.random.randint(int(parameters[0]), int(parameters[1]), (u_size, 1))
-        )
-        weights = (
-            np.abs(np.random.normal(0.0, 1.0, (u_size, v_size)) * variance + mean) + 5
-        ) * adj
-    elif distribution == "fixed-normal":
-        adj = nx.bipartite.biadjacency_matrix(
-            g1, range(0, u_size), range(u_size, u_size + v_size)
-        ).toarray()
-        mean = np.random.choice(np.arange(0, 100, 15), size=(u_size, 1))
-        variance = np.sqrt(np.random.choice(np.arange(0, 100, 20), (u_size, 1)))
-        weights = (
-            np.abs(np.random.normal(0.0, 1.0, (u_size, v_size)) * variance + mean) + 5
-        ) * adj
-
-    w = np.delete(weights.flatten(), weights.flatten() == 0)
-    return weights, w
 
 
 def generate_er_graph(
@@ -453,6 +130,65 @@ def generate_er_graph(
     nx.set_edge_attributes(g1, dict(zip(list(g1.edges), d)))
 
     return g1, weights, w
+
+
+def generate_osbm_data_geometric(
+    u_size,
+    v_size,
+    weight_distribution,
+    weight_param,
+    graph_family_parameter,
+    seed,
+    graph_family,
+    dataset_folder,
+    dataset_size,
+    save_data,
+):
+    """
+    Generates edge weighted bipartite graphs using the ER/BA schemes in pytorch geometric format
+
+    Supports uniformm, normal, and power distributions.
+    """
+    D, M, S = [], [], []
+    vary_fixed = False
+    edges, users, movies = None, None, None
+    if "movielense" in graph_family:
+        users, movies, edges, feature_weights = parse_movie_lense_dataset()
+        np.random.seed(100)
+        movies_id = np.array(list(movies.keys())).flatten()
+        sampled_movies = list(np.random.choice(movies_id, size=u_size))
+        g = generate_movie_lense_graph
+        vary_fixed = graph_family == "movielense-var"
+    for i in tqdm(range(dataset_size)):
+        g1, movie_features, user_features = g(
+            u_size,
+            v_size,
+            users,
+            edges,
+            movies,
+            sampled_movies,
+            feature_weights,
+            seed + i,
+            vary_fixed,
+        )
+
+        g1.add_node(
+            -1, bipartite=0
+        )  # add extra node in U that represents not matching the current node to anything
+        g1.add_edges_from(list(zip([-1] * v_size, range(u_size, u_size + v_size))))
+        data = from_networkx(g1)
+        data.x = torch.tensor(
+            np.concatenate((movie_features.flatten(), user_features.flatten()))
+        )
+        data.y = 5.0  # TODO: Fill in optimal solution from gurobi
+        if save_data:
+            torch.save(
+                data, "{}/data_{}.pt".format(dataset_folder, i),
+            )
+        else:
+            D.append(data)
+        # ordered_m = np.take(np.take(m, order, axis=1), order, axis=0)
+    return (list(D), torch.tensor(M), torch.tensor(S))
 
 
 def generate_edge_obm_data_geometric(
@@ -511,10 +247,10 @@ def generate_edge_obm_data_geometric(
         g1.add_edges_from(
             list(zip([-1] * v_size, range(u_size, u_size + v_size))), weight=0
         )
-        i1, i2 = linear_sum_assignment(weights, maximize=True)
-        optimal = weights[i1, i2].sum()
+        i1, i2 = linear_sum_assignment(weights.T, maximize=True)
+        optimal = (weights.T)[i1, i2].sum()
         if v_size > u_size:
-            solution = get_solution(i1, i2)
+            solution = get_solution(i1, i2, v_size)
         else:
             solution = i2
         # s = sorted(list(g1.nodes))
@@ -535,167 +271,11 @@ def generate_edge_obm_data_geometric(
     return (list(D), torch.tensor(M), torch.tensor(S))
 
 
-def generate_edge_obm_data(
-    u_size,
-    v_size,
-    weight_distribution,
-    weight_param,
-    graph_family_parameter,
-    seed,
-    graph_family,
-    dataset_folder,
-    dataset_size,
-    save_data,
-):
-    """
-    Generates edge weighted bipartite graphs using the ER/BA schemes
-
-    Supports unifrom, normal, and power distributions.
-    """
-    D, M = [], []
-    if graph_family == "er":
-        g = nx.bipartite.random_graph
-    if graph_family == "ba":
-        g = generate_ba_graph
-    for i in tqdm(range(dataset_size)):
-        g1 = g(u_size, v_size, p=graph_family_parameter, seed=seed + i)
-
-        # a = nx.bipartite.biadjacency_matrix(g1, range(0, u_size), range(u_size, u_size + v_size)).toarray()
-        # print('a', a)
-        # d_old = np.array(sorted(g1.degree))[u_size:, 1]
-        weights, w = generate_weights(
-            weight_distribution, u_size, v_size, weight_param, g1
-        )
-
-        # print('weights: ', weights)
-        # print('w: ', w)
-        # s = sorted(list(g1.nodes))
-        # c = nx.convert_matrix.to_numpy_array(g1, s)
-
-        g1.add_node(
-            -1, bipartite=0
-        )  # add extra node in U that represents not matching the current node to anything
-        g1.add_edges_from(list(zip([-1] * v_size, range(u_size, u_size + v_size))))
-
-        s = sorted(list(g1.nodes))
-        # print('s: ', s)
-
-        m = 1 - nx.convert_matrix.to_numpy_array(g1, s)
-        # print('m: ', m)
-        if save_data:
-            torch.save(
-                [w], "{}/graphs/{}.pt".format(dataset_folder, i),
-            )
-        else:
-            D.append([torch.tensor(m).clone(), torch.tensor(w).clone()])
-        # ordered_m = np.take(np.take(m, order, axis=1), order, axis=0)
-        i1, i2 = linear_sum_assignment(weights, maximize=True)
-        M.append(weights[i1, i2].sum())
-    if save_data:
-        torch.save(torch.tensor(M), "{}/optimal_match.pt".format(dataset_folder))
-
-    return (
-        D,
-        torch.tensor(M),
-    )
-
-
-def generate_high_entropy_obm_data(opts):
-    """
-    Generates data from a range of graph family parameters instead of just one.
-    Stores each unique dataset seperately.
-    Used for model evaluation.
-    """
-    seed = opts.seed
-    min_p, max_p = float(opts.parameter_range[0]), float(opts.parameter_range[1])
-    for i, j in enumerate(
-        np.arange(min_p, max_p, (min_p + max_p) / opts.num_eval_datasets)
-    ):
-        print(i, j)
-        dataset_folder = opts.dataset_folder + "/eval{}".format(i)
-        if not os.path.exists(dataset_folder):
-            os.makedirs(dataset_folder)
-            os.makedirs("{}/graphs".format(dataset_folder))
-        generate_obm_data(
-            opts.u_size,
-            opts.v_size,
-            j,
-            seed,
-            opts.graph_family,
-            dataset_folder,
-            opts.dataset_size,
-            True,
-        )
-        seed += (
-            opts.dataset_size + 1
-        )  # Use different starting seed to make sure datasets do not overlap
-    return
-
-
-def generate_bipartite_data(
-    dataset_size, u_size, v_size, num_edges, future_edge_weight, weights_range
-):
-    """
-    Generate random graphs using gnmk_random_graph
-
-    This is the old implementation. DO NOT USE.
-    """
-    G, D, E, W, M = [], [], [], [], []
-    for i in range(dataset_size):
-        g1 = nx.bipartite.gnmk_random_graph(u_size, v_size, num_edges)
-        # d_old = np.array(sorted(g1.degree))[u_size:, 1]
-        c = nx.bipartite.biadjacency_matrix(
-            g1, range(0, u_size), range(u_size, u_size + v_size)
-        ).toarray() * np.random.randint(
-            weights_range[0], weights_range[1], (u_size, v_size)
-        )
-        f = torch.cat((torch.ones(v_size, 1).long(), torch.tensor(c).T), 1).flatten()
-        w = torch.cat((torch.zeros(v_size, 1).long(), torch.tensor(c).T), 1).flatten()
-        t = f.nonzero().T
-        g1.add_node(-1, bipartite=0)
-        g1.add_edges_from(list(zip([-1] * v_size, range(u_size, u_size + v_size))))
-        d = np.array(sorted(g1.degree))[u_size + 1 :, 1]
-        l1 = nx.line_graph(g1)
-        # w = np.random.randint(weights_range[0], weights_range[1], num_edges)
-        # w = c[c.nonzero()]
-        # w[
-        #     np.int_(np.sum(np.triu(np.ones((v_size, v_size))).T * d, axis=1) - 1)
-        # ] = future_edge_weight
-        # w = np.insert(w, np.cumsum(d_old) - d_old, future_edge_weight)
-        # w = np.insert(w,np.sum(np.triu(np.ones((v_size,v_size))).T * d, axis=1), future_edge_weight)
-        # add negative adjacency matrix and edge weights
-        # order = np.argsort(np.array(l1.nodes)[:, 1], axis=None)
-        s = sorted(list(l1.nodes), key=lambda a: a[0])
-        s = sorted(s, key=lambda a: a[1])
-        m = nx.convert_matrix.to_numpy_array(l1, s)
-        adj = torch.ones((u_size + 1) * v_size, (u_size + 1) * v_size)
-        temp = adj[t[0]]
-        temp[:, t[0]] = torch.tensor(1 - m).float()
-        adj[t[0]] = temp
-        # ordered_m = np.take(np.take(m, order, axis=1), order, axis=0)
-        G.append(adj.tolist())
-        W.append(w.tolist())
-        D.append(list(d))
-        E.append(s)
-        i1, i2 = linear_sum_assignment(c, maximize=True)
-        M.append(c[i1, i2].sum())
-    return (
-        torch.tensor(G),
-        torch.tensor(W),
-        torch.tensor(D),
-        torch.tensor(E),
-        torch.tensor(M),
-    )
-
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "--problem",
-        type=str,
-        default="obm",
-        help="Problem: 'obm', 'e-obm', 'adwords' or 'displayads'",
+        "--problem", type=str, default="obm", help="Problem: 'obm', 'e-obm', 'osbm'",
     )
     parser.add_argument(
         "--weight_distribution",
@@ -762,26 +342,18 @@ if __name__ == "__main__":
 
     opts = parser.parse_args()
 
-    # assert opts.filename is None or (
-    #     len(opts.problems) == 1 and len(opts.graph_sizes) == 1
-    # ), "Can only specify filename when generating a single dataset"
-
-    # assert opts.f or not os.path.isfile(
-    #     check_extension(filename)
-    # ), "File already exists! Try running with -f option to overwrite."
-
     if not os.path.exists(opts.dataset_folder):
         os.makedirs(opts.dataset_folder)
         if not opts.eval:
             os.makedirs("{}/graphs".format(opts.dataset_folder))
     np.random.seed(opts.seed)
 
-    if opts.eval:
-        generate_high_entropy_obm_data(opts)
-    elif opts.problem == "obm":
-        dataset = generate_obm_data(
+    if opts.problem == "e-obm":
+        dataset = generate_edge_obm_data_geometric(
             opts.u_size,
             opts.v_size,
+            opts.weight_distribution,
+            opts.weight_distribution_param,
             opts.graph_family_parameter,
             opts.seed,
             opts.graph_family,
@@ -789,8 +361,8 @@ if __name__ == "__main__":
             opts.dataset_size,
             True,
         )
-    elif opts.problem == "e-obm":
-        dataset = generate_edge_obm_data_geometric(
+    elif opts.problem == "osbm":
+        dataset = generate_osbm_data_geometric(
             opts.u_size,
             opts.v_size,
             opts.weight_distribution,
@@ -808,7 +380,3 @@ if __name__ == "__main__":
         pass
     else:
         assert False, "Unknown problem: {}".format(opts.problem)
-    # if opts.save_format != 'train':
-    #     save_dataset(
-    #         dataset, "{}by{}-{}.pkl".format(opts.u_size, opts.v_size, opts.graph_family)
-    #     )

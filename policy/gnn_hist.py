@@ -110,7 +110,6 @@ class GNNHist(nn.Module):
 
         entropy = -(_log_p * _log_p.exp()).sum(2).sum(1).mean()
         # Get log_p corresponding to selected actions
-        entropy = -(_log_p * _log_p.exp()).sum(2).sum(1).mean()
         log_p = _log_p.gather(2, a.unsqueeze(-1)).squeeze(-1)
 
         # Optional: mask out actions irrelevant to objective so they do not get reinforced

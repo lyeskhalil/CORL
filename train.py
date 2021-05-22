@@ -29,7 +29,9 @@ def set_decode_type(model, decode_type):
 
 def evaluate(models, dataset, opts):
     print("Evaluating...")
-    cost, cr, p, count1, count2, avg_j, wil = rollout_eval(models, dataset, opts)
+    cost, cr, p, p1, p2, count1, count2, avg_j, wil = rollout_eval(
+        models, dataset, opts
+    )
     avg_cost = cost.mean()
 
     min_cr = min(cr)
@@ -49,7 +51,7 @@ def evaluate(models, dataset, opts):
     )
     print("\nEvaluation competitive ratio", min_cr.item())
 
-    return avg_cost, min_cr.item(), avg_cr, cr, p, count1, count2, avg_j, wil
+    return avg_cost, min_cr.item(), avg_cr, cr, p, p1, p2, count1, count2, avg_j, wil
 
 
 def validate(model, dataset, opts):
@@ -134,19 +136,18 @@ def rollout_eval(models, dataset, opts):
             w, p = 0, 0
         else:
             w, p = wilcoxon(-cost.squeeze(), -cost1.squeeze(), alternative="greater")
-        # print(bat[-1])
-        cr = (
-            -cost.data.flatten()
-            * opts.u_size
-            / move_to(batch.y + (batch.y == 0).float(), opts.device)
-        )
+        cr = -cost.data.flatten() / move_to(bat.y + (bat.y == 0).float(), opts.device)
         # print(
         #     "\nBatch Competitive ratio: ", min(cr).item(),
         # )
+        num_agree_opt = (a == bat.x.reshape(a.size(0), -1)).float().sum(0)
+        greedy_agree_opt = (a1 == bat.x.reshape(a.size(0), -1)).float().sum(0)
         return (
             cost.data.cpu(),
             cr,
             num_agree,
+            num_agree_opt,
+            greedy_agree_opt,
             count,
             count1,
             jaccard,
@@ -155,16 +156,30 @@ def rollout_eval(models, dataset, opts):
 
     cost = []
     crs = []
-    n = []
+    n_greedy = []
+    n_greedy_opts = []
+    n_model_opts = []
     count_actions = []
     count_actions1 = []
     avg_jaccard = []
     wp = []
     for batch in tqdm(dataset):
-        c, cr, num_agree, count, count1, j, wilcox = eval_model_bat(batch, None)
+        (
+            c,
+            cr,
+            num_agree,
+            num_model_opt,
+            num_greedy_opt,
+            count,
+            count1,
+            j,
+            wilcox,
+        ) = eval_model_bat(batch, None)
         cost.append(c)
         crs.append(cr)
-        n.append(num_agree[None, :])
+        n_greedy.append(num_agree[None, :])
+        n_greedy_opts.append(num_greedy_opt[None, :])
+        n_model_opts.append(num_model_opt[None, :])
         count_actions.append(count[None, :])
         count_actions1.append(count1[None, :])
         avg_jaccard.append(j[None, :])
@@ -172,7 +187,9 @@ def rollout_eval(models, dataset, opts):
     return (
         torch.cat(cost, 0),
         torch.cat(crs, 0),
-        torch.cat(n, 0).sum(0),
+        torch.cat(n_greedy, 0).sum(0),
+        torch.cat(n_greedy_opts, 0).sum(0),
+        torch.cat(n_model_opts, 0).sum(0),
         torch.cat(count_actions, 0).sum(0),
         torch.cat(count_actions1, 0).sum(0),
         torch.cat(avg_jaccard, 0).mean(),
