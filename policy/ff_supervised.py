@@ -28,44 +28,23 @@ def set_decode_type(model, decode_type):
 
 def train_supervised(log_p, y, optimizers, opts):
     # The cross entrophy loss of v_1, ..., v_{t-1} (this is a batch_size by 1 vector)
-    total_loss = torch.zeros(y.shape)
+    # total_loss = torch.zeros(y.shape)
 
     # Calculate loss of v_t
-    loss_t = -torch.gather(log_p, 1, torch.unsqueeze(y, 1))
+    w = torch.ones(
+        opts.u_size + 1
+    ).float()  # TODO: Change weights, ideally should be weighted similar to U/V ratio.
+    loss_t = F.cross_entropy(log_p, y.long(), weight=w)
 
     # Update the loss for the whole graph
-    total_loss = total_loss + loss_t
-    loss = total_loss.sum()
+    # total_loss += loss_t
+    loss = loss_t
 
     # Perform backward pass and optimization step
-    optimizers[0].zero_grad()
-    loss.backward()
+    # optimizers[0].zero_grad()
+    # loss.backward()
+    # optimizers[0].step()
     return loss
-
-
-class AttentionModelFixed(NamedTuple):
-    """
-    Context for AttentionModel decoder that is fixed during decoding so can be precomputed/cached
-    This class allows for efficient indexing of multiple Tensors at once
-    """
-
-    node_embeddings: torch.Tensor
-    context_node_projected: torch.Tensor
-    glimpse_key: torch.Tensor
-    glimpse_val: torch.Tensor
-    logit_key: torch.Tensor
-
-    def __getitem__(self, key):
-        if torch.is_tensor(key) or isinstance(key, slice):
-            return AttentionModelFixed(
-                node_embeddings=self.node_embeddings[key],
-                context_node_projected=self.context_node_projected[key],
-                glimpse_key=self.glimpse_key[:, key],  # dim 0 are the heads
-                glimpse_val=self.glimpse_val[:, key],  # dim 0 are the heads
-                logit_key=self.logit_key[key],
-            )
-        # return super(AttentionModelFixed, self).__getitem__(key)
-        return self[key]
 
 
 class SupervisedFFModel(nn.Module):
@@ -90,7 +69,7 @@ class SupervisedFFModel(nn.Module):
 
         self.embedding_dim = embedding_dim
         self.decode_type = None
-        self.num_actions = 4 * (opts.u_size + 1) + 2
+        self.num_actions = 5 * (opts.u_size + 1) + 2
         self.is_bipartite = problem.NAME == "bipartite"
         self.problem = problem
         self.shrink_size = None
@@ -102,20 +81,7 @@ class SupervisedFFModel(nn.Module):
             nn.Linear(100, 100),
             nn.ReLU(),
             nn.Linear(100, opts.u_size + 1),
-
         )
-
-
-        def init_weights(m):
-            if type(m) == nn.Linear:
-                torch.nn.init.xavier_uniform_(m.weight)
-                m.bias.data.fill_(0.0001)
-
-        def init_parameters(self):
-            for name, param in self.named_parameters():
-                stdv = 1.0 / math.sqrt(param.size(-1))
-                param.data.uniform_(-stdv, stdv)
-
 
     def forward(self, input, opt_match, opts, optimizer, training=False):
         """
@@ -125,7 +91,9 @@ class SupervisedFFModel(nn.Module):
         using DataParallel as the results may be of different lengths on different GPUs
         :return:
         """
-        _log_p, pi, cost, batch_loss = self._inner(input, opt_match, opts, optimizer, training)
+        _log_p, pi, cost, batch_loss = self._inner(
+            input, opt_match, opts, optimizer, training
+        )
 
         ll = self._calc_log_likelihood(_log_p, pi, None)
         return -cost, ll, pi, batch_loss
@@ -138,28 +106,27 @@ class SupervisedFFModel(nn.Module):
         log_p = _log_p.gather(2, a.unsqueeze(-1)).squeeze(-1)
 
         # Optional: mask out actions irrelevant to objective so they do not get reinforced
-        if mask is not None:
-            log_p[mask] = 0
-        if not (log_p > -10000).data.all():
-            print(log_p)
-        assert (
-            log_p > -10000
-        ).data.all(), "Logprobs should not be -inf, check sampling procedure!"
+        # if mask is not None:
+        #     log_p[mask] = 0
+        # if not (log_p > -10000).data.all():
+        #     print(log_p)
+        # assert (
+        #     log_p > -10000
+        # ).data.all(), "Logprobs should not be -inf, check sampling procedure!"
 
         # Calculate log_likelihood
         # print(_log_p)
         return log_p.sum(1), entropy
 
-
     def _inner(self, input, opt_match, opts, optimizer, training):
 
         outputs = []
         sequences = []
-        losses = []
+        # losses = []
 
         state = self.problem.make_state(input, opts.u_size, opts.v_size, opts)
         i = 1
-
+        total_loss = 0
         while not (state.all_finished()):
             w = (state.adj[:, 0, :]).float().clone()
             mask = state.get_mask()
@@ -170,7 +137,7 @@ class SupervisedFFModel(nn.Module):
             h_mean[:, 0], h_var[:, 0], h_mean_degree[:, 0] = -1.0, -1.0, -1.0
             ind = torch.ones(state.batch_size, 1, device=opts.device) * i
             s = torch.cat(
-                (s, h_mean, h_var, h_mean_degree, state.size, ind.float()), dim=1,
+                (s, mask, h_mean, h_var, h_mean_degree, state.size, ind.float()), dim=1,
             )
             # s = w
             pi = self.ff(s)
@@ -186,31 +153,37 @@ class SupervisedFFModel(nn.Module):
             # do backprop if in training mode
             if optimizer is not None and training:
                 # supervised learning
-                y = opt_match[:,i-1]
-                print('y: ', y)
-                print('selected: ',selected)
-                loss = train_supervised(torch.log(p), y, optimizer, opts)
+                y = opt_match[:, i - 1]
+                # print('y: ', y)
+                # print('selected: ', selected)
+                loss = train_supervised(p, y, optimizer, opts)
+                # print("Loss: ", loss)
                 # keep track for logging
-                losses.append(loss)
-            
+                total_loss += loss
+
             i += 1
         # Collected lists, return Tensor
-        batch_loss = sum(losses)
+        batch_loss = total_loss / state.v_size
+        # print(batch_loss)
+        if optimizer is not None:
+            print(batch_loss)
+            optimizer[0].zero_grad()
+            batch_loss.backward()
+            optimizer[0].step()
         return (
             torch.stack(outputs, 1),
             torch.stack(sequences, 1),
-            state.size / (state.v_size * 100),
-            batch_loss 
+            state.size,
+            batch_loss,
         )
 
     def _select_node(self, probs, mask):
         assert (probs == probs).all(), "Probs should not contain any nans"
-        probs[mask] = -1e6
-        p = torch.log_softmax(probs, dim=1)
-        _, selected = p.max(1)
-        return selected, p
-    
+        # probs[mask] = -1e6 # TODO: Masking doesn't really make sense with supervised since input samples are independent, should only masking during testing.
+        _, selected = probs.max(1)
+        return selected, probs
+
     def set_decode_type(self, decode_type, temp=None):
         self.decode_type = decode_type
         if temp is not None:  # Do not change temperature if not provided
-           self.temp = temp
+            self.temp = temp

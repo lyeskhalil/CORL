@@ -214,7 +214,7 @@ def rollout(model, dataset, opts):
         # print(-cost.data.flatten())
         # print(bat[-1])
 
-        cr = (-cost.data.flatten() * opts.u_size) / move_to(
+        cr = (-cost.data.flatten()) / move_to(
             batch.y + (batch.y == 0).float(), opts.device
         )
         # print(
@@ -500,9 +500,10 @@ def train_batch_supervised(
     # Evaluate model, get costs and log probabilities
     batch = move_to(batch, opts.device)
     matchings = batch.x.reshape(opts.batch_size, opts.v_size)
-    #print("batch.y ", batch.y)
-    cost, log_likelihood, e, batch_loss = model(batch, matchings, opts, optimizers, training=True)
-     
+    # print("batch.y ", batch.y)
+    cost, log_likelihood, e, batch_loss = model(
+        batch, matchings, opts, optimizers, training=True
+    )
     # Logging
     log_values(
         cost,
