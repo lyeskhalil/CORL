@@ -110,7 +110,6 @@ class GNNHist(nn.Module):
 
         entropy = -(_log_p * _log_p.exp()).sum(2).sum(1).mean()
         # Get log_p corresponding to selected actions
-        entropy = -(_log_p * _log_p.exp()).sum(2).sum(1).mean()
         log_p = _log_p.gather(2, a.unsqueeze(-1)).squeeze(-1)
 
         # Optional: mask out actions irrelevant to objective so they do not get reinforced
@@ -140,13 +139,12 @@ class GNNHist(nn.Module):
 
         while not (state.all_finished()):
             step_size = state.i + 1
-
+            mask = state.get_mask()
             # Pass the graph to the Encoder
             node_features = (
                 torch.cat(
                     (
-                        torch.ones(1, device=opts.device),
-                        torch.ones(opts.u_size, device=opts.device) * 2,
+                        torch.ones(1, device=opts.device) * -1.0,
                         torch.ones(step_size - opts.u_size - 1, device=opts.device) * 3,
                     )
                 )
@@ -167,11 +165,12 @@ class GNNHist(nn.Module):
             ).flatten()  # The nodes of the current subgraphs
 
             # Delete irrelevant fixed nodes
-            mask = (state.adj[:, 0, :] == 0).float()
-            mask[:, 0] = 0.0
+            mask_available = (state.adj[:, 0, :] == 0).float()
+            mask_available[:, 0] = 0.0
             fixed_nodes_del = torch.nonzero(
                 torch.cat(
-                    (mask, torch.zeros(batch_size, i, device=opts.device)), dim=1
+                    (mask_available, torch.zeros(batch_size, i, device=opts.device)),
+                    dim=1,
                 ).flatten()
             ).flatten()
             subgraphs = subgraphs.index_fill_(0, fixed_nodes_del, -1)
@@ -194,7 +193,6 @@ class GNNHist(nn.Module):
             # print(incoming_node_embeddings)
             w = (state.adj[:, 0, :]).float()
             mean_w = w.mean(1)[:, None, None].repeat(1, state.u_size + 1, 1)
-            mask = state.get_mask()
             s = w.reshape(state.batch_size, state.u_size + 1, 1)
             h_mean = state.hist_sum / i
             h_var = (state.hist_sum_sq - ((state.hist_sum ** 2) / i)) / i

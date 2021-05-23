@@ -32,7 +32,7 @@ class StateEdgeBipartite(NamedTuple):
         ].squeeze(-1)
 
         # permute the nodes for data
-        if opts.model != "supervised":
+        if opts.model != "supervised" or not opts.eval:
             idx = torch.randperm(adj.shape[1])
             adj = adj[:, idx, :].view(adj.size())
         # size = torch.zeros(batch_size, 1, dtype=torch.long, device=graphs.device)

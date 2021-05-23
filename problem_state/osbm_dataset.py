@@ -2,28 +2,28 @@ from torch_geometric.data import Dataset
 import torch
 import os
 import pickle
-from problem_state.edge_obm_state import StateEdgeBipartite
-from data.generate_data import generate_edge_obm_data, generate_edge_obm_data_geometric
+from problem_state.osbm_env import StateOSBM
+from data.generate_data import generate_osbm_data_geometric
 
 
-class EdgeBipartite(object):
+class OSBM(object):
 
-    NAME = "e-obm"
+    NAME = "osbm"
 
     @staticmethod
     def make_dataset(*args, **kwargs):
-        return EdgeBipartiteDataset(*args, **kwargs)
+        return OSBMDataset(*args, **kwargs)
 
     @staticmethod
     def make_state(*args, **kwargs):
-        return StateEdgeBipartite.initialize(*args, **kwargs)
+        return StateOSBM.initialize(*args, **kwargs)
 
 
-class EdgeBipartiteDataset(Dataset):
+class OSBMDataset(Dataset):
     def __init__(
         self, dataset, size, problem, seed, opts, transform=None, pre_transform=None
     ):
-        super(EdgeBipartiteDataset, self).__init__(None, transform, pre_transform)
+        super(OSBMDataset, self).__init__(None, transform, pre_transform)
         # self.data_set = dataset
         # self.optimal_size = torch.load("{}/optimal_match.pt".format(self.data_set))
         self.problem = problem
@@ -32,7 +32,7 @@ class EdgeBipartiteDataset(Dataset):
             self.data_set = dataset
         else:
             # If no filename is specified generated data for edge obm probelm
-            D, optimal_size = generate_edge_obm_data_geometric(
+            D, optimal_size = generate_osbm_data_geometric(
                 opts.u_size,
                 opts.v_size,
                 opts.weight_distribution,
