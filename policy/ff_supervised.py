@@ -189,7 +189,6 @@ class SupervisedFFModel(nn.Module):
                 y = opt_match[:,i-1]
                 loss = train_supervised(torch.log(p), y, optimizer, opts)
                 # keep track for logging
-                step_context = step_context.detach()
                 losses.append(loss)
             
             i += 1
