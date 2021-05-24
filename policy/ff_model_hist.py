@@ -30,7 +30,7 @@ class FeedForwardModelHist(nn.Module):
 
         self.embedding_dim = embedding_dim
         self.decode_type = None
-        self.num_actions = 5 * (opts.u_size + 1) + 2
+        self.num_actions = 5 * (opts.u_size + 1) + 7
         self.is_bipartite = problem.NAME == "bipartite"
         self.problem = problem
         self.shrink_size = None
@@ -99,7 +99,7 @@ class FeedForwardModelHist(nn.Module):
         # step_context = 0
         # batch_size = state.ids.size(0)
         # Perform decoding steps
-        i = 1
+        i = 1.0
         # entropy = 0
         while not (state.all_finished()):
             # step_size = (state.i.item() - state.u_size.item() + 1) * (
@@ -115,9 +115,28 @@ class FeedForwardModelHist(nn.Module):
             h_var = ((state.hist_sum_sq - ((state.hist_sum ** 2) / i)) / i).squeeze(1)
             h_mean_degree = state.hist_deg.squeeze(1) / i
             h_mean[:, 0], h_var[:, 0], h_mean_degree[:, 0] = -1.0, -1.0, -1.0
-            ind = torch.ones(state.batch_size, 1, device=opts.device) * i
+            ind = torch.ones(state.batch_size, 1, device=opts.device) * i / state.v_size
+            curr_sol_size = i - state.num_skip
+            var_sol = (
+                state.sum_sol_sq - ((state.size ** 2) / curr_sol_size)
+            ) / curr_sol_size
+            mean_sol = state.size / curr_sol_size
             s = torch.cat(
-                (s, mask, h_mean, h_var, h_mean_degree, state.size, ind.float()), dim=1,
+                (
+                    s,
+                    state.matched_nodes,
+                    h_mean,
+                    h_var,
+                    h_mean_degree,
+                    state.size / state.u_size,
+                    ind.float(),
+                    mean_sol,
+                    var_sol,
+                    state.num_skip / i,
+                    state.max_sol,
+                    state.min_sol,
+                ),
+                dim=1,
             )
             # s = w
             pi = self.ff(s)
@@ -129,7 +148,7 @@ class FeedForwardModelHist(nn.Module):
             state = state.update((selected)[:, None])
             outputs.append(p)
             sequences.append(selected)
-            i += 1
+            i += 1.0
         # Collected lists, return Tensor
         return (
             torch.stack(outputs, 1),
