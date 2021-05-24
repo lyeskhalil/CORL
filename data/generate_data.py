@@ -256,8 +256,8 @@ def generate_edge_obm_data_geometric(
         # s = sorted(list(g1.nodes))
         # m = 1 - nx.convert_matrix.to_numpy_array(g1, s)
         data = from_networkx(g1)
-        print('solution: ', solution)
-        print('lsolution: ', solution.tolist())
+        # print('solution: ', solution)
+        # print('lsolution: ', solution.tolist())
         data.x = torch.tensor(
             solution
         )  # this is a list, must convert to tensor when a batch is called
