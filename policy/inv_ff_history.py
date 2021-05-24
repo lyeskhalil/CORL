@@ -57,12 +57,11 @@ class InvariantFFHist(nn.Module):
         # Optional: mask out actions irrelevant to objective so they do not get reinforced
         if mask is not None:
             log_p[mask] = 0
-        if not (log_p > -10000).data.all():
+        if not (log_p > -1e8).data.all():
             print(log_p)
         assert (
-            log_p > -10000
+            log_p > -1e8
         ).data.all(), "Logprobs should not be -inf, check sampling procedure!"
-
         # Calculate log_likelihood
         return log_p.sum(1), entropy
 
@@ -141,7 +140,7 @@ class InvariantFFHist(nn.Module):
 
     def _select_node(self, probs, mask):
         assert (probs == probs).all(), "Probs should not contain any nans"
-        probs[mask] = -1e6
+        probs[mask] = -1e8
         p = torch.log_softmax(probs, dim=1)
         # print(p)
         if self.decode_type == "greedy":
@@ -156,7 +155,7 @@ class InvariantFFHist(nn.Module):
             # See https://discuss.pytorch.org/t/bad-behavior-of-multinomial-function/10232
             # while mask.gather(1, selected.unsqueeze(-1)).data.any():
             #     print("Sampled bad values, resampling!")
-            #     selected = probs.multinomial(1).squeeze(1)
+            #     selected = p.exp().multinomial(1).squeeze(1)
 
         else:
             assert False, "Unknown decode type"
