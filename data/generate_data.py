@@ -69,7 +69,7 @@ def generate_movie_lense_graph(
         user_info = list(weight_features[sampled_user]) + users[sampled_user]
         for w in range(len(sampled_movies)):
             movie = sampled_movies[w]
-            edge = (sampled_user, movie)
+            edge = (movie, sampled_user)
             if edge in edges and (w, i + u) not in G.edges:
                 G.add_edge(w, i + u)
         users_features.append(user_info)
@@ -180,7 +180,7 @@ def generate_osbm_data_geometric(
         data.x = torch.tensor(
             np.concatenate((movie_features.flatten(), user_features.flatten()))
         )
-        data.y = 5.0  # TODO: Fill in optimal solution from gurobi
+        data.y = 10.0  # TODO: Fill in optimal solution from gurobi
         if save_data:
             torch.save(
                 data, "{}/data_{}.pt".format(dataset_folder, i),

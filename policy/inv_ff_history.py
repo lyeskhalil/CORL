@@ -27,30 +27,25 @@ class InvariantFFHist(nn.Module):
 
         self.embedding_dim = embedding_dim
         self.decode_type = None
-        self.num_actions = 2 * (opts.u_size + 1)
-        self.is_bipartite = problem.NAME == "bipartite"
         self.problem = problem
-        self.shrink_size = None
-        self.ff = nn.Sequential(nn.Linear(8, 100), nn.ReLU(), nn.Linear(100, 1),)
-
-        # def init_weights(m):
-        #     if type(m) == nn.Linear:
-        #         torch.nn.init.xavier_uniform_(m.weight)
-        #         m.bias.data.fill_(0.0001)
-
-        # self.ff.apply(init_weights)
+        self.ff = nn.Sequential(
+            nn.Linear(13, 100),
+            nn.ReLU(),
+            nn.Linear(100, 100),
+            nn.ReLU(),
+            nn.Linear(100, 100),
+            nn.ReLU(),
+            nn.Linear(100, 1),
+        )
 
     def forward(self, x, opts, optimizer, baseline, return_pi=False):
 
         _log_p, pi, cost = self._inner(x, opts)
 
-        # cost, mask = self.problem.get_costs(input, pi)
-        # Log likelyhood is calculated within the model since returning it per action does not work well with
-        # DataParallel since sequences can be of different lengths
         ll, e = self._calc_log_likelihood(_log_p, pi, None)
         if return_pi:
             return -cost, ll, pi, e
-        # print(ll)
+
         return -cost, ll, e
 
     def _calc_log_likelihood(self, _log_p, a, mask):
@@ -62,12 +57,11 @@ class InvariantFFHist(nn.Module):
         # Optional: mask out actions irrelevant to objective so they do not get reinforced
         if mask is not None:
             log_p[mask] = 0
-        if not (log_p > -10000).data.all():
+        if not (log_p > -1e8).data.all():
             print(log_p)
         assert (
-            log_p > -10000
+            log_p > -1e8
         ).data.all(), "Logprobs should not be -inf, check sampling procedure!"
-
         # Calculate log_likelihood
         return log_p.sum(1), entropy
 
@@ -97,17 +91,32 @@ class InvariantFFHist(nn.Module):
             h_var = (state.hist_sum_sq - ((state.hist_sum ** 2) / i)) / i
             h_mean_degree = state.hist_deg / i
             h_mean[:, :, 0], h_var[:, :, 0], h_mean_degree[:, :, 0] = -1.0, -1.0, -1.0
-            idx = torch.ones(state.batch_size, 1, 1, device=opts.device) * i
+            idx = (
+                torch.ones(state.batch_size, 1, 1, device=opts.device)
+                * i
+                / state.v_size
+            )
+            curr_sol_size = i - state.num_skip
+            var_sol = (
+                state.sum_sol_sq - ((state.size ** 2) / curr_sol_size)
+            ) / curr_sol_size
+            mean_sol = state.size / curr_sol_size
             s = torch.cat(
                 (
                     s,
-                    mask.reshape(-1, state.u_size + 1, 1),
+                    state.matched_nodes.reshape(-1, state.u_size + 1, 1),
                     mean_w,
                     h_mean.transpose(1, 2),
                     h_var.transpose(1, 2),
                     h_mean_degree.transpose(1, 2),
                     idx.repeat(1, state.u_size + 1, 1),
-                    state.size.unsqueeze(2).repeat(1, state.u_size + 1, 1),
+                    state.size.unsqueeze(2).repeat(1, state.u_size + 1, 1)
+                    / state.u_size,
+                    mean_sol.unsqueeze(2).repeat(1, state.u_size + 1, 1),
+                    var_sol.unsqueeze(2).repeat(1, state.u_size + 1, 1),
+                    state.num_skip.unsqueeze(2).repeat(1, state.u_size + 1, 1) / i,
+                    state.max_sol.unsqueeze(2).repeat(1, state.u_size + 1, 1),
+                    state.min_sol.unsqueeze(2).repeat(1, state.u_size + 1, 1),
                 ),
                 dim=2,
             )
@@ -131,7 +140,7 @@ class InvariantFFHist(nn.Module):
 
     def _select_node(self, probs, mask):
         assert (probs == probs).all(), "Probs should not contain any nans"
-        probs[mask] = -1e6
+        probs[mask] = -1e8
         p = torch.log_softmax(probs, dim=1)
         # print(p)
         if self.decode_type == "greedy":
@@ -146,7 +155,7 @@ class InvariantFFHist(nn.Module):
             # See https://discuss.pytorch.org/t/bad-behavior-of-multinomial-function/10232
             # while mask.gather(1, selected.unsqueeze(-1)).data.any():
             #     print("Sampled bad values, resampling!")
-            #     selected = probs.multinomial(1).squeeze(1)
+            #     selected = p.exp().multinomial(1).squeeze(1)
 
         else:
             assert False, "Unknown decode type"
