@@ -139,8 +139,10 @@ class SupervisedFFModel(nn.Module):
             # s = w
             pi = self.ff(s)
             # Select the indices of the next nodes in the sequences, result (batch_size) long
+            if training:
+                mask = (w == 0).bool()
             selected, p = self._select_node(
-                pi, mask.bool()
+                pi, mask.bool(),
             )  # Squeeze out steps dimension
             # entropy += torch.sum(p * (p.log()), dim=1)
             state = state.update((selected)[:, None])
@@ -150,9 +152,10 @@ class SupervisedFFModel(nn.Module):
             # do backprop if in training mode
             if optimizer is not None and training:
                 none_node_w = torch.tensor(
-                    [1/ math.e**(opts.v_size/opts.u_size)]
-                    ).float()
-                w = torch.cat([none_node_w, torch.ones(opts.u_size).float()], dim=0) 
+                    [1.0 / math.e ** (opts.v_size / opts.u_size)]
+                    # [0]
+                ).float()
+                w = torch.cat([none_node_w, torch.ones(opts.u_size).float()], dim=0)
                 # supervised learning
                 y = opt_match[:, i - 1]
                 # print('y: ', y)
@@ -167,10 +170,10 @@ class SupervisedFFModel(nn.Module):
         batch_loss = total_loss / state.v_size
         # print(batch_loss)
         if optimizer is not None and training:
-            print('epoch {} batch loss {}'.format(i, batch_loss))
-            print('outputs: ', outputs)
-            print('sequences: ', sequences)
-            print('optimal solution: ', opt_match)
+            # print('epoch {} batch loss {}'.format(i, batch_loss))
+            # print('outputs: ', outputs)
+            # print('sequences: ', sequences)
+            # print('optimal solution: ', opt_match)
             optimizer[0].zero_grad()
             batch_loss.backward()
             optimizer[0].step()
@@ -183,7 +186,12 @@ class SupervisedFFModel(nn.Module):
 
     def _select_node(self, probs, mask):
         assert (probs == probs).all(), "Probs should not contain any nans"
-        # probs[mask] = -1e6 # TODO: Masking doesn't really make sense with supervised since input samples are independent, should only masking during testing.
+        mask[:, 0] = False
+        probs[
+            mask
+        ] = (
+            -1e6
+        )  # TODO: Masking doesn't really make sense with supervised since input samples are independent, should only masking during testing.
         _, selected = probs.max(1)
         return selected, probs
 
