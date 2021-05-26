@@ -69,7 +69,7 @@ def generate_movie_lense_graph(
         user_info = list(weight_features[sampled_user]) + users[sampled_user]
         for w in range(len(sampled_movies)):
             movie = sampled_movies[w]
-            edge = (sampled_user, movie)
+            edge = (movie, sampled_user)
             if edge in edges and (w, i + u) not in G.edges:
                 G.add_edge(w, i + u)
         users_features.append(user_info)

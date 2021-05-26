@@ -76,13 +76,18 @@ class StateEdgeBipartite(NamedTuple):
 
         return self.size
 
+    def get_current_weights(self):
+        return self.adj[:, 0, :].float()
+
     def update(self, selected):
         # Update the state
         nodes = self.matched_nodes.scatter_(-1, selected, 1)
         nodes[
             :, 0
         ] = 0  # node that represents not being matched to anything can be matched to more than once
-        selected_weights = self.adj[:, 0, :].clone().gather(1, selected)
+        selected_weights = (
+            self.adj[:, 0, :].clone().gather(1, selected).to(self.adj.device)
+        )
         skip = (selected == 0).float()
         num_skip = self.num_skip + skip
         if self.i == self.u_size + 1:

@@ -70,7 +70,7 @@ class GNNHist(nn.Module):
         )
 
         self.ff = nn.Sequential(
-            nn.Linear(12 + 3 * opts.embedding_dim, 100), nn.ReLU(), nn.Linear(100, 1),
+            nn.Linear(2 + 4 * opts.embedding_dim, 200), nn.ReLU(), nn.Linear(200, 1),
         )
 
         assert embedding_dim % n_heads == 0
@@ -188,7 +188,7 @@ class GNNHist(nn.Module):
             incoming_node_embeddings = embeddings[:, -1, :].unsqueeze(1)
             # print(incoming_node_embeddings)
             w = (state.adj[:, 0, :]).float()
-            mean_w = w.mean(1)[:, None, None].repeat(1, state.u_size + 1, 1)
+            # mean_w = w.mean(1)[:, None, None].repeat(1, state.u_size + 1, 1)
             s = w.reshape(state.batch_size, state.u_size + 1, 1)
             h_mean = state.hist_sum / i
             h_var = (state.hist_sum_sq - ((state.hist_sum ** 2) / i)) / i
@@ -199,11 +199,11 @@ class GNNHist(nn.Module):
                 * i
                 / state.v_size
             )
-            curr_sol_size = i - state.num_skip
-            var_sol = (
-                state.sum_sol_sq - ((state.size ** 2) / curr_sol_size)
-            ) / curr_sol_size
-            mean_sol = state.size / curr_sol_size
+            # curr_sol_size = i - state.num_skip
+            # var_sol = (
+            #     state.sum_sol_sq - ((state.size ** 2) / curr_sol_size)
+            # ) / curr_sol_size
+            # mean_sol = state.size / curr_sol_size
 
             if i != 1:
                 past_sol = (
@@ -233,24 +233,26 @@ class GNNHist(nn.Module):
                 )
             else:
                 step_context = self.initial_stepcontext.repeat(batch_size, 1, 1)
+
             s = torch.cat(
                 (
                     s,
-                    mean_w,
-                    h_mean.transpose(1, 2),
-                    h_var.transpose(1, 2),
-                    h_mean_degree.transpose(1, 2),
+                    # mean_w,
+                    # h_mean.transpose(1, 2),
+                    # h_var.transpose(1, 2),
+                    # h_mean_degree.transpose(1, 2),
                     idx.repeat(1, state.u_size + 1, 1),
-                    state.size.unsqueeze(2).repeat(1, state.u_size + 1, 1)
-                    / state.u_size,
-                    mean_sol.unsqueeze(2).repeat(1, state.u_size + 1, 1),
-                    var_sol.unsqueeze(2).repeat(1, state.u_size + 1, 1),
-                    state.num_skip.unsqueeze(2).repeat(1, state.u_size + 1, 1) / i,
-                    state.max_sol.unsqueeze(2).repeat(1, state.u_size + 1, 1),
-                    state.min_sol.unsqueeze(2).repeat(1, state.u_size + 1, 1),
+                    # state.size.unsqueeze(2).repeat(1, state.u_size + 1, 1)
+                    # / state.u_size,
+                    # mean_sol.unsqueeze(2).repeat(1, state.u_size + 1, 1),
+                    # var_sol.unsqueeze(2).repeat(1, state.u_size + 1, 1),
+                    # state.num_skip.unsqueeze(2).repeat(1, state.u_size + 1, 1) / i,
+                    # state.max_sol.unsqueeze(2).repeat(1, state.u_size + 1, 1),
+                    # state.min_sol.unsqueeze(2).repeat(1, state.u_size + 1, 1),
                     incoming_node_embeddings.repeat(1, state.u_size + 1, 1),
                     embeddings[:, : opts.u_size + 1, :],
                     step_context.repeat(1, state.u_size + 1, 1),
+                    embeddings.mean(1).unsqueeze(1).repeat(1, state.u_size + 1, 1),
                 ),
                 dim=2,
             )

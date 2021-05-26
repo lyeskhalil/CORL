@@ -66,7 +66,6 @@ class FeedForwardModel(nn.Module):
 
         entropy = -(_log_p * _log_p.exp()).sum(2).sum(1).mean()
         # Get log_p corresponding to selected actions
-        entropy = -(_log_p * _log_p.exp()).sum(2).sum(1).mean()
         log_p = _log_p.gather(2, a.unsqueeze(-1)).squeeze(-1)
 
         # Optional: mask out actions irrelevant to objective so they do not get reinforced
@@ -100,12 +99,11 @@ class FeedForwardModel(nn.Module):
             # step_size = state.i.item() + 1
             # v = state.i - (state.u_size + 1)
             # su = (state.weights[:, v, :]).float().sum(1)
-            w = (state.adj[:, 0, :]).float()
+            w = state.get_current_weights()
             # w[:, 0] = -1.
             mask = state.get_mask()
-            s = torch.cat((w, mask.float()), dim=1)
+            s = torch.cat((w.float(), mask.float()), dim=1)
             # s = w
-            # print(s)
             pi = self.ff(s)
             # Select the indices of the next nodes in the sequences, result (batch_size) long
             selected, p = self._select_node(
