@@ -152,10 +152,10 @@ class SupervisedFFModel(nn.Module):
             # do backprop if in training mode
             if optimizer is not None and training:
                 none_node_w = torch.tensor(
-                    [1.0 / math.e ** (opts.v_size / opts.u_size)]
+                    [1.0 / math.e ** (opts.v_size / opts.u_size)], device=opts.device
                     # [0]
                 ).float()
-                w = torch.cat([none_node_w, torch.ones(opts.u_size).float()], dim=0)
+                w = torch.cat([none_node_w, torch.ones(opts.u_size, device=opts.device).float()], dim=0)
                 # supervised learning
                 y = opt_match[:, i - 1]
                 # print('y: ', y)
