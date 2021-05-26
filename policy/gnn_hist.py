@@ -144,7 +144,7 @@ class GNNHist(nn.Module):
                 .unsqueeze(0)
                 .expand(batch_size, step_size - opts.u_size - 1)
             ).float()  # Collecting node features up until the ith incoming node
-            future_node_feature = torch.ones(batch_size, 1) * -1.0
+            future_node_feature = torch.ones(batch_size, 1, device=opts.device) * -1.0
             fixed_node_feature = state.matched_nodes[:, 1:]
             node_features = torch.cat(
                 (future_node_feature, fixed_node_feature, incoming_node_features), dim=1

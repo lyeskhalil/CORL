@@ -1,20 +1,20 @@
-# !/usr/bin/env python
+import numpy as np
 import os
+import subprocess
 
 # Refer to opts.py for details about the flags
 # graph/dataset flags
 model_type = "ff"
-problem = "e-obm"
-graph_family = "er"
-weight_distribution = "uniform"
-weight_distribution_param = "0 1"  # seperate by a space
-graph_family_parameters = "0.15"
+problem = "osbm"
+graph_family = "movielense"
+weight_distribution = "movielense"
+weight_distribution_param = "1- -1"  # seperate by a space
+graph_family_parameters = "-1"
 u_size = 10  # 10
 v_size = 30  # 30
-dataset_size = 10000
-val_size = 1000
-eval_size = 1000
-num_edges = 100
+dataset_size = 100
+val_size = 10
+eval_size = 10
 extention = "/{}_{}_{}_{}_{}by{}".format(
     problem,
     graph_family,
@@ -26,21 +26,21 @@ extention = "/{}_{}_{}_{}_{}by{}".format(
 
 train_dataset = "dataset/train" + extention
 
-val_dataset = "dataset/eval" + extention
+val_dataset = "dataset/val" + extention
 
 eval_dataset = "dataset/eval" + extention
 
 # model flags
 batch_size = 100
-embedding_dim = 30  # 60
-n_heads = 2  # 3
-n_epochs = 30
+embedding_dim = 20  # 60
+n_heads = 1  # 3
+n_epochs = 120
 checkpoint_epochs = 0
 eval_baselines = "greedy"  # ******
-lr_model = 0.001
-lr_decay = 1.0
-beta_decay = 0.9
-ent_rate = 0.0
+lr_model = 0.004
+lr_decay = 0.97
+beta_decay = 1.0
+ent_rate = 0.04
 n_encode_layers = 3
 baseline = "exponential"
 # directory io flags
@@ -48,7 +48,7 @@ output_dir = "saved_models"
 log_dir = "logs_dataset"
 
 # model evaluation flags
-eval_models = "ff inv-ff ff-hist inv-ff-hist"
+eval_models = "inv-ff ff ff-hist inv-ff-hist gnn-hist"
 eval_output = "figures"
 # this is a single checkpoint. Example: outputs_dataset/e-obm_20/run_20201226T171156/epoch-4.pt
 load_path = None
@@ -105,15 +105,25 @@ attention_models = "None"
 # ../output_e-obm_er_10by60_p=0.15_uniform_m=5_v=100_a=3/inv-ff/run_20210421T065311/epoch-119.pt \
 # ../output_e-obm_er_10by60_p=0.2_uniform_m=5_v=100_a=3/inv-ff/run_20210421T065256/epoch-119.pt"
 
-inv_ff_models = "../output_e-obm_gmission_10by30_p=-1_gmission_m=-1_v=-1_a=3/inv-ff/run_20210421T071053/epoch-119.pt"
-
+# gnn_hist_models = "outputs/output_e-obm_gmission_10by30_p=-1_gmission_m=-1_v=-1_a=3/gnn-hist/run_20210520T184352/epoch-119.pt"
+# gnn_hist_models = "outputs/output_e-obm_gmission_10by60_p=-1_gmission_m=-1_v=-1_a=3/gnn-hist/run_20210521T033638/epoch-119.pt"
+# inv_ff_models = "outputs/output_e-obm_gmission_10by30_p=-1_gmission_m=-1_v=-1_a=3/inv-ff/run_20210513T051222/epoch-119.pt"
+# gnn_hist_models = "outputs/output_e-obm_gmission-max_10by30_p=-1_gmission-max_m=-1_v=-1_a=3/gnn-hist/run_20210520T182339/epoch-119.pt"
+gnn_hist_models = "outputs/output_e-obm_gmission-max_10by60_p=-1_gmission-max_m=-1_v=-1_a=3/gnn-hist/run_20210520T182204/epoch-119.pt"
 # inv_ff_models = "outputs/output_e-obm_gmission_100by100_p=-1_gmission_m=-1_v=-1_a=3/inv-ff/run_20210502T062345/epoch-119.pt"
-# inv_ff_models = "../output_e-obm_gmission_10by60_p=-1_gmission_m=-1_v=-1_a=3/inv-ff/run_20210421T064440/epoch-119.pt"
+# inv_ff_models = "outputs/output_e-obm_gmission_10by60_p=-1_gmission_m=-1_v=-1_a=3/inv-ff/run_20210513T051219/epoch-119.pt"
+# inv_ff_models = "outputs/output_e-obm_gmission-var_10by30_p=-1_gmission-var_m=-1_v=-1_a=3/inv-ff/run_20210513T051323/epoch-119.pt"
+# inv_ff_models = "outputs/output_e-obm_gmission-var_10by60_p=-1_gmission-var_m=-1_v=-1_a=3/inv-ff/run_20210513T051318/epoch-119.pt"
+# inv_ff_models = "outputs/output_e-obm_gmission-max_10by30_p=-1_gmission-max_m=-1_v=-1_a=3/inv-ff/run_20210520T173501/epoch-119.pt"
+inv_ff_models = "outputs/output_e-obm_gmission-max_10by60_p=-1_gmission-max_m=-1_v=-1_a=3/inv-ff/run_20210520T173503/epoch-119.pt"
 
-inv_ff_hist_models = "outputs/output_e-obm_gmission_10by30_p=-1_gmission_m=-1_v=-1_a=3/inv-ff-hist/run_20210502T062353/epoch-119.pt"
-
+# inv_ff_hist_models = "outputs/output_e-obm_gmission_10by30_p=-1_gmission_m=-1_v=-1_a=3/inv-ff-hist/run_20210514T035952/epoch-119.pt"
+# inv_ff_hist_models = "outputs/output_e-obm_gmission-var_10by30_p=-1_gmission-var_m=-1_v=-1_a=3/inv-ff-hist/run_20210513T032250/epoch-119.pt"
+# inv_ff_hist_models = "outputs/output_e-obm_gmission-var_10by60_p=-1_gmission-var_m=-1_v=-1_a=3/inv-ff-hist/run_20210513T032442/epoch-119.pt"
+# inv_ff_hist_models = "outputs/output_e-obm_gmission_10by60_p=-1_gmission_m=-1_v=-1_a=3/inv-ff-hist/run_20210514T035949/epoch-119.pt"
 # inv_ff_hist_models = "outputs/output_e-obm_gmission_100by100_p=-1_gmission_m=-1_v=-1_a=3/inv-ff-hist/run_20210502T062345/epoch-119.pt"
-
+# inv_ff_hist_models = "outputs/output_e-obm_gmission-max_10by30_p=-1_gmission-max_m=-1_v=-1_a=3/inv-ff-hist/run_20210520T173506/epoch-119.pt"
+inv_ff_hist_models = "outputs/output_e-obm_gmission-max_10by60_p=-1_gmission-max_m=-1_v=-1_a=3/inv-ff-hist/run_20210520T173504/epoch-119.pt"
 
 ## 10by60
 # ff_models = "../output_e-obm_er_10by60_p=0.05_fixed-normal_m=5_v=100_a=3/ff/run_20210414T085002/epoch-99.pt \
@@ -133,15 +143,25 @@ inv_ff_hist_models = "outputs/output_e-obm_gmission_10by30_p=-1_gmission_m=-1_v=
 
 # gMission
 # 10by30
-ff_models = "../output_e-obm_gmission_10by30_p=-1_gmission_m=-1_v=-1_a=3/ff/run_20210414T085004/epoch-99.pt"
+# ff_models = "outputs/output_e-obm_gmission_10by30_p=-1_gmission_m=-1_v=-1_a=3/ff/run_20210513T022315/epoch-119.pt"
+# ff_models = "outputs/output_e-obm_gmission-var_10by30_p=-1_gmission-var_m=-1_v=-1_a=3/ff/run_20210513T032052/epoch-119.pt"
+
+# ff_models = "outputs/output_e-obm_gmission-var_10by60_p=-1_gmission-var_m=-1_v=-1_a=3/ff/run_20210513T044317/epoch-119.pt"
+
+# ff_models = "outputs/output_e-obm_gmission-max_10by30_p=-1_gmission-max_m=-1_v=-1_a=3/ff/run_20210520T173459/epoch-119.pt"
 # 10by60
-# ff_models = "../output_e-obm_gmission_10by60_p=-1_gmission_m=-1_v=-1_a=3/ff/run_20210414T085002/epoch-99.pt"
+# ff_models = "outputs/output_e-obm_gmission_10by60_p=-1_gmission_m=-1_v=-1_a=3/ff/run_20210513T032040/epoch-119.pt"
 # ff_models = "outputs/output_e-obm_gmission_100by100_p=-1_gmission_m=-1_v=-1_a=3/ff/run_20210503T040359/epoch-119.pt"
+ff_models = "outputs/output_e-obm_gmission-max_10by60_p=-1_gmission-max_m=-1_v=-1_a=3/ff/run_20210520T173459/epoch-119.pt"
+# ff_hist_models = "outputs/output_e-obm_gmission_10by30_p=-1_gmission_m=-1_v=-1_a=3/ff-hist/run_20210513T032054/epoch-119.pt"
 
-ff_hist_models = "outputs/output_e-obm_gmission_10by30_p=-1_gmission_m=-1_v=-1_a=3/ff-hist/run_20210502T093733/epoch-119.pt"
-
+# ff_hist_models = "outputs/output_e-obm_gmission-var_10by30_p=-1_gmission-var_m=-1_v=-1_a=3/ff-hist/run_20210513T032049/epoch-119.pt"
+# ff_hist_models = "outputs/output_e-obm_gmission-var_10by60_p=-1_gmission-var_m=-1_v=-1_a=3/ff-hist/run_20210513T032043/epoch-119.pt"
+# ff_hist_models = "outputs/output_e-obm_gmission_10by60_p=-1_gmission_m=-1_v=-1_a=3/ff-hist/run_20210513T032047/epoch-119.pt"
 # ff_hist_models = "outputs/output_e-obm_gmission_100by100_p=-1_gmission_m=-1_v=-1_a=3/ff-hist/run_20210502T095427/epoch-119.pt"
+# ff_hist_models = "outputs/output_e-obm_gmission-max_10by30_p=-1_gmission-max_m=-1_v=-1_a=3/ff-hist/run_20210520T173507/epoch-119.pt"
 
+ff_hist_models = "outputs/output_e-obm_gmission-max_10by60_p=-1_gmission-max_m=-1_v=-1_a=3/ff-hist/run_20210520T173507/epoch-119.pt"
 eval_batch_size = 1000
 eval_set = graph_family_parameters
 
@@ -216,13 +236,16 @@ def generate_data():
         )
 
         # print(generate_train)
-        os.system(generate_train)
+        # os.system(generate_train)
+        subprocess.run(generate_train, shell=True)
 
         # print(generate_val)
-        os.system(generate_val)
+        # os.system(generate_val)
+        subprocess.run(generate_val, shell=True)
 
-        print(generate_eval)
-        os.system(generate_eval)
+        # print(generate_eval)
+        # os.system(generate_eval)
+        subprocess.run(generate_eval, shell=True)
 
 
 def train_model():
@@ -231,9 +254,9 @@ def train_model():
         train_dir = train_dataset + "/parameter_{}".format(n)
         val_dir = val_dataset + "/parameter_{}".format(n)
         save_dir = output_dir + extention + "/parameter_{}".format(n)
-        train = """python run.py --encoder mpnn --model {} --problem {} --batch_size {} --embedding_dim {} --n_heads {} --u_size {}  --v_size {} --n_epochs {} \
+        train = """python3 run.py --encoder mpnn --model {} --problem {} --batch_size {} --embedding_dim {} --n_heads {} --u_size {}  --v_size {} --n_epochs {} \
                     --train_dataset {} --val_dataset {} --dataset_size {} --val_size {} --checkpoint_epochs {} --baseline {} \
-                    --lr_model {} --lr_decay {} --output_dir {} --log_dir {} --n_encode_layers {} --num_edges {} --save_dir {} --graph_family_parameter {} --exp_beta {} --ent_rate {}""".format(
+                    --lr_model {} --lr_decay {} --output_dir {} --log_dir {} --n_encode_layers {} --save_dir {} --graph_family_parameter {} --exp_beta {} --ent_rate {}""".format(
             model_type,
             problem,
             batch_size,
@@ -253,7 +276,6 @@ def train_model():
             output_dir,
             log_dir,
             n_encode_layers,
-            num_edges,
             save_dir,
             n,
             beta_decay,
@@ -261,12 +283,12 @@ def train_model():
         )
 
         # print(train)
-        os.system(train)
+        subprocess.run(train, shell=True)
 
 
 def evaluate_model():
     evaluate = """python eval.py --problem {} --embedding_dim {} --load_path {} --ff_models {} --attention_models {} --inv_ff_models {} --ff_hist_models {} \
-        --inv_ff_hist_models {} --eval_baselines {} \
+        --inv_ff_hist_models {} --gnn_hist_models {} --eval_baselines {} \
         --baseline {} --eval_models {} --eval_dataset {}  --u_size {} --v_size {} --eval_set {} --eval_size {} --eval_batch_size {} \
         --n_encode_layers {} --n_heads {} --output_dir {} --batch_size {} --encoder mpnn --weight_distribution {}""".format(
         problem,
@@ -277,6 +299,7 @@ def evaluate_model():
         inv_ff_models,
         ff_hist_models,
         inv_ff_hist_models,
+        gnn_hist_models,
         eval_baselines,
         baseline,
         eval_models,
@@ -294,7 +317,7 @@ def evaluate_model():
     )
 
     # print(evaluate)
-    os.system(evaluate)
+    subprocess.run(evaluate, shell=True)
 
 
 if __name__ == "__main__":
