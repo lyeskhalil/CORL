@@ -2,8 +2,7 @@ from torch.utils.data import Dataset
 import torch
 import os
 import pickle
-from problem_state.obm_state import StateBipartite
-from data.generate_data import generate_obm_data
+from problem_state.obm_env import StateBipartite
 
 
 class Bipartite(object):

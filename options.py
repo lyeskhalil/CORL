@@ -300,6 +300,11 @@ def get_options(args=None):
         help="list of trained inv-ff-hist models, seperated by space",
     )
     parser.add_argument(
+        "--gnn_hist_models",
+        nargs="+",
+        help="list of trained gnn-hist models, seperated by space",
+    )
+    parser.add_argument(
         "--attention_models",
         nargs="+",
         help="list of path to trained attention models, seperated by space",
