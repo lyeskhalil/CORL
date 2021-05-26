@@ -70,7 +70,7 @@ class GNNHist(nn.Module):
         )
 
         self.ff = nn.Sequential(
-            nn.Linear(12 + 3 * opts.embedding_dim, 100), nn.ReLU(), nn.Linear(100, 1),
+            nn.Linear(2 + 4 * opts.embedding_dim, 200), nn.ReLU(), nn.Linear(200, 1),
         )
 
         assert embedding_dim % n_heads == 0
@@ -144,7 +144,7 @@ class GNNHist(nn.Module):
                 .unsqueeze(0)
                 .expand(batch_size, step_size - opts.u_size - 1)
             ).float()  # Collecting node features up until the ith incoming node
-            future_node_feature = torch.ones(batch_size, 1) * -1.0
+            future_node_feature = torch.ones(batch_size, 1, device=opts.device) * -1.0
             fixed_node_feature = state.matched_nodes[:, 1:]
             node_features = torch.cat(
                 (future_node_feature, fixed_node_feature, incoming_node_features), dim=1
@@ -236,21 +236,22 @@ class GNNHist(nn.Module):
             s = torch.cat(
                 (
                     s,
-                    mean_w,
-                    h_mean.transpose(1, 2),
-                    h_var.transpose(1, 2),
-                    h_mean_degree.transpose(1, 2),
+                    #mean_w,
+                    #h_mean.transpose(1, 2),
+                    #h_var.transpose(1, 2),
+                    #h_mean_degree.transpose(1, 2),
                     idx.repeat(1, state.u_size + 1, 1),
-                    state.size.unsqueeze(2).repeat(1, state.u_size + 1, 1)
-                    / state.u_size,
-                    mean_sol.unsqueeze(2).repeat(1, state.u_size + 1, 1),
-                    var_sol.unsqueeze(2).repeat(1, state.u_size + 1, 1),
-                    state.num_skip.unsqueeze(2).repeat(1, state.u_size + 1, 1) / i,
-                    state.max_sol.unsqueeze(2).repeat(1, state.u_size + 1, 1),
-                    state.min_sol.unsqueeze(2).repeat(1, state.u_size + 1, 1),
+                    #state.size.unsqueeze(2).repeat(1, state.u_size + 1, 1)
+                    #/ state.u_size,
+                    #mean_sol.unsqueeze(2).repeat(1, state.u_size + 1, 1),
+                    #var_sol.unsqueeze(2).repeat(1, state.u_size + 1, 1),
+                    #state.num_skip.unsqueeze(2).repeat(1, state.u_size + 1, 1) / i,
+                    #state.max_sol.unsqueeze(2).repeat(1, state.u_size + 1, 1),
+                    #state.min_sol.unsqueeze(2).repeat(1, state.u_size + 1, 1),
                     incoming_node_embeddings.repeat(1, state.u_size + 1, 1),
                     embeddings[:, : opts.u_size + 1, :],
                     step_context.repeat(1, state.u_size + 1, 1),
+                    embeddings.mean(1).unsqueeze(1).repeat(1, state.u_size + 1, 1)
                 ),
                 dim=2,
             )
