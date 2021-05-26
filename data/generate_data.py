@@ -180,7 +180,7 @@ def generate_osbm_data_geometric(
         data.x = torch.tensor(
             np.concatenate((movie_features.flatten(), user_features.flatten()))
         )
-        data.y = 5.0  # TODO: Fill in optimal solution from gurobi
+        data.y = 10.0  # TODO: Fill in optimal solution from gurobi
         if save_data:
             torch.save(
                 data, "{}/data_{}.pt".format(dataset_folder, i),
@@ -256,8 +256,6 @@ def generate_edge_obm_data_geometric(
         # s = sorted(list(g1.nodes))
         # m = 1 - nx.convert_matrix.to_numpy_array(g1, s)
         data = from_networkx(g1)
-        # print('solution: ', solution)
-        # print('lsolution: ', solution.tolist())
         data.x = torch.tensor(
             solution
         )  # this is a list, must convert to tensor when a batch is called

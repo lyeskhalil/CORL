@@ -207,7 +207,7 @@ def rollout(model, dataset, opts):
 
             if opts.model == "supervised" or opts.model == "ff-supervised":
                 matchings = bat.x.reshape(opts.batch_size, opts.v_size)
-                cost, *_ = model(move_to(bat, opts.device), matchings, opts, None)
+                cost, *_ = model(move_to(bat, opts.device), matchings, opts, False)
             else:
                 cost, *_ = model(move_to(bat, opts.device), opts, None, None)
 
