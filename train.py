@@ -57,7 +57,8 @@ def evaluate(models, dataset, opts):
 def validate(model, dataset, opts):
     # Validate
     print("Validating...")
-    cost, cr = rollout(model, dataset, opts)
+    cost, cr, loss = rollout(model, dataset, opts)
+
     avg_cost = cost.mean()
 
     min_cr = min(cr)
@@ -74,7 +75,7 @@ def validate(model, dataset, opts):
     )
     print("\nValidation competitive ratio", min_cr.item())
 
-    return avg_cost, min_cr.item(), avg_cr
+    return avg_cost, min_cr.item(), avg_cr, loss
 
 
 def eval_model(models, problem, opts):
@@ -89,7 +90,7 @@ def eval_model(models, problem, opts):
                 num_samples=opts.val_size,
                 distribution=opts.data_distribution,
             )
-            cost, cr = rollout(models[j], dataset, opts)
+            cost, cr, loss = rollout(models[j], dataset, opts)
             ratio.append(opts.u_size / (opts.u_size + i * 1))
             c.append(cost)
             min_cr.append(min(cr).item())
@@ -203,11 +204,14 @@ def rollout(model, dataset, opts):
     model.eval()
 
     def eval_model_bat(bat, optimal):
+        batch_loss = 0
         with torch.no_grad():
 
             if opts.model == "supervised" or opts.model == "ff-supervised":
                 matchings = bat.x.reshape(opts.batch_size, opts.v_size)
-                cost, *_ = model(move_to(bat, opts.device), matchings, opts, False)
+                cost, _, _, batch_loss = model(
+                    move_to(bat, opts.device), matchings, opts, False
+                )
             else:
                 cost, *_ = model(move_to(bat, opts.device), opts, None, None)
 
@@ -220,15 +224,17 @@ def rollout(model, dataset, opts):
         # print(
         #     "\nBatch Competitive ratio: ", min(cr).item(),
         # )
-        return cost.data.cpu(), cr
+        return cost.data.cpu(), cr, batch_loss
 
     cost = []
     crs = []
+    losses = []
     for batch in tqdm(dataset):
-        c, cr = eval_model_bat(batch, None)
+        c, cr, loss = eval_model_bat(batch, None)
         cost.append(c)
         crs.append(cr)
-    return torch.cat(cost, 0), torch.cat(crs, 0)
+        losses.append(loss)
+    return torch.cat(cost, 0), torch.cat(crs, 0), torch.tensor(losses).mean()
 
     # return torch.cat(
     #     [
@@ -376,7 +382,7 @@ def train_epoch(
             os.path.join(opts.save_dir, "epoch-{}.pt".format(epoch)),
         )
 
-    avg_reward, min_cr, avg_cr = validate(model, val_dataset, opts)
+    avg_reward, min_cr, avg_cr, loss = validate(model, val_dataset, opts)
     # avg_reward, min_cr, avg_cr = 0,0,0
     if not opts.no_tensorboard:
         tb_logger.add_scalar("val_avg_reward", -avg_reward, step)
@@ -388,7 +394,7 @@ def train_epoch(
     lr_schedulers[0].step()
     #    lr_schedulers[1].step()
 
-    return avg_reward, min_cr, avg_cr
+    return avg_reward, min_cr, avg_cr, loss
 
 
 def train_n_step(cost, ll, x, optimizer, baseline):
@@ -504,6 +510,7 @@ def train_batch_supervised(
     cost, log_likelihood, e, batch_loss = model(
         batch, matchings, opts, optimizers, training=True
     )
+
     # Logging
     log_values(
         cost,

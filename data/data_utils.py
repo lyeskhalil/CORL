@@ -32,18 +32,29 @@ def add_nodes_with_bipartite_label(G, lena, lenb):
     return G
 
 
-def get_solution(row_ind, col_in, v_size):
+def get_solution(row_ind, col_in, weights, v_size):
     """
     returns a np vector where the index at i is the the node in u that v_i connect to. If index is zero, then v[i]
     is connected to no node in U.
     """
-    row_ind.sort()
+    new_col_in = []
+    # row_ind.sort()
     col_in = col_in + 1
+    new_col_in += [0] * (row_ind[0])
+
     for i in range(0, len(row_ind) - 1):
-        for j in range(row_ind[i] + 1, row_ind[i + 1]):
-            col_in = np.concatenate([col_in[:j], np.zeros(1), col_in[j:]], 0)
-    col_in = np.concatenate([col_in, np.zeros(v_size - len(col_in))])
-    return col_in
+        if weights[row_ind[i], col_in[i] - 1] != 0.0:
+            new_col_in.append(col_in[i])
+        else:
+            new_col_in.append(0.0)
+        new_col_in += [0.0] * (row_ind[i + 1] - row_ind[i] - 1)
+
+    if weights[row_ind[-1], col_in[-1] - 1] != 0.0:
+        new_col_in.append(col_in[-1])
+    else:
+        new_col_in.append(0.0)
+    new_col_in += [0] * (v_size - row_ind[-1] - 1)
+    return new_col_in
 
 
 def check_extension(filename):
