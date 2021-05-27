@@ -1,6 +1,7 @@
 import argparse
 import os
 import numpy as np
+from numpy.lib.function_base import _i0_2
 from data.data_utils import (
     add_nodes_with_bipartite_label,
     get_solution,
@@ -91,17 +92,23 @@ def generate_gmission_graph(
     availableWorkers = workers.copy()
     weights = []
     for i in range(v):
-        sampledTask = np.random.choice(tasks)
+        j = 0
 
-        for w in range(len(availableWorkers)):
-            worker = availableWorkers[w]
-            edge = str(float(worker)) + ";" + str(float(sampledTask))
+        while j == 0:
+            curr_w = []
+            sampledTask = np.random.choice(tasks)
+            for w in range(len(availableWorkers)):
+                worker = availableWorkers[w]
+                edge = str(float(worker)) + ";" + str(float(sampledTask))
 
-            if edge in edges and (w, i + u) not in G.edges:
-                G.add_edge(w, i + u, weight=float(edges[edge]))
-                weights.append(float(edges[edge]))
-            elif edge not in edges:
-                weights.append(float(0))
+                if edge in edges and (w, i + u) not in G.edges:
+                    G.add_edge(w, i + u, weight=float(edges[edge]))
+                    curr_w.append(float(edges[edge]))
+                    j += 1
+                elif edge not in edges:
+                    curr_w.append(float(0))
+        weights += curr_w
+
     weights = np.array(weights).reshape(v, u).T
     w = np.delete(weights.flatten(), weights.flatten() == 0)
     return G, weights, w
@@ -158,7 +165,7 @@ def generate_osbm_data_geometric(
         movies_id = np.array(list(movies.keys())).flatten()
         sampled_movies = list(np.random.choice(movies_id, size=u_size))
         g = generate_movie_lense_graph
-        vary_fixed = graph_family == "movielense-var"
+        vary_fixed = "var" in graph_family
     for i in tqdm(range(dataset_size)):
         g1, movie_features, user_features = g(
             u_size,
@@ -225,7 +232,8 @@ def generate_edge_obm_data_geometric(
             tasks = reduced_tasks
             workers = np.random.choice(reduced_workers, size=u_size, replace=False)
         g = generate_gmission_graph
-        vary_fixed = graph_family == "gmission-var"
+
+        vary_fixed = "var" in graph_family
     for i in tqdm(range(dataset_size)):
         g1, weights, w = g(
             u_size,
@@ -248,11 +256,11 @@ def generate_edge_obm_data_geometric(
             list(zip([-1] * v_size, range(u_size, u_size + v_size))), weight=0
         )
         i1, i2 = linear_sum_assignment(weights.T, maximize=True)
+
         optimal = (weights.T)[i1, i2].sum()
-        if v_size > u_size:
-            solution = get_solution(i1, i2, v_size)
-        else:
-            solution = i2 + 1
+
+        solution = get_solution(i1, i2, weights.T, v_size)
+
         # s = sorted(list(g1.nodes))
         # m = 1 - nx.convert_matrix.to_numpy_array(g1, s)
         data = from_networkx(g1)

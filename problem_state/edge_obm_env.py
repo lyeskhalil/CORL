@@ -31,12 +31,13 @@ class StateEdgeBipartite(NamedTuple):
     ):
         graph_size = u_size + v_size + 1
         batch_size = int(input.batch.size(0) / graph_size)
-        adj = to_dense_adj(input.edge_index, input.batch, input.weight.unsqueeze(1))[
-            :, u_size + 1 :, : u_size + 1
-        ].squeeze(-1)
+        adj = to_dense_adj(
+            input.edge_index, input.batch, input.weight.unsqueeze(1)
+        ).squeeze(-1)
+        adj = adj[:, u_size + 1 :, : u_size + 1]
 
         # permute the nodes for data
-        if opts.model != "supervised" or not opts.eval:
+        if "supervised" not in opts.model and not opts.eval_only:
             idx = torch.randperm(adj.shape[1])
             adj = adj[:, idx, :].view(adj.size())
         # size = torch.zeros(batch_size, 1, dtype=torch.long, device=graphs.device)

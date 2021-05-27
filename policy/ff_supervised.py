@@ -31,6 +31,7 @@ def get_loss(log_p, y, optimizers, w, opts):
     # total_loss = torch.zeros(y.shape)
 
     # Calculate loss of v_t
+    # print(log_p, y)
     loss_t = F.cross_entropy(log_p, y.long(), weight=w)
 
     # Update the loss for the whole graph
@@ -125,9 +126,9 @@ class SupervisedFFModel(nn.Module):
         i = 1
         total_loss = 0
         while not (state.all_finished()):
-            w = (state.adj[:, 0, :]).float().clone()
+            weights = (state.adj[:, 0, :]).float().clone()
             mask = state.get_mask().float()
-            s = w
+            s = weights
             h_mean = state.hist_sum.squeeze(1) / i
             h_var = ((state.hist_sum_sq - ((state.hist_sum ** 2) / i)) / i).squeeze(1)
             h_mean_degree = state.hist_deg.squeeze(1) / i
@@ -159,7 +160,7 @@ class SupervisedFFModel(nn.Module):
             pi = self.ff(s)
             # Select the indices of the next nodes in the sequences, result (batch_size) long
             if training:
-                mask = (w == 0).bool()
+                mask = torch.zeros(mask.shape)
             selected, p = self._select_node(
                 pi, mask.bool(),
             )  # Squeeze out steps dimension
@@ -169,24 +170,24 @@ class SupervisedFFModel(nn.Module):
             sequences.append(selected)
 
             # do backprop if in training mode
-            if optimizer is not None and training:
-                none_node_w = torch.tensor(
-                    [1.0 / math.e ** (opts.v_size / opts.u_size)],
-                    device=opts.device
-                    # [0]
-                ).float()
-                w = torch.cat(
-                    [none_node_w, torch.ones(opts.u_size, device=opts.device).float()],
-                    dim=0,
-                )
-                # supervised learning
-                y = opt_match[:, i - 1]
-                # print('y: ', y)
-                # print('selected: ', selected)
-                loss = get_loss(p, y, optimizer, w, opts)
-                # print("Loss: ", loss)
-                # keep track for logging
-                total_loss += loss
+
+            none_node_w = torch.tensor(
+                [1.0 / (opts.v_size / opts.u_size)],
+                device=opts.device
+                # [0]
+            ).float()
+            w = torch.cat(
+                [none_node_w, torch.ones(opts.u_size, device=opts.device).float()],
+                dim=0,
+            )
+            # supervised learning
+            y = opt_match[:, i - 1]
+            # print('y: ', y)
+            # print('selected: ', selected)
+            loss = get_loss(pi, y, optimizer, w, opts)
+            # print("Loss: ", loss)
+            # keep track for logging
+            total_loss += loss
 
             i += 1
         # Collected lists, return Tensor
@@ -210,13 +211,14 @@ class SupervisedFFModel(nn.Module):
     def _select_node(self, probs, mask):
         assert (probs == probs).all(), "Probs should not contain any nans"
         mask[:, 0] = False
-        probs[
+        p = probs.clone()
+        p[
             mask
         ] = (
             -1e6
         )  # TODO: Masking doesn't really make sense with supervised since input samples are independent, should only masking during testing.
-        _, selected = probs.max(1)
-        return selected, probs
+        _, selected = p.max(1)
+        return selected, p
 
     def set_decode_type(self, decode_type, temp=None):
         self.decode_type = decode_type
