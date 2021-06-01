@@ -34,6 +34,7 @@ class FeedForwardModelHist(nn.Module):
         self.is_bipartite = problem.NAME == "bipartite"
         self.problem = problem
         self.shrink_size = None
+        self.model_name = "ff-hist"
         self.ff = nn.Sequential(
             nn.Linear(self.num_actions, 100),
             nn.ReLU(),
@@ -96,55 +97,16 @@ class FeedForwardModelHist(nn.Module):
         sequences = []
         state = self.problem.make_state(input, opts.u_size, opts.v_size, opts)
 
-        # step_context = 0
-        # batch_size = state.ids.size(0)
-        # Perform decoding steps
         i = 1.0
-        # entropy = 0
+
         while not (state.all_finished()):
-            # step_size = (state.i.item() - state.u_size.item() + 1) * (
-            #    state.u_size.item() + 1
-            # )
-            # step_size = state.i.item() + 1
-            # v = state.i - (state.u_size + 1)
-            # su = (state.weights[:, v, :]).float().sum(1)
-            w = (state.adj[:, 0, :]).float().clone()
-            mask = state.get_mask()
-            s = w
-            h_mean = state.hist_sum.squeeze(1) / i
-            h_var = ((state.hist_sum_sq - ((state.hist_sum ** 2) / i)) / i).squeeze(1)
-            h_mean_degree = state.hist_deg.squeeze(1) / i
-            h_mean[:, 0], h_var[:, 0], h_mean_degree[:, 0] = -1.0, -1.0, -1.0
-            ind = torch.ones(state.batch_size, 1, device=opts.device) * i / state.v_size
-            curr_sol_size = i - state.num_skip
-            var_sol = (
-                state.sum_sol_sq - ((state.size ** 2) / curr_sol_size)
-            ) / curr_sol_size
-            mean_sol = state.size / curr_sol_size
-            s = torch.cat(
-                (
-                    s,
-                    state.matched_nodes,
-                    h_mean,
-                    h_var,
-                    h_mean_degree,
-                    state.size / state.u_size,
-                    ind.float(),
-                    mean_sol,
-                    var_sol,
-                    state.num_skip / i,
-                    state.max_sol,
-                    state.min_sol,
-                ),
-                dim=1,
-            )
-            # s = w
+
+            s, mask = state.get_curr_state(self.model_name)
+
             pi = self.ff(s)
             # Select the indices of the next nodes in the sequences, result (batch_size) long
-            selected, p = self._select_node(
-                pi, mask.bool()
-            )  # Squeeze out steps dimension
-            # entropy += torch.sum(p * (p.log()), dim=1)
+            selected, p = self._select_node(pi, mask.bool())
+
             state = state.update((selected)[:, None])
             outputs.append(p)
             sequences.append(selected)

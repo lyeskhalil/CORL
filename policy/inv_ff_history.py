@@ -28,6 +28,7 @@ class InvariantFFHist(nn.Module):
         self.embedding_dim = embedding_dim
         self.decode_type = None
         self.problem = problem
+        self.model_name = "inv-ff-hist"
         self.ff = nn.Sequential(
             nn.Linear(13, 100),
             nn.ReLU(),
@@ -83,44 +84,8 @@ class InvariantFFHist(nn.Module):
             # step_size = state.i.item() + 1
             # v = state.i - (state.u_size + 1)
             # su = (state.weights[:, v, :]).float().sum(1)
-            w = (state.adj[:, 0, :]).float()
-            mean_w = w.mean(1)[:, None, None].repeat(1, state.u_size + 1, 1)
-            mask = state.get_mask()
-            s = w.reshape(state.batch_size, state.u_size + 1, 1)
-            h_mean = state.hist_sum / i
-            h_var = (state.hist_sum_sq - ((state.hist_sum ** 2) / i)) / i
-            h_mean_degree = state.hist_deg / i
-            h_mean[:, :, 0], h_var[:, :, 0], h_mean_degree[:, :, 0] = -1.0, -1.0, -1.0
-            idx = (
-                torch.ones(state.batch_size, 1, 1, device=opts.device)
-                * i
-                / state.v_size
-            )
-            curr_sol_size = i - state.num_skip
-            var_sol = (
-                state.sum_sol_sq - ((state.size ** 2) / curr_sol_size)
-            ) / curr_sol_size
-            mean_sol = state.size / curr_sol_size
-            s = torch.cat(
-                (
-                    s,
-                    state.matched_nodes.reshape(-1, state.u_size + 1, 1),
-                    mean_w,
-                    h_mean.transpose(1, 2),
-                    h_var.transpose(1, 2),
-                    h_mean_degree.transpose(1, 2),
-                    idx.repeat(1, state.u_size + 1, 1),
-                    state.size.unsqueeze(2).repeat(1, state.u_size + 1, 1)
-                    / state.u_size,
-                    mean_sol.unsqueeze(2).repeat(1, state.u_size + 1, 1),
-                    var_sol.unsqueeze(2).repeat(1, state.u_size + 1, 1),
-                    state.num_skip.unsqueeze(2).repeat(1, state.u_size + 1, 1) / i,
-                    state.max_sol.unsqueeze(2).repeat(1, state.u_size + 1, 1),
-                    state.min_sol.unsqueeze(2).repeat(1, state.u_size + 1, 1),
-                ),
-                dim=2,
-            )
             # print(s)
+            s, mask = state.get_curr_state(self.model_name)
             pi = self.ff(s).reshape(state.batch_size, state.u_size + 1)
             # Select the indices of the next nodes in the sequences, result (batch_size) long
             selected, p = self._select_node(

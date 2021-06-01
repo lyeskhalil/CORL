@@ -24,6 +24,7 @@ class StateEdgeBipartite(NamedTuple):
     matched_nodes: torch.Tensor  # Keeps track of nodes that have been matched
     size: torch.Tensor  # size of current matching
     i: int  # Keeps track of step
+    opts: dict
 
     @staticmethod
     def initialize(
@@ -35,7 +36,7 @@ class StateEdgeBipartite(NamedTuple):
             input.edge_index, input.batch, input.weight.unsqueeze(1)
         ).squeeze(-1)
         adj = adj[:, u_size + 1 :, : u_size + 1]
-
+        # print(adj)
         # permute the nodes for data
         if "supervised" not in opts.model and not opts.eval_only:
             idx = torch.randperm(adj.shape[1])
@@ -68,6 +69,7 @@ class StateEdgeBipartite(NamedTuple):
             num_skip=torch.zeros(batch_size, 1, device=input.batch.device),
             size=torch.zeros(batch_size, 1, device=input.batch.device),
             i=u_size + 1,
+            opts=opts,
         )
 
     def get_final_cost(self):
@@ -129,6 +131,106 @@ class StateEdgeBipartite(NamedTuple):
 
     def get_current_node(self):
         return self.i
+
+    def get_curr_state(self, model):
+        mask = self.get_mask()
+        opts = self.opts
+        i = self.i - self.u_size
+        w = self.adj[:, 0, :].float()
+        s = None
+        if model == "ff":
+            s = torch.cat((w, mask.float()), dim=1)
+
+        elif model == "inv-ff":
+            w = w.clone().float()
+            mean_w = w.mean(1)[:, None, None].repeat(1, self.u_size + 1, 1)
+            s = w.reshape(self.batch_size, self.u_size + 1, 1)
+            s[:, 0, :], mean_w[:, 0, :] = -1.0, -1.0
+            s = torch.cat((s, mean_w,), dim=2,)
+
+        elif model == "ff-hist":
+            w = w.clone()
+            h_mean = self.hist_sum.squeeze(1) / i
+            h_var = ((self.hist_sum_sq - ((self.hist_sum ** 2) / i)) / i).squeeze(1)
+            h_mean_degree = self.hist_deg.squeeze(1) / i
+            h_mean[:, 0], h_var[:, 0], h_mean_degree[:, 0] = -1.0, -1.0, -1.0
+            ind = torch.ones(self.batch_size, 1, device=opts.device) * i / self.v_size
+            curr_sol_size = i - self.num_skip
+            var_sol = (
+                self.sum_sol_sq - ((self.size ** 2) / curr_sol_size)
+            ) / curr_sol_size
+            mean_sol = self.size / curr_sol_size
+            s = torch.cat(
+                (
+                    w,
+                    self.matched_nodes,
+                    h_mean,
+                    h_var,
+                    h_mean_degree,
+                    self.size / self.u_size,
+                    ind.float(),
+                    mean_sol,
+                    var_sol,
+                    self.num_skip / i,
+                    self.max_sol,
+                    self.min_sol,
+                ),
+                dim=1,
+            )
+
+        elif model == "inv-ff-hist":
+            mean_w = w.mean(1)[:, None, None].repeat(1, self.u_size + 1, 1)
+            s = w.reshape(self.batch_size, self.u_size + 1, 1)
+            h_mean = self.hist_sum / i
+            h_var = (self.hist_sum_sq - ((self.hist_sum ** 2) / i)) / i
+            h_mean_degree = self.hist_deg / i
+            h_mean[:, :, 0], h_var[:, :, 0], h_mean_degree[:, :, 0] = -1.0, -1.0, -1.0
+            idx = (
+                torch.ones(self.batch_size, 1, 1, device=opts.device) * i / self.v_size
+            )
+            curr_sol_size = i - self.num_skip
+            var_sol = (
+                self.sum_sol_sq - ((self.size ** 2) / curr_sol_size)
+            ) / curr_sol_size
+            mean_sol = self.size / curr_sol_size
+            s = torch.cat(
+                (
+                    s,
+                    self.matched_nodes.reshape(-1, self.u_size + 1, 1),
+                    mean_w,
+                    h_mean.transpose(1, 2),
+                    h_var.transpose(1, 2),
+                    h_mean_degree.transpose(1, 2),
+                    idx.repeat(1, self.u_size + 1, 1),
+                    self.size.unsqueeze(2).repeat(1, self.u_size + 1, 1) / self.u_size,
+                    mean_sol.unsqueeze(2).repeat(1, self.u_size + 1, 1),
+                    var_sol.unsqueeze(2).repeat(1, self.u_size + 1, 1),
+                    self.num_skip.unsqueeze(2).repeat(1, self.u_size + 1, 1) / i,
+                    self.max_sol.unsqueeze(2).repeat(1, self.u_size + 1, 1),
+                    self.min_sol.unsqueeze(2).repeat(1, self.u_size + 1, 1),
+                ),
+                dim=2,
+            )
+
+        return s, mask
+
+    def get_node_features(self):
+        step_size = self.i + 1
+        batch_size = self.batch_size
+        incoming_node_features = (
+            torch.cat(
+                (torch.ones(step_size - self.u_size - 1, device=self.adj.device) * 2,)
+            )
+            .unsqueeze(0)
+            .expand(batch_size, step_size - self.u_size - 1)
+        ).float()  # Collecting node features up until the ith incoming node
+        future_node_feature = torch.ones(batch_size, 1, device=self.adj.device) * -1.0
+        fixed_node_feature = self.matched_nodes[:, 1:]
+        node_features = torch.cat(
+            (future_node_feature, fixed_node_feature, incoming_node_features), dim=1
+        ).reshape(batch_size * step_size, -1)
+
+        return node_features
 
     def get_mask(self):
         """

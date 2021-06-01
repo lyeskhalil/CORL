@@ -41,6 +41,7 @@ class FeedForwardModel(nn.Module):
             nn.ReLU(),
             nn.Linear(100, opts.u_size + 1),
         )
+        self.model_name = "ff"
 
         def init_weights(m):
             if type(m) == nn.Linear:
@@ -99,10 +100,9 @@ class FeedForwardModel(nn.Module):
             # step_size = state.i.item() + 1
             # v = state.i - (state.u_size + 1)
             # su = (state.weights[:, v, :]).float().sum(1)
-            w = state.get_current_weights()
+            # w = state.get_current_weights()
             # w[:, 0] = -1.
-            mask = state.get_mask()
-            s = torch.cat((w.float(), mask.float()), dim=1)
+            s, mask = state.get_curr_state(self.model_name)
             # s = w
             pi = self.ff(s)
             # Select the indices of the next nodes in the sequences, result (batch_size) long
