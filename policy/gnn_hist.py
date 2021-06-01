@@ -139,12 +139,14 @@ class GNNHist(nn.Module):
             mask = state.get_mask()
             # Pass the graph to the Encoder
             node_features = state.get_node_features()
-            subgraphs = (
+            nodes = torch.cat(
                 (
-                    torch.arange(0, step_size, device=opts.device)
-                    .unsqueeze(0)
-                    .expand(batch_size, step_size)
+                    torch.arange(0, opts.u_size + 1, device=opts.device),
+                    state.idx[:i] + opts.u_size + 1,
                 )
+            )
+            subgraphs = (
+                (nodes.unsqueeze(0).expand(batch_size, step_size))
                 + torch.arange(
                     0, batch_size * graph_size, graph_size, device=opts.device
                 ).unsqueeze(1)

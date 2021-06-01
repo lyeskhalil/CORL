@@ -25,6 +25,7 @@ class StateEdgeBipartite(NamedTuple):
     size: torch.Tensor  # size of current matching
     i: int  # Keeps track of step
     opts: dict
+    idx: torch.Tensor
 
     @staticmethod
     def initialize(
@@ -38,8 +39,9 @@ class StateEdgeBipartite(NamedTuple):
         adj = adj[:, u_size + 1 :, : u_size + 1]
         # print(adj)
         # permute the nodes for data
+        idx = 0
         if "supervised" not in opts.model and not opts.eval_only:
-            idx = torch.randperm(adj.shape[1])
+            idx = torch.randperm(adj.shape[1], device=opts.device)
             adj = adj[:, idx, :].view(adj.size())
         # size = torch.zeros(batch_size, 1, dtype=torch.long, device=graphs.device)
         # adj = (input[0] == 0).float()
@@ -70,6 +72,7 @@ class StateEdgeBipartite(NamedTuple):
             size=torch.zeros(batch_size, 1, device=input.batch.device),
             i=u_size + 1,
             opts=opts,
+            idx=idx,
         )
 
     def get_final_cost(self):
@@ -148,7 +151,7 @@ class StateEdgeBipartite(NamedTuple):
             s[:, 0, :], mean_w[:, 0, :] = -1.0, -1.0
             s = torch.cat((s, mean_w,), dim=2,)
 
-        elif model == "ff-hist":
+        elif model == "ff-hist" or model == "ff-supervised":
             w = w.clone()
             h_mean = self.hist_sum.squeeze(1) / i
             h_var = ((self.hist_sum_sq - ((self.hist_sum ** 2) / i)) / i).squeeze(1)
