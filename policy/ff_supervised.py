@@ -160,7 +160,7 @@ class SupervisedFFModel(nn.Module):
             pi = self.ff(s)
             # Select the indices of the next nodes in the sequences, result (batch_size) long
             if training:
-                mask = torch.zeros(mask.shape)
+                mask = torch.zeros(mask.shape, device=opts.device)
             selected, p = self._select_node(
                 pi, mask.bool(),
             )  # Squeeze out steps dimension

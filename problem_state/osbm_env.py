@@ -36,7 +36,6 @@ class StateOSBM(NamedTuple):
         adj = to_dense_adj(input.edge_index, input.batch)[
             :, u_size + 1 :, : u_size + 1
         ].squeeze(-1)
-        print(input.edge_index)
         u_features = input.x.reshape(batch_size, -1)[:, : u_size * num_genres].reshape(
             batch_size, u_size, -1
         )
