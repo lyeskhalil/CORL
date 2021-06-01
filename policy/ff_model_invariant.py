@@ -33,6 +33,7 @@ class InvariantFF(nn.Module):
         self.problem = problem
         self.shrink_size = None
         self.ff = nn.Sequential(nn.Linear(2, 100), nn.ReLU(), nn.Linear(100, 1),)
+        self.model_name = "inv-ff"
 
         # def init_weights(m):
         #     if type(m) == nn.Linear:
@@ -77,36 +78,15 @@ class InvariantFF(nn.Module):
         sequences = []
         state = self.problem.make_state(input, opts.u_size, opts.v_size, opts)
 
-        # step_context = 0
-        # batch_size = state.ids.size(0)
-        # Perform decoding steps
         i = 1
-        # entropy = 0
         while not (state.all_finished()):
-            # step_size = (state.i.item() - state.u_size.item() + 1) * (
-            #    state.u_size.item() + 1
-            # )
-            # step_size = state.i.item() + 1
-            # v = state.i - (state.u_size + 1)
-            # su = (state.weights[:, v, :]).float().sum(1)
-            w = (state.adj[:, 0, :]).clone().float()
-            mean_w = w.mean(1)[:, None, None].repeat(1, state.u_size + 1, 1)
-            mask = state.get_mask()
-            s = w.reshape(state.batch_size, state.u_size + 1, 1)
-            # h_mean = state.hist_sum / i
-            # h_var = (state.hist_sum_sq - ((state.hist_sum ** 2) / i)) / i
-            # h_mean_degree = state.hist_deg / i
-            # h_mean[:, :, 0], h_var[:, :, 0], h_mean_degree[:, :, 0] = -1, -1, -1
-            s[:, 0, :], mean_w[:, 0, :] = -1.0, -1.0
-            # print(h_mean_degree)
-            s = torch.cat((s, mean_w,), dim=2,)
-            # print(s)
+
+            s, mask = state.get_curr_state(self.model_name)
+
             pi = self.ff(s).reshape(state.batch_size, state.u_size + 1)
             # Select the indices of the next nodes in the sequences, result (batch_size) long
-            selected, p = self._select_node(
-                pi, mask.bool()
-            )  # Squeeze out steps dimension
-            # entropy += torch.sum(p * (p.log()), dim=1)
+            selected, p = self._select_node(pi, mask.bool())
+
             state = state.update((selected)[:, None])
             outputs.append(p)
             sequences.append(selected)

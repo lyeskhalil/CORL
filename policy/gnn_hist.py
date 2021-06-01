@@ -78,6 +78,7 @@ class GNNHist(nn.Module):
         self.initial_stepcontext = nn.Parameter(torch.Tensor(1, 1, embedding_dim))
         self.initial_stepcontext.data.uniform_(-1, 1)
         self.dummy = torch.ones(1, dtype=torch.float32, requires_grad=True)
+        self.model_name = "gnn-hist"
 
     def init_parameters(self):
         for name, param in self.named_parameters():
@@ -137,24 +138,15 @@ class GNNHist(nn.Module):
             step_size = state.i + 1
             mask = state.get_mask()
             # Pass the graph to the Encoder
-            incoming_node_features = (
-                torch.cat(
-                    (torch.ones(step_size - opts.u_size - 1, device=opts.device) * 2,)
-                )
-                .unsqueeze(0)
-                .expand(batch_size, step_size - opts.u_size - 1)
-            ).float()  # Collecting node features up until the ith incoming node
-            future_node_feature = torch.ones(batch_size, 1, device=opts.device) * -1.0
-            fixed_node_feature = state.matched_nodes[:, 1:]
-            node_features = torch.cat(
-                (future_node_feature, fixed_node_feature, incoming_node_features), dim=1
-            ).reshape(batch_size * step_size, 1)
-            subgraphs = (
+            node_features = state.get_node_features()
+            nodes = torch.cat(
                 (
-                    torch.arange(0, step_size, device=opts.device)
-                    .unsqueeze(0)
-                    .expand(batch_size, step_size)
+                    torch.arange(0, opts.u_size + 1, device=opts.device),
+                    state.idx[:i] + opts.u_size + 1,
                 )
+            )
+            subgraphs = (
+                (nodes.unsqueeze(0).expand(batch_size, step_size))
                 + torch.arange(
                     0, batch_size * graph_size, graph_size, device=opts.device
                 ).unsqueeze(1)
