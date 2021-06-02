@@ -25,6 +25,7 @@ class StateOSBM(NamedTuple):
     size: torch.Tensor  # size of current matching
     i: int  # Keeps track of step
     opts: dict
+    idx: torch.Tensor
 
     @staticmethod
     def initialize(
@@ -50,10 +51,10 @@ class StateOSBM(NamedTuple):
         v_features = input.x.reshape(batch_size, -1)[:, offset:].reshape(
             batch_size, v_size, -1
         )
-
+        idx = None
         # permute the nodes for data
         if "supervised" not in opts.model and not opts.eval_only:
-            idx = torch.randperm(adj.shape[1])
+            idx = torch.randperm(adj.shape[1], device=opts.device)
             adj = adj[:, idx, :].view(adj.size())
             v_features = v_features[:, idx, :].view(v_features.size())
 
@@ -64,7 +65,7 @@ class StateOSBM(NamedTuple):
             v_size=v_size,
             batch_size=batch_size,
             matched_nodes=(
-                torch.zeros(batch_size, 1, u_size + 1, device=input.batch.device,)
+                torch.zeros(batch_size, u_size + 1, device=input.batch.device,)
             ),
             hist_sum=(
                 torch.zeros(batch_size, 1, u_size + 1, device=input.batch.device,)
@@ -75,6 +76,10 @@ class StateOSBM(NamedTuple):
             hist_sum_sq=(
                 torch.zeros(batch_size, 1, u_size + 1, device=input.batch.device,)
             ),
+            min_sol=torch.zeros(batch_size, 1, device=input.batch.device),
+            max_sol=torch.zeros(batch_size, 1, device=input.batch.device),
+            sum_sol_sq=torch.zeros(batch_size, 1, device=input.batch.device),
+            num_skip=torch.zeros(batch_size, 1, device=input.batch.device),
             size=torch.zeros(batch_size, 1, device=input.batch.device),
             users=torch.zeros(
                 batch_size, num_users, num_genres, device=input.batch.device
@@ -85,6 +90,7 @@ class StateOSBM(NamedTuple):
             num_genres=num_genres,
             num_users=num_users,
             opts=opts,
+            idx=idx,
         )
 
     def get_final_cost(self):
@@ -106,6 +112,7 @@ class StateOSBM(NamedTuple):
                 device=self.adj.device,
             ).unsqueeze(1)
         ).flatten()
+
         selected_movie_genre = self.u_features.reshape(
             self.batch_size * (self.u_size + 1), -1
         ).index_select(0, idx)
@@ -118,6 +125,21 @@ class StateOSBM(NamedTuple):
         s = ((selected_movie_genre + users_covered_genre) > 0).float()
         curr_weights = self.get_current_weights(users_covered_genre)
         selected_weights = curr_weights.gather(1, selected)
+        skip = (selected == 0).float()
+        num_skip = self.num_skip + skip
+        if self.i == self.u_size + 1:
+            min_sol = selected_weights
+        else:
+            m = self.min_sol.clone()
+            m[m == 0.0] = 2.0
+            selected_weights[skip.bool()] = 2.0
+            min_sol = torch.minimum(m, selected_weights)
+            selected_weights[selected_weights == 2.0] = 0.0
+            min_sol[min_sol == 2.0] = 0.0
+
+        max_sol = torch.maximum(self.max_sol, selected_weights)
+        total_weights = self.size + selected_weights
+        sum_sol_sq = self.sum_sol_sq + selected_weights ** 2
         total_weights = self.size + selected_weights
         # indices = torch.arange(0, self.num_genres, device=selected.device).unsqueeze(0).expand(self.batch_size, self.num_genres)
         updated_users_selected_genre = self.users.reshape(
@@ -138,6 +160,10 @@ class StateOSBM(NamedTuple):
             users=updated_users_selected_genre.reshape(
                 self.batch_size, self.num_users, -1
             ),
+            num_skip=num_skip,
+            max_sol=max_sol,
+            min_sol=min_sol,
+            sum_sol_sq=sum_sol_sq,
         )
 
     def get_current_weights(self, users_covered_genre=None):
@@ -179,22 +205,22 @@ class StateOSBM(NamedTuple):
     def get_current_node(self):
         return self.i
 
-    def get_state(self):
+    def get_curr_state(self, model):
         mask = self.get_mask()
         opts = self.opts
         i = self.i - self.u_size
         w = self.get_current_weights().float()
         s = None
-        if opts.model == "ff":
+        if model == "ff":
             s = torch.cat((w, mask.float()), dim=1)
-        elif opts.model == "inv-ff":
+        elif model == "inv-ff":
             w = w.clone()
             mean_w = w.mean(1)[:, None, None].repeat(1, self.u_size + 1, 1)
             s = w.reshape(self.batch_size, self.u_size + 1, 1)
             s[:, 0, :], mean_w[:, 0, :] = -1.0, -1.0
 
             s = torch.cat((s, mean_w,), dim=2,)
-        elif opts.model == "ff-hist":
+        elif model == "ff-hist":
             w = w.clone()
             h_mean = self.hist_sum.squeeze(1) / i
             h_var = ((self.hist_sum_sq - ((self.hist_sum ** 2) / i)) / i).squeeze(1)
@@ -223,7 +249,7 @@ class StateOSBM(NamedTuple):
                 ),
                 dim=1,
             )
-        elif opts.model == "inv-ff-hist":
+        elif model == "inv-ff-hist":
             mean_w = w.mean(1)[:, None, None].repeat(1, self.u_size + 1, 1)
             s = w.reshape(self.batch_size, self.u_size + 1, 1)
             h_mean = self.hist_sum / i
@@ -260,25 +286,17 @@ class StateOSBM(NamedTuple):
         return s, mask
 
     def get_node_features(self):
-        step_size = self.i + 1
+
         num_v = self.i - self.u_size
         batch_size = self.batch_size
-        incoming_node_features = self.v_features[
-            :, :num_v, :
-        ]  # Collecting node features up until the ith incoming node
-        future_node_feature = (
-            torch.ones(batch_size, 1, self.u_features.size(-1), device=self.device)
-            * -1.0
-        )
-        fixed_node_feature = torch.cat((future_node_feature, self.u_features), dim=1)
+        incoming_node_features = self.v_features[:, :num_v, :].reshape(
+            batch_size * num_v, -1
+        )  # Collecting node features up until the ith incoming node
         fixed_node_feature = torch.cat(
-            (fixed_node_feature, self.matched_nodes.unsqueeze(2)), dim=2
-        )
-        node_features = torch.cat(
-            (fixed_node_feature, incoming_node_features), dim=1
-        ).reshape(batch_size * step_size, 1)
+            (self.u_features, self.matched_nodes.unsqueeze(2)), dim=2
+        ).reshape(batch_size * (self.u_size + 1), -1)
 
-        return node_features
+        return fixed_node_feature, incoming_node_features
 
     def get_mask(self):
         """
@@ -291,5 +309,5 @@ class StateOSBM(NamedTuple):
             :, 0
         ] = 0  # node that represents not being matched to anything can be matched to more than once
         return (
-            self.matched_nodes.squeeze(1) + mask > 0
+            self.matched_nodes + mask > 0
         ).long()  # Hacky way to return bool or uint8 depending on pytorch version
