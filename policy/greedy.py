@@ -25,6 +25,7 @@ class Greedy(nn.Module):
     ):
         super(Greedy, self).__init__()
         self.decode_type = None
+        self.model_name = "greedy"
         self.allow_partial = problem.NAME == "sdvrp"
         self.is_vrp = problem.NAME == "cvrp" or problem.NAME == "sdvrp"
         self.is_orienteering = problem.NAME == "op"
@@ -37,7 +38,7 @@ class Greedy(nn.Module):
         state = self.problem.make_state(x, opts.u_size, opts.v_size, opts)
         sequences = []
         while not (state.all_finished()):
-            w = state.adj[:, 0, :].clone()
+            w = state.get_current_weights().clone()
             mask = state.get_mask()
             w[mask.bool()] = -1.0
             selected = torch.argmax(w, dim=1)

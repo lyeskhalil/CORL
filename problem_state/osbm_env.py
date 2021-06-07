@@ -26,6 +26,10 @@ class StateOSBM(NamedTuple):
     i: int  # Keeps track of step
     opts: dict
     idx: torch.Tensor
+    min_sol: torch.Tensor
+    max_sol: torch.Tensor
+    sum_sol_sq: torch.Tensor
+    num_skip: torch.Tensor
 
     @staticmethod
     def initialize(
@@ -53,10 +57,10 @@ class StateOSBM(NamedTuple):
         )
         idx = None
         # permute the nodes for data
-        if "supervised" not in opts.model and not opts.eval_only:
-            idx = torch.randperm(adj.shape[1], device=opts.device)
-            adj = adj[:, idx, :].view(adj.size())
-            v_features = v_features[:, idx, :].view(v_features.size())
+        # if "supervised" not in opts.model and not opts.eval_only:
+        #     idx = torch.randperm(adj.shape[1], device=opts.device)
+        #     adj = adj[:, idx, :].view(adj.size())
+        #     v_features = v_features[:, idx, :].view(v_features.size())
 
         return StateOSBM(
             graphs=input,
@@ -248,7 +252,7 @@ class StateOSBM(NamedTuple):
                     self.min_sol,
                 ),
                 dim=1,
-            )
+            ).float()
         elif model == "inv-ff-hist":
             mean_w = w.mean(1)[:, None, None].repeat(1, self.u_size + 1, 1)
             s = w.reshape(self.batch_size, self.u_size + 1, 1)
@@ -281,7 +285,7 @@ class StateOSBM(NamedTuple):
                     self.min_sol.unsqueeze(2).repeat(1, self.u_size + 1, 1),
                 ),
                 dim=2,
-            )
+            ).float()
 
         return s, mask
 

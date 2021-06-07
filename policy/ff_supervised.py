@@ -82,7 +82,16 @@ class SupervisedFFModel(nn.Module):
             nn.Linear(100, opts.u_size + 1),
         )
 
-    def forward(self, input, opt_match, opts, optimizer, training=False):
+    def forward(
+        self,
+        input,
+        opt_match,
+        opts,
+        optimizer,
+        training=False,
+        baseline=None,
+        return_pi=False,
+    ):
         """
         :param input: (batch_size, graph_size, node_dim) input node features or dictionary with multiple tensors
         :param return_pi: whether to return the output sequences, this is optional as it is not compatible with
@@ -95,6 +104,7 @@ class SupervisedFFModel(nn.Module):
         )
 
         ll = self._calc_log_likelihood(_log_p, pi, None)
+
         return -cost, ll, pi, batch_loss
 
     def _calc_log_likelihood(self, _log_p, a, mask):

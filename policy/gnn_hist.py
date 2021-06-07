@@ -225,26 +225,15 @@ class GNNHist(nn.Module):
                 )
             else:
                 step_context = self.initial_stepcontext.repeat(batch_size, 1, 1)
-
+            u_embeddings = embeddings[:, : opts.u_size + 1, :]
             s = torch.cat(
                 (
                     s,
-                    # mean_w,
-                    # h_mean.transpose(1, 2),
-                    # h_var.transpose(1, 2),
-                    # h_mean_degree.transpose(1, 2),
                     idx.repeat(1, state.u_size + 1, 1),
-                    # state.size.unsqueeze(2).repeat(1, state.u_size + 1, 1)
-                    # / state.u_size,
-                    # mean_sol.unsqueeze(2).repeat(1, state.u_size + 1, 1),
-                    # var_sol.unsqueeze(2).repeat(1, state.u_size + 1, 1),
-                    # state.num_skip.unsqueeze(2).repeat(1, state.u_size + 1, 1) / i,
-                    # state.max_sol.unsqueeze(2).repeat(1, state.u_size + 1, 1),
-                    # state.min_sol.unsqueeze(2).repeat(1, state.u_size + 1, 1),
                     incoming_node_embeddings.repeat(1, state.u_size + 1, 1),
                     embeddings[:, : opts.u_size + 1, :],
                     step_context.repeat(1, state.u_size + 1, 1),
-                    embeddings.mean(1).unsqueeze(1).repeat(1, state.u_size + 1, 1),
+                    u_embeddings.mean(1).unsqueeze(1).repeat(1, state.u_size + 1, 1),
                 ),
                 dim=2,
             )

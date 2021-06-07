@@ -37,15 +37,13 @@ class StateEdgeBipartite(NamedTuple):
             input.edge_index, input.batch, input.weight.unsqueeze(1)
         ).squeeze(-1)
         adj = adj[:, u_size + 1 :, : u_size + 1]
-        # print(adj)
+
         # permute the nodes for data
-        idx = 0
+        idx = torch.arange(adj.shape[1], device=opts.device)
         if "supervised" not in opts.model and not opts.eval_only:
             idx = torch.randperm(adj.shape[1], device=opts.device)
             adj = adj[:, idx, :].view(adj.size())
-        # size = torch.zeros(batch_size, 1, dtype=torch.long, device=graphs.device)
-        # adj = (input[0] == 0).float()
-        # adj[:, :, 0] = 0.0
+
         return StateEdgeBipartite(
             graphs=input,
             adj=adj,
@@ -179,7 +177,7 @@ class StateEdgeBipartite(NamedTuple):
                     self.min_sol,
                 ),
                 dim=1,
-            )
+            ).float()
 
         elif model == "inv-ff-hist":
             mean_w = w.mean(1)[:, None, None].repeat(1, self.u_size + 1, 1)
@@ -213,7 +211,7 @@ class StateEdgeBipartite(NamedTuple):
                     self.min_sol.unsqueeze(2).repeat(1, self.u_size + 1, 1),
                 ),
                 dim=2,
-            )
+            ).float()
 
         return s, mask
 
