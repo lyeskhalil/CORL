@@ -26,6 +26,10 @@ class StateOSBM(NamedTuple):
     i: int  # Keeps track of step
     opts: dict
     idx: torch.Tensor
+    min_sol: torch.Tensor
+    max_sol: torch.Tensor
+    sum_sol_sq: torch.Tensor
+    num_skip: torch.Tensor
 
     @staticmethod
     def initialize(
@@ -206,7 +210,7 @@ class StateOSBM(NamedTuple):
         return self.i
 
     def get_curr_state(self, model):
-        mask = self.get_mask()
+        mask = self.get_mask().float()
         opts = self.opts
         i = self.i - self.u_size
         w = self.get_current_weights().float()
@@ -248,7 +252,7 @@ class StateOSBM(NamedTuple):
                     self.min_sol,
                 ),
                 dim=1,
-            )
+            ).float()
         elif model == "inv-ff-hist":
             mean_w = w.mean(1)[:, None, None].repeat(1, self.u_size + 1, 1)
             s = w.reshape(self.batch_size, self.u_size + 1, 1)
@@ -281,7 +285,7 @@ class StateOSBM(NamedTuple):
                     self.min_sol.unsqueeze(2).repeat(1, self.u_size + 1, 1),
                 ),
                 dim=2,
-            )
+            ).float()
 
         return s, mask
 

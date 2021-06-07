@@ -206,20 +206,20 @@ def rollout(model, dataset, opts):
     def eval_model_bat(bat, optimal):
         batch_loss = 0
         with torch.no_grad():
-
+            bat = move_to(bat, opts.device)
             if opts.model == "supervised" or opts.model == "ff-supervised":
                 matchings = bat.x.reshape(opts.batch_size, opts.v_size)
                 cost, _, _, batch_loss = model(
-                    move_to(bat, opts.device), matchings, opts, False
+                    bat, matchings, opts, False
                 )
             else:
-                cost, *_ = model(move_to(bat, opts.device), opts, None, None)
+                cost, *_ = model(bat, opts, None, None)
 
         # print(-cost.data.flatten())
         # print(bat[-1])
 
         cr = (-cost.data.flatten()) / move_to(
-            batch.y + (batch.y == 0).float(), opts.device
+            bat.y + (bat.y == 0).float(), opts.device
         )
         # print(
         #     "\nBatch Competitive ratio: ", min(cr).item(),
@@ -233,7 +233,7 @@ def rollout(model, dataset, opts):
         c, cr, loss = eval_model_bat(batch, None)
         cost.append(c)
         crs.append(cr)
-        losses.append(loss)
+        losses.append(float(loss))
     return torch.cat(cost, 0), torch.cat(crs, 0), torch.tensor(losses).mean()
 
     # return torch.cat(
