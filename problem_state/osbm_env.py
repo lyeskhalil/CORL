@@ -57,10 +57,10 @@ class StateOSBM(NamedTuple):
         )
         idx = None
         # permute the nodes for data
-        if "supervised" not in opts.model and not opts.eval_only:
-            idx = torch.randperm(adj.shape[1], device=opts.device)
-            adj = adj[:, idx, :].view(adj.size())
-            v_features = v_features[:, idx, :].view(v_features.size())
+        # if "supervised" not in opts.model and not opts.eval_only:
+        #     idx = torch.randperm(adj.shape[1], device=opts.device)
+        #     adj = adj[:, idx, :].view(adj.size())
+        #     v_features = v_features[:, idx, :].view(v_features.size())
 
         return StateOSBM(
             graphs=input,

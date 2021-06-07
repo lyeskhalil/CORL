@@ -1,42 +1,33 @@
-# !/usr/bin/env python
+import numpy as np
 
-import os
-import json
 import pprint as pp
-import ast
 
 import torch
-import torch.optim as optim
+
 from torch_geometric.data import DataLoader
 
 # from nets.critic_network import CriticNetwork
 from options import get_options
-from train import train_epoch, validate, get_inner_model, eval_model, evaluate
+from train import get_inner_model, evaluate
 from policy.attention_model import AttentionModel
-from policy.ff_model_v2 import FeedForwardModel
+from policy.ff_model import FeedForwardModel
 from policy.ff_model_invariant import InvariantFF
 from policy.ff_model_hist import FeedForwardModelHist
 from policy.inv_ff_history import InvariantFFHist
+from policy.gnn_hist import GNNHist
 from policy.greedy import Greedy
 from policy.greedy_rt import GreedyRt
 from policy.simple_greedy import SimpleGreedy
+from policy.ff_supervised import SupervisedFFModel
 
-import numpy as np
-import time
-from tqdm import tqdm
 
-import math
 import matplotlib
 
 import matplotlib.pyplot as plt
 
-from torch.nn import DataParallel
-from policy.attention_model_v2 import set_decode_type
-from log_utils import log_values
-from functions import move_to
 
 # from nets.pointer_network import PointerNetwork, CriticNetworkLSTM
-from functions import torch_load_cpu, load_problem
+from utils.functions import torch_load_cpu, load_problem
 
 matplotlib.use("Agg")
 
@@ -103,7 +94,15 @@ def plot_box(opts, data):
     plt.ylabel("Optimality ratio")
     plt.title("Bipartite graphs of size {}by{}".format(opts.u_size, opts.v_size))
     ticks = opts.eval_set  # ["0.01", "0.05", "0.1", "0.15", "0.2"]
-    colors = ["#d53e4f", "#3288bd", "#7fbf7b", "#fee08b", "#fc8d59", "#e6f598"]
+    colors = [
+        "#d53e4f",
+        "#3288bd",
+        "#7fbf7b",
+        "#fee08b",
+        "#fc8d59",
+        "#e6f598",
+        "#ff69b4",
+    ]
     i = 0
     bps = []
     for d in data:
@@ -136,12 +135,20 @@ def plot_box(opts, data):
     )
 
 
-def plot_agreemant(opts, data):
+def plot_agreemant(opts, data, with_opt=False):
     """
     plots the box data.
     data is a list of (|graph family param| x |training examples|) arrays
     """
-    colors = ["#d53e4f", "#3288bd", "#7fbf7b", "#fee08b", "#fc8d59", "#e6f598"]
+    colors = [
+        "#d53e4f",
+        "#3288bd",
+        "#7fbf7b",
+        "#fee08b",
+        "#fc8d59",
+        "#e6f598",
+        "#ff69b4",
+    ]
     fig, axs = plt.subplots(
         ncols=1, nrows=len(opts.eval_set), sharex=True, sharey=True, figsize=(8, 10)
     )
@@ -150,11 +157,11 @@ def plot_agreemant(opts, data):
     for j, d in enumerate(data):
         c = colors[j]
         for i, a in enumerate(d):
-            (a,) = axs[i].plot(np.arange(opts.v_size), np.array(a) * 100.0, c)
+            (a,) = axs.plot(np.arange(opts.v_size), np.array(a) * 100.0, c)
             plots.append(a)
-            axs[i].set_title(opts.eval_set[i])
-
-    plt.legend([plots[0], plots[-1]], opts.eval_models)
+            axs.set_title(opts.eval_set[i])
+    print(len(plots))
+    plt.legend(plots, opts.eval_models)
 
     plt.xlabel("Timestep")
     fig.text(
@@ -166,15 +173,19 @@ def plot_agreemant(opts, data):
         rotation="vertical",
     )
     # plt.legend(bps, opts.eval_baselines + opts.eval_models)
+    s = ""
+    if with_opt:
+        s = "_with_opt"
     plt.savefig(
         opts.eval_output
-        + "/{}_{}_{}_{}_{}by{}_agreemantplot".format(
+        + "/{}_{}_{}_{}_{}by{}_agreemantplot{}".format(
             opts.problem,
             opts.graph_family,
             opts.weight_distribution,
             opts.weight_distribution_param,
             opts.u_size,
             opts.v_size,
+            s,
         ).replace(" ", "")
     )
 
@@ -192,7 +203,15 @@ def plot_action_distribution(opts, data):
 
     # Add some text for labels, title and custom x-axis tick labels, etc.
 
-    colors = ["#d53e4f", "#3288bd", "#7fbf7b", "#fee08b", "#fc8d59", "#e6f598"]
+    colors = [
+        "#d53e4f",
+        "#3288bd",
+        "#7fbf7b",
+        "#fee08b",
+        "#fc8d59",
+        "#e6f598",
+        "#ff69b4",
+    ]
     fig, axs = plt.subplots(
         ncols=1, nrows=len(opts.eval_set), sharex=True, sharey=True, figsize=(8, 15)
     )
@@ -397,6 +416,8 @@ def initialize_models(opts, models, load_datas, Model):
 def compare_actions(opts, models, greedy, problem):
     ops = []
     ps = []
+    ps1 = []
+    ps2 = []
     counts = []
     counts1 = []
     # for i in graph family parameters
@@ -410,16 +431,25 @@ def compare_actions(opts, models, greedy, problem):
             eval_dataset, batch_size=opts.eval_batch_size, num_workers=0
         )
 
-        avg_cost, cr, avg_cr, op, p, count1, count2, avg_j, wil = evaluate(
+        avg_cost, cr, avg_cr, op, p, p1, p2, count1, count2, avg_j, wil = evaluate(
             [models[i], greedy], eval_dataloader, opts
         )
         print(f"Average Jaccard Index: {opts.eval_set[i]}: {avg_j}")
-        print(f"Wilcoxon test p-value: {opts.eval_set[i]}: {wil}")
+        # print(f"Wilcoxon test p-value: {opts.eval_set[i]}: {wil}")
         ops.append(op.cpu().numpy())
         ps.append(p.cpu().numpy() / float(opts.eval_size))
+        ps1.append(p1.cpu().numpy() / float(opts.eval_size))
+        ps2.append(p2.cpu().numpy() / float(opts.eval_size))
         counts.append(count1.cpu().numpy() / float(count1.sum()))
         counts1.append(count2.cpu().numpy() / float(count2.sum()))
-    return np.array(ops), np.array(ps), np.array(counts), np.array(counts1)
+    return (
+        np.array(ops),
+        np.array(ps),
+        np.array(ps1),
+        np.array(ps2),
+        np.array(counts),
+        np.array(counts1),
+    )
 
 
 def run(opts):
@@ -457,6 +487,10 @@ def run(opts):
     ff_models = None if opts.ff_models == ["None"] else opts.ff_models
     inv_ff_models = None if opts.inv_ff_models == ["None"] else opts.inv_ff_models
     ff_hist_models = None if opts.ff_hist_models == ["None"] else opts.ff_hist_models
+    gnn_hist_models = None if opts.gnn_hist_models == ["None"] else opts.gnn_hist_models
+    ff_supervised_models = (
+        None if opts.ff_supervised_models == ["None"] else opts.ff_supervised_models
+    )
     inv_ff_hist_models = (
         None if opts.inv_ff_hist_models == ["None"] else opts.inv_ff_hist_models
     )
@@ -467,29 +501,39 @@ def run(opts):
     #     load_datas = load_model(opts)
     #     initialize_models(opts, models, load_datas)
     if att_models is not None:
-        load_attention_datas = load_models(opts, opts.att_models)
+        load_attention_datas = load_models(opts, att_models)
         initialize_models(
             opts, models, load_attention_datas, AttentionModel
         )  # attention models from the directory
-    if ff_models is not None:
-        load_ff_datas = load_models(opts, ff_models)
-        initialize_models(
-            opts, models, load_ff_datas, FeedForwardModel
-        )  # feed forwad models from the directory
     if inv_ff_models is not None:
         load_inv_ff_datas = load_models(opts, inv_ff_models)
         initialize_models(
             opts, models, load_inv_ff_datas, InvariantFF
+        )  # feed forwad models from the directory
+    if ff_models is not None:
+        load_ff_datas = load_models(opts, ff_models)
+        initialize_models(
+            opts, models, load_ff_datas, FeedForwardModel
         )  # feed forwad models from the directory
     if ff_hist_models is not None:
         load_ff_datas = load_models(opts, ff_hist_models)
         initialize_models(
             opts, models, load_ff_datas, FeedForwardModelHist
         )  # feed forwad models from the directory
+    if ff_supervised_models is not None:
+        load_ff_datas = load_models(opts, ff_supervised_models)
+        initialize_models(
+            opts, models, load_ff_datas, SupervisedFFModel
+        )  # feed forwad models from the directory
     if inv_ff_hist_models is not None:
         load_inv_ff_datas = load_models(opts, inv_ff_hist_models)
         initialize_models(
             opts, models, load_inv_ff_datas, InvariantFFHist
+        )  # feed forwad models from the directory
+    if gnn_hist_models is not None:
+        load_gnn_hist_datas = load_models(opts, gnn_hist_models)
+        initialize_models(
+            opts, models, load_gnn_hist_datas, GNNHist
         )  # feed forwad models from the directory
 
     # Initialize baseline models
@@ -529,7 +573,7 @@ def run(opts):
         # if single_model is not None:
         #     trained_models_results.append(get_model_op_ratios(opts, models[0], problem))
         print(len(models))
-        if att_models is not None or ff_models is not None:
+        if len(models) > 0:
             # Get the performance of the trained models
             trained_models_results.append(
                 compare_actions(
@@ -552,11 +596,21 @@ def run(opts):
                     problem,
                 )
             )
-            trained_models_results.append(
-                compare_actions(
-                    opts, models[3 * len(opts.eval_set) :], baseline_models[0], problem
-                )
-            )
+            # trained_models_results.append(
+            #     compare_actions(
+            #         opts, models[3 * len(opts.eval_set) : 4 * len(opts.eval_set)], baseline_models[0], problem
+            #     )
+            # )
+            # trained_models_results.append(
+            #     compare_actions(
+            #         opts, models[4 * len(opts.eval_set) : 5 * len(opts.eval_set)], baseline_models[0], problem
+            #     )
+            # )
+            # trained_models_results.append(
+            #     compare_actions(
+            #         opts, models[5 * len(opts.eval_set) :], baseline_models[0], problem
+            #     )
+            # )
             # print('baseline_results[0]: ', baseline_results[0])
             # print('trained_models_results ', trained_models_results)
         # print('baseline_results: ', baseline_results)
@@ -568,13 +622,27 @@ def run(opts):
             np.array(trained_models_results[0][0]),
             np.array(trained_models_results[1][0]),
             np.array(trained_models_results[2][0]),
-            np.array(trained_models_results[3][0]),
+            # np.array(trained_models_results[3][0]),
+            # np.array(trained_models_results[4][0]),
+            # np.array(trained_models_results[5][0]),
             # np.array(trained_models_results[2][0])
         ]
-        # results2 = [
-        #     np.array(trained_models_results[0][1]),
-        #     np.array(trained_models_results[1][1]),
-        # ]
+        results2 = [
+            np.array(trained_models_results[0][1]),
+            np.array(trained_models_results[1][1]),
+            np.array(trained_models_results[2][1]),
+            # np.array(trained_models_results[3][1]),
+            # np.array(trained_models_results[4][1]),
+            # np.array(trained_models_results[5][1]),
+        ]
+        results3 = [
+            np.array(trained_models_results[0][3]),
+            np.array(trained_models_results[1][3]),
+            np.array(trained_models_results[2][3]),
+            # np.array(trained_models_results[3][3]),
+            # np.array(trained_models_results[4][3]),
+            # np.array(trained_models_results[5][3]),
+        ]
         # results3 = [
         #     np.array(trained_models_results[0][2]),
         #     np.array(trained_models_results[1][2]),
@@ -590,7 +658,8 @@ def run(opts):
         # ).replace(" ",""),
         # )
         plot_box(opts, results)
-        # plot_agreemant(opts, results2)
+        plot_agreemant(opts, results2)
+        plot_agreemant(opts, results3, with_opt=True)
         # plot_action_distribution(opts, results3)
         # line_graph(opts, models + baseline_models , problem)
 

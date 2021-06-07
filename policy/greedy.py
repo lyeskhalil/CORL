@@ -25,6 +25,7 @@ class Greedy(nn.Module):
     ):
         super(Greedy, self).__init__()
         self.decode_type = None
+        self.model_name = "greedy"
         self.allow_partial = problem.NAME == "sdvrp"
         self.is_vrp = problem.NAME == "cvrp" or problem.NAME == "sdvrp"
         self.is_orienteering = problem.NAME == "op"

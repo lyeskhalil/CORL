@@ -112,13 +112,17 @@ def rollout_eval(models, dataset, opts):
 
     def eval_model_bat(bat, optimal):
         with torch.no_grad():
-            cost, _, a, _ = model(
-                move_to(bat, opts.device),
-                opts,
-                baseline=None,
-                return_pi=True,
-                optimizer=None,
-            )
+            if model.model_name == "supervised" or model.model_name == "ff-supervised":
+                matchings = bat.x.reshape(opts.batch_size, opts.v_size)
+                cost, _, a, _ = model(move_to(bat, opts.device), matchings, opts, False)
+            else:
+                cost, _, a, _ = model(
+                    move_to(bat, opts.device),
+                    opts,
+                    baseline=None,
+                    return_pi=True,
+                    optimizer=None,
+                )
             cost1, _, a1, _ = g(
                 move_to(bat, opts.device),
                 opts,
@@ -143,6 +147,8 @@ def rollout_eval(models, dataset, opts):
         # )
         num_agree_opt = (a == bat.x.reshape(a.size(0), -1)).float().sum(0)
         greedy_agree_opt = (a1 == bat.x.reshape(a.size(0), -1)).float().sum(0)
+        # num_agree_opt = torch.tensor([0])
+        # greedy_agree_opt = torch.tensor([0])
         return (
             cost.data.cpu(),
             cr,
