@@ -51,7 +51,6 @@ class GNNHist(nn.Module):
         self.n_encode_layers = n_encode_layers
         self.decode_type = None
         self.temp = 1.0
-        self.is_bipartite = True
         self.problem = problem
         self.opts = opts
         # Problem specific context parameters (placeholder and step context dimension)
@@ -59,6 +58,11 @@ class GNNHist(nn.Module):
         encoder_class = {"attention": GraphAttentionEncoder, "mpnn": MPNN}.get(
             encoder, None
         )
+        if opts.problem == "osbm":
+            node_dim_u = 16
+            node_dim_v = 18
+        else:
+            node_dim_u, node_dim_v = 1, 1
 
         self.embedder = encoder_class(
             n_heads=n_heads,
@@ -67,6 +71,8 @@ class GNNHist(nn.Module):
             normalization=normalization,
             problem=self.problem,
             opts=self.opts,
+            node_dim_v=node_dim_v,
+            node_dim_u=node_dim_u,
         )
 
         self.ff = nn.Sequential(
@@ -137,8 +143,9 @@ class GNNHist(nn.Module):
         while not (state.all_finished()):
             step_size = state.i + 1
             mask = state.get_mask()
+            w = state.get_current_weights(mask)
             # Pass the graph to the Encoder
-            node_features = state.get_node_features()
+            node_features_u, node_features_v = state.get_node_features()
             nodes = torch.cat(
                 (
                     torch.arange(0, opts.u_size + 1, device=opts.device),
@@ -151,27 +158,17 @@ class GNNHist(nn.Module):
                     0, batch_size * graph_size, graph_size, device=opts.device
                 ).unsqueeze(1)
             ).flatten()  # The nodes of the current subgraphs
-
-            # Delete irrelevant fixed nodes
-            # mask_available = (state.adj[:, 0, :] == 0).float()
-            # mask_available[:, 0] = 0.0
-            # fixed_nodes_del = torch.nonzero(
-            #     torch.cat(
-            #         (mask_available, torch.zeros(batch_size, i, device=opts.device)),
-            #         dim=1,
-            #     ).flatten()
-            # ).flatten()
-            # subgraphs = subgraphs.index_fill_(0, fixed_nodes_del, -1)
-            # subgraphs = subgraphs[subgraphs != -1]
+            graph_weights = state.get_graph_weights()
             edge_i, weights = subgraph(
                 subgraphs,
                 state.graphs.edge_index,
-                state.graphs.weight.unsqueeze(1),
+                graph_weights.unsqueeze(1),
                 relabel_nodes=True,
             )
             embeddings = checkpoint(
                 self.embedder,
-                node_features,
+                node_features_u,
+                node_features_v,
                 edge_i,
                 weights.float(),
                 torch.tensor(i),
@@ -179,23 +176,14 @@ class GNNHist(nn.Module):
             ).reshape(batch_size, step_size, -1)
             incoming_node_embeddings = embeddings[:, -1, :].unsqueeze(1)
             # print(incoming_node_embeddings)
-            w = (state.adj[:, 0, :]).float()
+            w = (state.adj[:, state.get_current_node(), :]).float()
             # mean_w = w.mean(1)[:, None, None].repeat(1, state.u_size + 1, 1)
             s = w.reshape(state.batch_size, state.u_size + 1, 1)
-            h_mean = state.hist_sum / i
-            h_var = (state.hist_sum_sq - ((state.hist_sum ** 2) / i)) / i
-            h_mean_degree = state.hist_deg / i
-            h_mean[:, :, 0], h_var[:, :, 0], h_mean_degree[:, :, 0] = -1.0, -1.0, -1.0
             idx = (
                 torch.ones(state.batch_size, 1, 1, device=opts.device)
                 * i
                 / state.v_size
             )
-            # curr_sol_size = i - state.num_skip
-            # var_sol = (
-            #     state.sum_sol_sq - ((state.size ** 2) / curr_sol_size)
-            # ) / curr_sol_size
-            # mean_sol = state.size / curr_sol_size
 
             if i != 1:
                 past_sol = (
@@ -204,9 +192,11 @@ class GNNHist(nn.Module):
                         0, batch_size * (i - 1), i - 1, device=opts.device
                     ).unsqueeze(1)
                 ).flatten()
-                # selected_nodes = torch.gather(embeddings, 1, past_sol.unsqueeze(1)).reshape(batch_size, i - 1, opts.embedding_dim)
+
                 selected_nodes = torch.index_select(
-                    embeddings.reshape(-1, opts.embedding_dim), 0, past_sol
+                    embeddings.reshape(-1, opts.embedding_dim),
+                    0,
+                    past_sol.to(opts.device),
                 ).reshape(batch_size, i - 1, opts.embedding_dim)
                 step_context = (
                     self.step_context_transf(

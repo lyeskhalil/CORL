@@ -38,8 +38,8 @@ class Greedy(nn.Module):
         state = self.problem.make_state(x, opts.u_size, opts.v_size, opts)
         sequences = []
         while not (state.all_finished()):
-            w = state.get_current_weights().clone()
             mask = state.get_mask()
+            w = state.get_current_weights(mask).clone()
             w[mask.bool()] = -1.0
             selected = torch.argmax(w, dim=1)
 

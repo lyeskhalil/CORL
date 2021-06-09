@@ -83,6 +83,9 @@ class StateEdgeBipartite(NamedTuple):
     def get_current_weights(self):
         return self.adj[:, 0, :].float()
 
+    def get_graph_weights(self):
+        return self.graphs.weight
+
     def update(self, selected):
         # Update the state
         nodes = self.matched_nodes.scatter_(-1, selected, 1)
@@ -131,7 +134,7 @@ class StateEdgeBipartite(NamedTuple):
         return (self.i - (self.u_size + 1)) >= self.v_size
 
     def get_current_node(self):
-        return self.i
+        return 0
 
     def get_curr_state(self, model):
         mask = self.get_mask()
