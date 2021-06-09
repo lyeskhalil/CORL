@@ -100,6 +100,8 @@ class FeedForwardModelHist(nn.Module):
         i = 1.0
 
         while not (state.all_finished()):
+            mask = state.get_mask()
+            state.get_current_weights(mask)
 
             s, mask = state.get_curr_state(self.model_name)
 

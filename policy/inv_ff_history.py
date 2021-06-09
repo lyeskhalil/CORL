@@ -78,13 +78,8 @@ class InvariantFFHist(nn.Module):
         i = 1
         # entropy = 0
         while not (state.all_finished()):
-            # step_size = (state.i.item() - state.u_size.item() + 1) * (
-            #    state.u_size.item() + 1
-            # )
-            # step_size = state.i.item() + 1
-            # v = state.i - (state.u_size + 1)
-            # su = (state.weights[:, v, :]).float().sum(1)
-            # print(s)
+            mask = state.get_mask()
+            state.get_current_weights(mask)
             s, mask = state.get_curr_state(self.model_name)
             pi = self.ff(s).reshape(state.batch_size, state.u_size + 1)
             # Select the indices of the next nodes in the sequences, result (batch_size) long

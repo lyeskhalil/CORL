@@ -17,40 +17,36 @@ class MPNN(nn.Module):
         opts,
         dropout=0.1,
         alpha=0.01,
-        node_dim=1,
-        node_dim2=1,
+        node_dim_u=1,
+        node_dim_v=1,
         normalization="batch",
         feed_forward_hidden=512,
     ):
         super(MPNN, self).__init__()
         self.l1 = nn.Linear(1, embed_dim ** 2)
-        self.node_embed = nn.Linear(node_dim, embed_dim)
-        if node_dim != node_dim2:
-            self.node_embed_v = nn.Linear(node_dim2, embed_dim)
+        self.node_embed_u = nn.Linear(node_dim_u, embed_dim)
+        if node_dim_u != node_dim_v:
+            self.node_embed_v = nn.Linear(node_dim_v, embed_dim)
 
         self.conv1 = NNConv(embed_dim, embed_dim, self.l1, aggr="mean")
         # self.norm = BatchNorm(embed_dim)
-        self.node_dim = node_dim
         self.n_layers = n_layers
+        self.problem = opts.problem
 
-    def init_parameters(self, module):
-        for name, param in module.named_parameters():
-            stdv = 1.0 / math.sqrt(param.size(-1))
-            param.data.uniform_(-stdv, stdv)
-
-    def forward(self, x, edge_index, edge_attribute, i, dummy):
+    def forward(self, x_u, x_v, edge_index, edge_attribute, i, dummy):
         i = i.item()
         if i < self.n_layers:
             n_encode_layers = i + 1
         else:
             n_encode_layers = self.n_layers
-        if isinstance(x, tuple):
-            x_u = self.node_embed(x[0])
-            x_v = self.node_embed_v(x[1])
-            x = torch.cat((x_u, x_v), dim=1)
+        if self.problem == "osbm":
+            x_u = self.node_embed_u(x_u)
+            x_v = self.node_embed_v(x_v)
+            x = torch.cat((x_u, x_v), dim=0)
         else:
-            x = self.node_embed(x)
-
+            x_u = self.node_embed(x_u)
+            x_v = self.node_embed(x_v)
+            x = torch.cat((x_u, x_v), dim=0)
         for j in range(n_encode_layers):
             x = F.relu(x)
             x = self.conv1(x, edge_index, edge_attribute.float())

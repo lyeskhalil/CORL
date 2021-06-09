@@ -240,7 +240,7 @@ def rollout(model, dataset, opts):
         cost.append(c)
         crs.append(cr)
         losses.append(loss)
-    return torch.cat(cost, 0), torch.cat(crs, 0), torch.tensor(losses).mean()
+    return torch.cat(cost, 0), torch.cat(crs, 0), torch.tensor(losses).float().mean()
 
     # return torch.cat(
     #     [

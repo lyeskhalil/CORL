@@ -80,7 +80,8 @@ class InvariantFF(nn.Module):
 
         i = 1
         while not (state.all_finished()):
-
+            mask = state.get_mask()
+            state.get_current_weights(mask)
             s, mask = state.get_curr_state(self.model_name)
 
             pi = self.ff(s).reshape(state.batch_size, state.u_size + 1)
