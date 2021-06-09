@@ -163,7 +163,7 @@ def generate_osbm_data_geometric(
         users, movies, edges, feature_weights = parse_movie_lense_dataset()
         np.random.seed(100)
         movies_id = np.array(list(movies.keys())).flatten()
-        sampled_movies = list(np.random.choice(movies_id, size=u_size))
+        sampled_movies = list(np.random.choice(movies_id, size=u_size, replace=False))
         g = generate_movie_lense_graph
         vary_fixed = "var" in graph_family
     for i in tqdm(range(dataset_size)):
