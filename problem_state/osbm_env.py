@@ -218,8 +218,12 @@ class StateOSBM(NamedTuple):
 
     def get_graph_weights(self):
         graph_weights = torch.cat(
-            (self.adj[:, :, :].transpose(1, 2).flatten(), self.adj[:, :, :].flatten())
-        )
+            (
+                self.adj[:, :, :].transpose(1, 2).reshape(self.batch_size, -1),
+                self.adj[:, :, :].reshape(self.batch_size, -1),
+            ),
+            dim=1,
+        ).flatten()
         graph_weights = graph_weights[graph_weights != -1]
 
         return graph_weights
