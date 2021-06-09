@@ -478,17 +478,10 @@ def train_batch(
         optimizers[0].zero_grad()
         loss.backward()
 
-        # sum_grad = 0
-        # for name, p in model.named_parameters():
-        #     print(name, p.grad.norm())
-        # print(sum_grad)
-        # print(p.data)
         # Clip gradient norms and get (clipped) gradient norms for logging
         grad_norms = clip_grad_norms(optimizers[0].param_groups, opts.max_grad_norm)
         optimizers[0].step()
-    # grad_norms1 = clip_grad_norms(optimizers[1].param_groups, opts.max_grad_norm)
-    # optimizers[1].zero_grad()
-    # optimizers[1].step() # Gradient update for node embedding init layer
+
     # Logging
     if step % int(opts.log_step) == 0:
         log_values(
