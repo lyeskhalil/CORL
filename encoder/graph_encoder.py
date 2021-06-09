@@ -24,11 +24,13 @@ class MPNN(nn.Module):
     ):
         super(MPNN, self).__init__()
         self.l1 = nn.Linear(1, embed_dim ** 2)
+        self.l2 = nn.Linear(1, embed_dim ** 2)
         self.node_embed = nn.Linear(node_dim, embed_dim)
         if node_dim != node_dim2:
             self.node_embed_v = nn.Linear(node_dim2, embed_dim)
 
         self.conv1 = NNConv(embed_dim, embed_dim, self.l1, aggr="mean")
+        self.conv2 = NNConv(embed_dim, embed_dim, self.l2, aggr="mean")
         # self.norm = BatchNorm(embed_dim)
         self.node_dim = node_dim
         self.n_layers = n_layers
@@ -51,9 +53,11 @@ class MPNN(nn.Module):
         else:
             x = self.node_embed(x)
 
-        for j in range(n_encode_layers):
-            x = F.relu(x)
-            x = self.conv1(x, edge_index, edge_attribute.float())
+        # for j in range(n_encode_layers):
+        x = F.relu(x)
+        x = self.conv1(x, edge_index, edge_attribute.float())
+        x = F.relu(x)
+        x = self.conv2(x, edge_index, edge_attribute.float())
 
         # x = self.norm(x.view(-1, x.size(-1))).view(*x.size())
 
