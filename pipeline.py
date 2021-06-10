@@ -4,17 +4,17 @@ import subprocess
 
 # Refer to opts.py for details about the flags
 # graph/dataset flags
-model_type = "ff"
-problem = "osbm"
-graph_family = "movielense"
-weight_distribution = "movielense"
+model_type = "gnn-hist"
+problem = "e-obm"
+graph_family = "gmission"
+weight_distribution = "gmission"
 weight_distribution_param = "1- -1"  # seperate by a space
 graph_family_parameters = "-1"
 u_size = 10  # 10
 v_size = 30  # 30
-dataset_size = 100
-val_size = 10
-eval_size = 10
+dataset_size = 1000
+val_size = 200
+eval_size = 200
 extention = "/{}_{}_{}_{}_{}by{}".format(
     problem,
     graph_family,
@@ -31,7 +31,7 @@ val_dataset = "dataset/val" + extention
 eval_dataset = "dataset/eval" + extention
 
 # model flags
-batch_size = 100
+batch_size = 200
 embedding_dim = 20  # 60
 n_heads = 1  # 3
 n_epochs = 120
@@ -323,6 +323,6 @@ def evaluate_model():
 if __name__ == "__main__":
     # make the directories if they do not exist
     make_dir()
-    # generate_data()
+#    generate_data()
     train_model()
     # evaluate_model()
