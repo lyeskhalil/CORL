@@ -40,9 +40,9 @@ class StateEdgeBipartite(NamedTuple):
 
         # permute the nodes for data
         idx = torch.arange(adj.shape[1], device=opts.device)
-        # if "supervised" not in opts.model and not opts.eval_only:
-        #     idx = torch.randperm(adj.shape[1], device=opts.device)
-        #     adj = adj[:, idx, :].view(adj.size())
+        if "supervised" not in opts.model and not opts.eval_only:
+            idx = torch.randperm(adj.shape[1], device=opts.device)
+            adj = adj[:, idx, :].view(adj.size())
 
         return StateEdgeBipartite(
             graphs=input,
@@ -236,7 +236,7 @@ class StateEdgeBipartite(NamedTuple):
         fixed_node_feature = self.matched_nodes[:, 1:]
         node_features = torch.cat(
             (future_node_feature, fixed_node_feature, incoming_node_features), dim=1
-        ).reshape(batch_size * step_size, -1)
+        ).reshape(batch_size, step_size)
 
         return node_features
 
