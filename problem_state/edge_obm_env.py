@@ -80,7 +80,7 @@ class StateEdgeBipartite(NamedTuple):
 
         return self.size
 
-    def get_current_weights(self):
+    def get_current_weights(self, mask):
         return self.adj[:, 0, :].float()
 
     def get_graph_weights(self):

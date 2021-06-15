@@ -145,7 +145,7 @@ class GNNHist(nn.Module):
             mask = state.get_mask()
             w = state.get_current_weights(mask)
             # Pass the graph to the Encoder
-            node_features_u, node_features_v = state.get_node_features()
+            node_features_u = state.get_node_features()
             nodes = torch.cat(
                 (
                     torch.arange(0, opts.u_size + 1, device=opts.device),
@@ -168,7 +168,7 @@ class GNNHist(nn.Module):
             embeddings = checkpoint(
                 self.embedder,
                 node_features_u,
-                node_features_v,
+                node_features_u,
                 edge_i,
                 weights.float(),
                 torch.tensor(i),
