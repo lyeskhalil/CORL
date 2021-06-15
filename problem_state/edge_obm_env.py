@@ -40,9 +40,9 @@ class StateEdgeBipartite(NamedTuple):
 
         # permute the nodes for data
         idx = torch.arange(adj.shape[1], device=opts.device)
-        if "supervised" not in opts.model and not opts.eval_only:
-            idx = torch.randperm(adj.shape[1], device=opts.device)
-            adj = adj[:, idx, :].view(adj.size())
+        # if "supervised" not in opts.model and not opts.eval_only:
+        #     idx = torch.randperm(adj.shape[1], device=opts.device)
+        #     adj = adj[:, idx, :].view(adj.size())
 
         return StateEdgeBipartite(
             graphs=input,
@@ -80,7 +80,7 @@ class StateEdgeBipartite(NamedTuple):
 
         return self.size
 
-    def get_current_weights(self):
+    def get_current_weights(self, mask):
         return self.adj[:, 0, :].float()
 
     def get_graph_weights(self):
@@ -164,6 +164,7 @@ class StateEdgeBipartite(NamedTuple):
                 self.sum_sol_sq - ((self.size ** 2) / curr_sol_size)
             ) / curr_sol_size
             mean_sol = self.size / curr_sol_size
+            matched_ratio = self.matched_nodes.sum(1) / self.u_size
             s = torch.cat(
                 (
                     w,
@@ -178,6 +179,7 @@ class StateEdgeBipartite(NamedTuple):
                     self.num_skip / i,
                     self.max_sol,
                     self.min_sol,
+                    matched_ratio.unsqueeze(1),
                 ),
                 dim=1,
             ).float()
@@ -197,6 +199,7 @@ class StateEdgeBipartite(NamedTuple):
                 self.sum_sol_sq - ((self.size ** 2) / curr_sol_size)
             ) / curr_sol_size
             mean_sol = self.size / curr_sol_size
+            matched_ratio = self.matched_nodes.sum(1) / self.u_size
             s = torch.cat(
                 (
                     s,
@@ -212,6 +215,7 @@ class StateEdgeBipartite(NamedTuple):
                     self.num_skip.unsqueeze(2).repeat(1, self.u_size + 1, 1) / i,
                     self.max_sol.unsqueeze(2).repeat(1, self.u_size + 1, 1),
                     self.min_sol.unsqueeze(2).repeat(1, self.u_size + 1, 1),
+                    matched_ratio.unsqueeze(2).repeat(1, self.u_size + 1, 1),
                 ),
                 dim=2,
             ).float()

@@ -44,9 +44,14 @@ class MPNN(nn.Module):
             x_v = self.node_embed_v(x_v)
             x = torch.cat((x_u, x_v), dim=0)
         else:
-            x_u = self.node_embed(x_u)
-            x_v = self.node_embed(x_v)
+            x = self.node_embed_u(x_u)
+            x_v = self.node_embed_u(x_v)
             x = torch.cat((x_u, x_v), dim=0)
+
+        # x = F.relu(x)
+        # x = self.conv1(x, edge_index, edge_attribute.float())
+        # x = F.relu(x)
+        # x = self.conv2(x, edge_index, edge_attribute.float())
         for j in range(n_encode_layers):
             x = F.relu(x)
             x = self.conv1(x, edge_index, edge_attribute.float())

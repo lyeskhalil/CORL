@@ -251,7 +251,7 @@ class StateOSBM(NamedTuple):
             s[:, 0, :], mean_w[:, 0, :] = -1.0, -1.0
 
             s = torch.cat((s, mean_w,), dim=2,)
-        elif model == "ff-hist":
+        elif model == "ff-hist" or model == "ff-supervised":
             w = w.clone()
             h_mean = self.hist_sum.squeeze(1) / i
             h_var = ((self.hist_sum_sq - ((self.hist_sum ** 2) / i)) / i).squeeze(1)
@@ -263,6 +263,7 @@ class StateOSBM(NamedTuple):
                 self.sum_sol_sq - ((self.size ** 2) / curr_sol_size)
             ) / curr_sol_size
             mean_sol = self.size / curr_sol_size
+            matched_ratio = self.matched_nodes.sum(1) / self.u_size
             s = torch.cat(
                 (
                     w,
@@ -277,6 +278,7 @@ class StateOSBM(NamedTuple):
                     self.num_skip / i,
                     self.max_sol,
                     self.min_sol,
+                    matched_ratio.unsqueeze(1),
                 ),
                 dim=1,
             ).float()
@@ -295,6 +297,7 @@ class StateOSBM(NamedTuple):
                 self.sum_sol_sq - ((self.size ** 2) / curr_sol_size)
             ) / curr_sol_size
             mean_sol = self.size / curr_sol_size
+            matched_ratio = self.matched_nodes.sum(1) / self.u_size
             s = torch.cat(
                 (
                     s,
@@ -310,6 +313,7 @@ class StateOSBM(NamedTuple):
                     self.num_skip.unsqueeze(2).repeat(1, self.u_size + 1, 1) / i,
                     self.max_sol.unsqueeze(2).repeat(1, self.u_size + 1, 1),
                     self.min_sol.unsqueeze(2).repeat(1, self.u_size + 1, 1),
+                    matched_ratio.unsqueeze(2).repeat(1, self.u_size + 1, 1),
                 ),
                 dim=2,
             ).float()
