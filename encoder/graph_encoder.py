@@ -24,13 +24,11 @@ class MPNN(nn.Module):
     ):
         super(MPNN, self).__init__()
         self.l1 = nn.Linear(1, embed_dim ** 2)
-        self.l2 = nn.Linear(1, embed_dim ** 2)
-        self.node_embed = nn.Linear(node_dim_u, embed_dim)
+        self.node_embed_u = nn.Linear(node_dim_u, embed_dim)
         if node_dim_u != node_dim_v:
             self.node_embed_v = nn.Linear(node_dim_v, embed_dim)
 
         self.conv1 = NNConv(embed_dim, embed_dim, self.l1, aggr="mean")
-        self.conv2 = NNConv(embed_dim, embed_dim, self.l2, aggr="mean")
         self.n_layers = n_layers
         self.problem = opts.problem
 
@@ -45,15 +43,17 @@ class MPNN(nn.Module):
             x_v = self.node_embed_v(x_v)
             x = torch.cat((x_u, x_v), dim=0)
         else:
-            x = self.node_embed(x_u)
-        
-        x = F.relu(x)
-        x = self.conv1(x, edge_index, edge_attribute.float())
-        x = F.relu(x)
-        x = self.conv2(x, edge_index, edge_attribute.float())
-        #for j in range(n_encode_layers):
-        #    x = F.relu(x)
-        #    x = self.conv1(x, edge_index, edge_attribute.float())
+            x = self.node_embed_u(x_u)
+            x_v = self.node_embed_u(x_v)
+            x = torch.cat((x_u, x_v), dim=0)
+
+        # x = F.relu(x)
+        # x = self.conv1(x, edge_index, edge_attribute.float())
+        # x = F.relu(x)
+        # x = self.conv2(x, edge_index, edge_attribute.float())
+        for j in range(n_encode_layers):
+            x = F.relu(x)
+            x = self.conv1(x, edge_index, edge_attribute.float())
 
         # x = self.norm(x.view(-1, x.size(-1))).view(*x.size())
 

@@ -227,7 +227,6 @@ class GNNHist(nn.Module):
                 ),
                 dim=2,
             )
-            # print(s)
             pi = self.ff(s).reshape(state.batch_size, state.u_size + 1)
             # Select the indices of the next nodes in the sequences, result (batch_size) long
             selected, p = self._select_node(
