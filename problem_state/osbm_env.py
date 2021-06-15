@@ -61,6 +61,7 @@ class StateOSBM(NamedTuple):
         # permute the nodes for data
         if "supervised" not in opts.model and not opts.eval_only:
             idx = torch.randperm(adj.shape[1], device=opts.device)
+
         # adj = adj[:, idx, :].view(adj.size())
         v_features = v_features[:, idx, :].view(v_features.size())
         adj[adj == 0.0] = -1.0
@@ -331,7 +332,14 @@ class StateOSBM(NamedTuple):
             (self.u_features, self.matched_nodes.unsqueeze(2)), dim=2
         ).reshape(batch_size * (self.u_size + 1), -1)
 
-        return fixed_node_feature.float(), incoming_node_features.float()
+        node_features = torch.cat(
+            (
+                fixed_node_feature.reshape(self.batch_size, -1),
+                incoming_node_features.reshape(self.batch_size, -1),
+            ),
+            dim=1,
+        )
+        return node_features.float()
 
     def get_mask(self):
         """

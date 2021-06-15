@@ -236,7 +236,7 @@ class StateEdgeBipartite(NamedTuple):
         fixed_node_feature = self.matched_nodes[:, 1:]
         node_features = torch.cat(
             (future_node_feature, fixed_node_feature, incoming_node_features), dim=1
-        ).reshape(batch_size * step_size, -1)
+        ).reshape(batch_size, step_size)
 
         return node_features
 
