@@ -211,9 +211,10 @@ class StateOSBM(NamedTuple):
 
     def add_weights(self, curr_weights, mask):
         v = self.idx[self.i - (self.u_size + 1)]
-        curr_weights[self.adj[:, v, :] == -1] = -1.0
+        w = curr_weights.clone()
+        w[self.adj[:, v, :] == -1] = -1.0
 
-        self.adj[:, v, :] = curr_weights
+        self.adj[:, v, :] = w
 
         return
 
@@ -246,8 +247,9 @@ class StateOSBM(NamedTuple):
         if model == "ff":
             s = torch.cat((w, mask.float()), dim=1)
         elif model == "inv-ff":
-            w = w.clone()
-            mean_w = w.mean(1)[:, None, None].repeat(1, self.u_size + 1, 1)
+            w1 = w.clone()
+            w1[w1 == -1] = 0.0
+            mean_w = w1.mean(1)[:, None, None].repeat(1, self.u_size + 1, 1)
             s = w.reshape(self.batch_size, self.u_size + 1, 1)
             s[:, 0, :], mean_w[:, 0, :] = -1.0, -1.0
 
@@ -284,7 +286,9 @@ class StateOSBM(NamedTuple):
                 dim=1,
             ).float()
         elif model == "inv-ff-hist":
-            mean_w = w.mean(1)[:, None, None].repeat(1, self.u_size + 1, 1)
+            w1 = w.clone()
+            w1[w1 == -1] = 0.0
+            mean_w = w1.mean(1)[:, None, None].repeat(1, self.u_size + 1, 1)
             s = w.reshape(self.batch_size, self.u_size + 1, 1)
             h_mean = self.hist_sum / i
             h_var = (self.hist_sum_sq - ((self.hist_sum ** 2) / i)) / i
