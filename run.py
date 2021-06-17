@@ -278,7 +278,7 @@ def train_wandb(model_class, problem, tb_logger, opts, config=None):
                 num_workers=0,
                 shuffle=True,
             )
-            avg_reward, min_cr, avg_cr = train_epoch(
+            avg_reward, min_cr, avg_cr, loss = train_epoch(
                 model,
                 optimizers,
                 baseline,
@@ -290,13 +290,24 @@ def train_wandb(model_class, problem, tb_logger, opts, config=None):
                 tb_logger,
                 opts,
             )
-            wandb.log(
-                {
-                    "val_reward": abs(avg_reward),
-                    "avg_cr": abs(avg_cr),
-                    "min_cr": abs(min_cr),
-                }
-            )
+            if "supervised" in opts.model:
+
+                wandb.log(
+                    {
+                        "val_reward": abs(avg_reward),
+                        "avg_cr": abs(avg_cr),
+                        "min_cr": abs(min_cr),
+                        "val_loss": loss,
+                    }
+                )
+            else:
+                wandb.log(
+                    {
+                        "val_reward": abs(avg_reward),
+                        "avg_cr": abs(avg_cr),
+                        "min_cr": abs(min_cr),
+                    }
+                )
 
 
 def setup_training_env(opts, model_class, problem, load_data, tb_logger):

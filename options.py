@@ -22,7 +22,7 @@ def get_options(args=None):
     parser.add_argument(
         "--batch_size",
         type=int,
-        default=10,
+        default=1,
         help="Number of instances per batch during training",
     )
     parser.add_argument(
@@ -293,6 +293,11 @@ def get_options(args=None):
         "--ff_hist_models",
         nargs="+",
         help="list of trained ff-hist models, seperated by space",
+    )
+    parser.add_argument(
+        "--ff_supervised_models",
+        nargs="+",
+        help="list of trained ff-supervised models, seperated by space",
     )
     parser.add_argument(
         "--inv_ff_hist_models",
