@@ -10,11 +10,11 @@ graph_family = "movielense"
 weight_distribution = "movielense"
 weight_distribution_param = "1- -1"  # seperate by a space
 graph_family_parameters = "-1"
-u_size = 10  # 10
-v_size = 30  # 30
-dataset_size = 100
-val_size = 10
-eval_size = 10
+u_size = 3  # 10
+v_size = 5  # 30
+dataset_size = 1
+val_size = 0
+eval_size = 0
 extention = "/{}_{}_{}_{}_{}by{}".format(
     problem,
     graph_family,
@@ -323,6 +323,6 @@ def evaluate_model():
 if __name__ == "__main__":
     # make the directories if they do not exist
     make_dir()
-    # generate_data()
-    train_model()
+    generate_data()
+    #train_model()
     # evaluate_model()
