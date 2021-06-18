@@ -8,12 +8,12 @@ model_type = "gnn-hist"
 problem = "e-obm"
 graph_family = "gmission"
 weight_distribution = "gmission"
-weight_distribution_param = "1- -1"  # seperate by a space
+weight_distribution_param = "-1 -1"  # seperate by a space
 graph_family_parameters = "-1"
 u_size = 94  # 10
 v_size = 200  # 30
 dataset_size = 1
-val_size = 1
+val_size = 1000
 eval_size = 2000
 extention = "/{}_{}_{}_{}_{}by{}".format(
     problem,
@@ -41,7 +41,7 @@ lr_model = 0.001
 lr_decay = 0.99
 beta_decay = 0.7
 ent_rate = 0
-n_encode_layers = 3
+n_encode_layers = 2
 baseline = "exponential"
 # directory io flags
 output_dir = "saved_models"
@@ -53,6 +53,15 @@ eval_models = "inv-ff inv-ff-hist gnn-hist"
 eval_output = "figures"
 # this is a single checkpoint. Example: outputs_dataset/e-obm_20/run_20201226T171156/epoch-4.pt
 load_path = None
+def get_latest_model(m_type, u_size, v_size , problem, graph_family, weight_dist, w_dist_param, g_fam_param):
+    m, v = w_dist_param.split(" ")
+    u_size = 10
+    v_size = 60
+    dire = f"/home/alomrani/projects/def-khalile2/alomrani/output_{problem}_{graph_family}_{u_size}by{v_size}_p={g_fam_param}_{weight_dist}_m={m}_v={v}_a=3"
+    list_of_files = sorted(os.listdir(dire + f"/{m_type}"), key=lambda s: int(s[8:12] + s[13:]))
+
+    return dire + f"/{m_type}/{list_of_files[-1]}/best-model.pt"
+
 # load_path = "../output_e-obm_er_5by15_p=0.01_uniform_m=5_v=100_a=3/e-obm_20/run_20201222T163026/epoch-69.pt"
 # ../output_e-obm_er_5by15_p=0.05_uniform_m=5_v=100_a=3/e-obm_20/run_20201222T163107/epoch-69.pt \
 # ../output_e-obm_er_5by15_p=0.1_uniform_m=5_v=100_a=3/e-obm_20/run_20201222T163157/epoch-69.pt \
@@ -106,17 +115,20 @@ attention_models = "None"
 # ../output_e-obm_er_10by60_p=0.15_uniform_m=5_v=100_a=3/inv-ff/run_20210421T065311/epoch-119.pt \
 # ../output_e-obm_er_10by60_p=0.2_uniform_m=5_v=100_a=3/inv-ff/run_20210421T065256/epoch-119.pt"
 ff_supervised_models = "None"
+#ff_supervised_models = get_latest_model("ff-supervised", u_size, v_size, problem, graph_family, weight_distribution, weight_distribution_param, graph_family_parameters)
 # ff_supervised_models = "outputs/output_e-obm_gmission_10by60_p=-1_gmission_m=-1_v=-1_a=3/ff-supervised/run_20210601T143608/epoch-119.pt"
 # ff_supervised_models = "outputs/output_e-obm_gmission_10by30_p=-1_gmission_m=-1_v=-1_a=3/ff-supervised/run_20210601T143608/epoch-119.pt"
 # ff_supervised_models = "None"
 #gnn_hist_models = "~/projects/def-khalile2/alomrani/output_e-obm_gmission_10by30_p=-1_gmission_m=-1_v=-1_a=3/gnn-hist/run_20210602T075444/epoch-149.pt"
-gnn_hist_models = "~/projects/def-khalile2/alomrani/output_e-obm_gmission_10by60_p=-1_gmission_m=-1_v=-1_a=3/gnn-hist/run_20210602T075439/epoch-149.pt"
+#gnn_hist_models = "~/projects/def-khalile2/alomrani/output_e-obm_gmission_10by60_p=-1_gmission_m=-1_v=-1_a=3/gnn-hist/run_20210602T075439/epoch-149.pt"
+gnn_hist_models = get_latest_model("gnn-hist", u_size, v_size, problem, graph_family, weight_distribution, weight_distribution_param, graph_family_parameters)
 #inv_ff_models = "~/projects/def-khalile2/alomrani/output_e-obm_gmission_10by30_p=-1_gmission_m=-1_v=-1_a=3/inv-ff/run_20210602T083225/epoch-149.pt"
 # inv_ff_models = "outputs/output_osbm_movielense_10by30_p=-1_movielense_m=-1_v=-1_a=3/inv-ff/run_20210602T102500/epoch-149.pt"
 # gnn_hist_models = "outputs/output_e-obm_gmission-max_10by30_p=-1_gmission-max_m=-1_v=-1_a=3/gnn-hist/run_20210520T182339/epoch-119.pt"
 # gnn_hist_models = "outputs/output_e-obm_gmission-max_10by60_p=-1_gmission-max_m=-1_v=-1_a=3/gnn-hist/run_20210520T182204/epoch-119.pt"
 # inv_ff_models = "outputs/output_e-obm_gmission_100by100_p=-1_gmission_m=-1_v=-1_a=3/inv-ff/run_20210502T062345/epoch-119.pt"
-inv_ff_models = "~/projects/def-khalile2/alomrani/output_e-obm_gmission_10by60_p=-1_gmission_m=-1_v=-1_a=3/inv-ff/run_20210602T083223/epoch-149.pt"
+#inv_ff_models = "~/projects/def-khalile2/alomrani/output_e-obm_gmission_10by60_p=-1_gmission_m=-1_v=-1_a=3/inv-ff/run_20210602T083223/epoch-149.pt"
+inv_ff_models = get_latest_model("inv-ff", u_size, v_size, problem, graph_family, weight_distribution, weight_distribution_param, graph_family_parameters)
 # inv_ff_models = "outputs/output_e-obm_gmission-var_10by30_p=-1_gmission-var_m=-1_v=-1_a=3/inv-ff/run_20210513T051323/epoch-119.pt"
 # inv_ff_models = "outputs/output_e-obm_gmission-var_10by60_p=-1_gmission-var_m=-1_v=-1_a=3/inv-ff/run_20210513T051318/epoch-119.pt"
 # inv_ff_models = "outputs/output_e-obm_gmission-max_10by30_p=-1_gmission-max_m=-1_v=-1_a=3/inv-ff/run_20210520T173501/epoch-119.pt"
@@ -126,7 +138,8 @@ inv_ff_models = "~/projects/def-khalile2/alomrani/output_e-obm_gmission_10by60_p
 # inv_ff_hist_models = "outputs/output_osbm_movielense_10by30_p=-1_movielense_m=-1_v=-1_a=3/inv-ff-hist/run_20210602T102854/epoch-149.pt"
 # inv_ff_hist_models = "outputs/output_e-obm_gmission-var_10by30_p=-1_gmission-var_m=-1_v=-1_a=3/inv-ff-hist/run_20210513T032250/epoch-119.pt"
 # inv_ff_hist_models = "outputs/output_e-obm_gmission-var_10by60_p=-1_gmission-var_m=-1_v=-1_a=3/inv-ff-hist/run_20210513T032442/epoch-119.pt"
-inv_ff_hist_models = "~/projects/def-khalile2/alomrani/output_e-obm_gmission_10by60_p=-1_gmission_m=-1_v=-1_a=3/inv-ff-hist/run_20210602T075656/epoch-149.pt"
+#inv_ff_hist_models = "~/projects/def-khalile2/alomrani/output_e-obm_gmission_10by60_p=-1_gmission_m=-1_v=-1_a=3/inv-ff-hist/run_20210602T075656/epoch-149.pt"
+inv_ff_hist_models = get_latest_model("inv-ff-hist", u_size, v_size, problem, graph_family, weight_distribution, weight_distribution_param, graph_family_parameters)
 # inv_ff_hist_models = "outputs/output_e-obm_gmission_100by100_p=-1_gmission_m=-1_v=-1_a=3/inv-ff-hist/run_20210502T062345/epoch-119.pt"
 # inv_ff_hist_models = "outputs/output_e-obm_gmission-max_10by30_p=-1_gmission-max_m=-1_v=-1_a=3/inv-ff-hist/run_20210520T173506/epoch-119.pt"
 # inv_ff_hist_models = "outputs/output_e-obm_gmission-max_10by60_p=-1_gmission-max_m=-1_v=-1_a=3/inv-ff-hist/run_20210520T173504/epoch-119.pt"
@@ -147,6 +160,7 @@ inv_ff_hist_models = "~/projects/def-khalile2/alomrani/output_e-obm_gmission_10b
 # ../output_e-obm_er_100by100_p=0.15_uniform_m=5_v=100_a=3/ff/run_20210310T084103/epoch-69.pt \
 # ../output_e-obm_er_100by100_p=0.2_uniform_m=5_v=100_a=3/ff/run_20210310T084210/epoch-69.pt"
 ff_models = "None"
+#ff_models = get_latest_model("ff", u_size, v_size, problem, graph_family, weight_distribution, weight_distribution_param, graph_family_parameters)
 # gMission
 # 10by30
 # ff_models = "outputs/output_e-obm_gmission_10by30_p=-1_gmission_m=-1_v=-1_a=3/ff/run_20210602T083312/epoch-149.pt"
@@ -167,6 +181,7 @@ ff_models = "None"
 # ff_hist_models = "outputs/output_e-obm_gmission_100by100_p=-1_gmission_m=-1_v=-1_a=3/ff-hist/run_20210502T095427/epoch-119.pt"
 # ff_hist_models = "outputs/output_e-obm_gmission-max_10by30_p=-1_gmission-max_m=-1_v=-1_a=3/ff-hist/run_20210520T173507/epoch-119.pt"
 ff_hist_models = "None"
+#ff_hist_models = get_latest_model("ff-hist", u_size, v_size, problem, graph_family, weight_distribution, weight_distribution_param, graph_family_parameters)
 # ff_hist_models = "outputs/output_e-obm_gmission-max_10by60_p=-1_gmission-max_m=-1_v=-1_a=3/ff-hist/run_20210520T173507/epoch-119.pt"
 eval_batch_size = 200
 eval_set = graph_family_parameters
