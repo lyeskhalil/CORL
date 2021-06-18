@@ -14,6 +14,7 @@ import networkx as nx
 from scipy.optimize import linear_sum_assignment
 import torch
 from tqdm import tqdm
+#from .IPsolvers.IPsolver import solve_submodular_matching
 
 
 def generate_ba_graph(u, v, p, seed):
@@ -60,22 +61,46 @@ def generate_movie_lense_graph(
 
     movies_id = np.array(list(movies.keys())).flatten()
     users_id = np.array(list(users.keys())).flatten()
+
     if vary_fixed:
         sampled_movies = list(np.random.choice(movies_id, size=u))
 
     movies_features = list(map(lambda m: movies[m], sampled_movies))
+    print('sampled_movies: ', sampled_movies)
+    print('movies_features: ', movies_features)
     users_features = []
+    user_freq_dic = {} #{v_id: freq}, used for the IPsolver
+    sampled_users_dic = {}  #{user_id: v_id}
+    edge_vector_dic = {u:movies_features[u] for u in range(len(sampled_movies))}
+    preference_matrix = np.zeros((15, v)) #15 is the number of genres
+    print(preference_matrix.shape)
+
     for i in range(v):
         sampled_user = np.random.choice(users_id)
+        if sampled_user in sampled_users_dic:
+            i = sampled_users_dic[sampled_user]
+            user_freq_dic[i] += 1
+        else:
+            sampled_users_dic[sampled_user] = i
+            user_freq_dic[i] = 1
+        preference_matrix[:,i] = weight_features[sampled_user]
+        print('weight_features[sampled_user].T: ', weight_features[sampled_user])
         user_info = list(weight_features[sampled_user]) + users[sampled_user]
         for w in range(len(sampled_movies)):
             movie = sampled_movies[w]
             edge = (movie, sampled_user)
-            if edge in edges and (w, i + u) not in G.edges:
-                G.add_edge(w, i + u)
+            if edge in edges and (w, i+u) not in G.edges:
+                print('added edge ({}, {})'.format(w, i+u))
+                G.add_edge(w, i+u)
         users_features.append(user_info)
 
-    return G, np.array(movies_features), np.array(users_features)
+    #user_freq = list(map(lambda id: user_freq_dic[id], user_freq_dic)) + [0] * (v - (len(user_freq_dic)))
+
+    print('G: ', nx.adjacency_matrix(G))
+    print('r_v: ', user_freq_dic)
+    print('user_feaures: ', np.array(users_features))
+
+    return G, np.array(movies_features), np.array(users_features), nx.adjacency_matrix(G).todense(), user_freq_dic, edge_vector_dic
 
 
 def generate_gmission_graph(
@@ -167,7 +192,7 @@ def generate_osbm_data_geometric(
         g = generate_movie_lense_graph
         vary_fixed = "var" in graph_family
     for i in tqdm(range(dataset_size)):
-        g1, movie_features, user_features = g(
+        g1, movie_features, user_features, adjacency_matrix, user_freq, edge_vector_dic= g(
             u_size,
             v_size,
             users,
@@ -187,7 +212,7 @@ def generate_osbm_data_geometric(
         data.x = torch.tensor(
             np.concatenate((movie_features.flatten(), user_features.flatten()))
         )
-        data.y = 10.0  # TODO: Fill in optimal solution from gurobi
+        data.y = 10 #solve_submodular_matching(u_size, v_size, adjacency_matrix, user_freq, edge_vector_dic)
         if save_data:
             torch.save(
                 data, "{}/data_{}.pt".format(dataset_folder, i),
@@ -264,9 +289,7 @@ def generate_edge_obm_data_geometric(
         # s = sorted(list(g1.nodes))
         # m = 1 - nx.convert_matrix.to_numpy_array(g1, s)
         data = from_networkx(g1)
-        data.x = torch.tensor(
-            solution
-        )  # this is a list, must convert to tensor when a batch is called
+        data.x = torch.tensor(solution)  # this is a list, must convert to tensor when a batch is called
         data.y = torch.tensor(optimal).float()  # tuple of optimla and size of matching
         if save_data:
             torch.save(

@@ -10,11 +10,27 @@ graph_family = "gmission"
 weight_distribution = "gmission"
 weight_distribution_param = "-1 -1"  # seperate by a space
 graph_family_parameters = "-1"
+<<<<<<< HEAD
 u_size = 94  # 10
 v_size = 200  # 30
 dataset_size = 1
 val_size = 1000
 eval_size = 2000
+=======
+<<<<<<< HEAD
+u_size = 3  # 10
+v_size = 5  # 30
+dataset_size = 1
+val_size = 0
+eval_size = 0
+=======
+u_size = 10
+v_size = 3
+dataset_size = 10
+val_size = 1
+eval_size = 1
+>>>>>>> f0367f6a740a57d07dcb79b01d476cd9b0b6647e
+>>>>>>> 56af95f9a907b65b8449c4374d93dc14f43c8486
 extention = "/{}_{}_{}_{}_{}by{}".format(
     problem,
     graph_family,
@@ -346,6 +362,12 @@ def evaluate_model():
 if __name__ == "__main__":
     # make the directories if they do not exist
     make_dir()
+<<<<<<< HEAD
 #    generate_data()
     #train_model()
     evaluate_model()
+=======
+    generate_data()
+    #train_model()
+    # evaluate_model()
+>>>>>>> 56af95f9a907b65b8449c4374d93dc14f43c8486
