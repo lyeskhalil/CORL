@@ -36,6 +36,8 @@ from policy.simple_greedy import SimpleGreedy
 from policy.supervised import SupervisedModel
 from policy.ff_supervised import SupervisedFFModel
 from policy.gnn_hist import GNNHist
+from policy.gnn_simp_hist import GNNSimpHist
+from policy.gnn import GNN
 
 # from nets.pointer_network import PointerNetwork, CriticNetworkLSTM
 from utils.functions import torch_load_cpu, load_problem
@@ -93,6 +95,8 @@ def run(opts):
         "supervised": SupervisedModel,
         "ff-supervised": SupervisedFFModel,
         "gnn-hist": GNNHist,
+        "gnn-simp-hist": GNNSimpHist,
+        "gnn": GNN,
     }.get(opts.model, None)
     assert model_class is not None, "Unknown model: {}".format(model_class)
     # if not opts.tune:

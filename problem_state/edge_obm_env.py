@@ -165,6 +165,7 @@ class StateEdgeBipartite(NamedTuple):
             ) / curr_sol_size
             mean_sol = self.size / curr_sol_size
             matched_ratio = self.matched_nodes.sum(1) / self.u_size
+            available_ratio = self.adj[:, 0, :].float().sum(1) / (self.u_size + 1)
             s = torch.cat(
                 (
                     w,
@@ -180,11 +181,12 @@ class StateEdgeBipartite(NamedTuple):
                     self.max_sol,
                     self.min_sol,
                     matched_ratio.unsqueeze(1),
+                    available_ratio.unsqueeze(1),
                 ),
                 dim=1,
             ).float()
 
-        elif model == "inv-ff-hist":
+        elif model == "inv-ff-hist" or model == "gnn-simp-hist":
             mean_w = w.mean(1)[:, None, None].repeat(1, self.u_size + 1, 1)
             s = w.reshape(self.batch_size, self.u_size + 1, 1)
             h_mean = self.hist_sum / i
@@ -199,7 +201,8 @@ class StateEdgeBipartite(NamedTuple):
                 self.sum_sol_sq - ((self.size ** 2) / curr_sol_size)
             ) / curr_sol_size
             mean_sol = self.size / curr_sol_size
-            matched_ratio = self.matched_nodes.sum(1) / self.u_size
+            matched_ratio = self.matched_nodes.sum(1).unsqueeze(1) / self.u_size
+            available_ratio = self.adj[:, 0, :].sum(1).unsqueeze(1) / (self.u_size + 1)
             s = torch.cat(
                 (
                     s,
@@ -216,6 +219,7 @@ class StateEdgeBipartite(NamedTuple):
                     self.max_sol.unsqueeze(2).repeat(1, self.u_size + 1, 1),
                     self.min_sol.unsqueeze(2).repeat(1, self.u_size + 1, 1),
                     matched_ratio.unsqueeze(2).repeat(1, self.u_size + 1, 1),
+                    available_ratio.unsqueeze(2).repeat(1, self.u_size + 1, 1),
                 ),
                 dim=2,
             ).float()
