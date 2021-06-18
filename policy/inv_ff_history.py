@@ -72,11 +72,8 @@ class InvariantFFHist(nn.Module):
         sequences = []
         state = self.problem.make_state(input, opts.u_size, opts.v_size, opts)
 
-        # step_context = 0
-        # batch_size = state.ids.size(0)
         # Perform decoding steps
         i = 1
-        # entropy = 0
         while not (state.all_finished()):
             mask = state.get_mask()
             state.get_current_weights(mask)

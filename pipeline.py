@@ -4,12 +4,17 @@ import subprocess
 
 # Refer to opts.py for details about the flags
 # graph/dataset flags
+<<<<<<< HEAD
 model_type = "gnn-hist"
+=======
+model_type = "gnn-simp-hist"
+>>>>>>> 875534792a266d37890cb8018b3f4b933fde0a0d
 problem = "e-obm"
 graph_family = "gmission"
 weight_distribution = "gmission"
 weight_distribution_param = "-1 -1"  # seperate by a space
 graph_family_parameters = "-1"
+<<<<<<< HEAD
 <<<<<<< HEAD
 u_size = 94  # 10
 v_size = 200  # 30
@@ -31,6 +36,14 @@ val_size = 1
 eval_size = 1
 >>>>>>> f0367f6a740a57d07dcb79b01d476cd9b0b6647e
 >>>>>>> 56af95f9a907b65b8449c4374d93dc14f43c8486
+=======
+
+u_size = 10
+v_size = 30
+dataset_size = 10000
+val_size = 1000
+eval_size = 2000
+>>>>>>> 875534792a266d37890cb8018b3f4b933fde0a0d
 extention = "/{}_{}_{}_{}_{}by{}".format(
     problem,
     graph_family,
@@ -47,28 +60,37 @@ val_dataset = "dataset/val" + extention
 eval_dataset = "dataset/eval" + extention
 
 # model flags
+<<<<<<< HEAD
 batch_size = 200
+=======
+batch_size = 10
+>>>>>>> 875534792a266d37890cb8018b3f4b933fde0a0d
 embedding_dim = 30  # 60
 n_heads = 1  # 3
-n_epochs = 2
+n_epochs = 10
 checkpoint_epochs = 0
 eval_baselines = "greedy"  # ******
 lr_model = 0.001
 lr_decay = 0.99
 beta_decay = 0.7
 ent_rate = 0
+<<<<<<< HEAD
 n_encode_layers = 2
+=======
+n_encode_layers = 1
+>>>>>>> 875534792a266d37890cb8018b3f4b933fde0a0d
 baseline = "exponential"
 # directory io flags
 output_dir = "saved_models"
 log_dir = "logs_dataset"
 
 # model evaluation flags
-eval_models = "inv-ff inv-ff-hist gnn-hist"
+eval_models = "inv-ff ff ff-hist ff-supervised inv-ff-hist gnn-hist"
 # TODO: ADD MODELS TO ABOVE
 eval_output = "figures"
 # this is a single checkpoint. Example: outputs_dataset/e-obm_20/run_20201226T171156/epoch-4.pt
 load_path = None
+<<<<<<< HEAD
 def get_latest_model(m_type, u_size, v_size , problem, graph_family, weight_dist, w_dist_param, g_fam_param):
     m, v = w_dist_param.split(" ")
     u_size = 10
@@ -200,6 +222,99 @@ ff_hist_models = "None"
 #ff_hist_models = get_latest_model("ff-hist", u_size, v_size, problem, graph_family, weight_distribution, weight_distribution_param, graph_family_parameters)
 # ff_hist_models = "outputs/output_e-obm_gmission-max_10by60_p=-1_gmission-max_m=-1_v=-1_a=3/ff-hist/run_20210520T173507/epoch-119.pt"
 eval_batch_size = 200
+=======
+
+
+def get_latest_model(
+    m_type,
+    u_size,
+    v_size,
+    problem,
+    graph_family,
+    weight_dist,
+    w_dist_param,
+    g_fam_param,
+):
+    m, v = w_dist_param.split(" ")
+    dir = f"outputs/output_{problem}_{graph_family}_{u_size}by{v_size}_p={g_fam_param}_{weight_dist}_m={m}_v={v}_a=3"
+
+    list_of_files = sorted(
+        os.listdir(dir + f"/{m_type}"), key=lambda s: int(s[8:12] + s[13:])
+    )
+
+    return dir + f"/{m_type}/{list_of_files[-1]}/best-model.pt"
+
+
+attention_models = "None"
+
+ff_supervised_models = get_latest_model(
+    "ff-supervised",
+    u_size,
+    v_size,
+    problem,
+    graph_family,
+    weight_distribution,
+    weight_distribution_param,
+    graph_family_parameters,
+)
+
+gnn_hist_models = get_latest_model(
+    "gnn-hist",
+    u_size,
+    v_size,
+    problem,
+    graph_family,
+    weight_distribution,
+    weight_distribution_param,
+    graph_family_parameters,
+)
+
+inv_ff_models = get_latest_model(
+    "inv-ff",
+    u_size,
+    v_size,
+    problem,
+    graph_family,
+    weight_distribution,
+    weight_distribution_param,
+    graph_family_parameters,
+)
+
+inv_ff_hist_models = get_latest_model(
+    "inv-ff-hist",
+    u_size,
+    v_size,
+    problem,
+    graph_family,
+    weight_distribution,
+    weight_distribution_param,
+    graph_family_parameters,
+)
+
+ff_models = get_latest_model(
+    "ff",
+    u_size,
+    v_size,
+    problem,
+    graph_family,
+    weight_distribution,
+    weight_distribution_param,
+    graph_family_parameters,
+)
+
+ff_hist_models = get_latest_model(
+    "ff-hist",
+    u_size,
+    v_size,
+    problem,
+    graph_family,
+    weight_distribution,
+    weight_distribution_param,
+    graph_family_parameters,
+)
+
+eval_batch_size = 100
+>>>>>>> 875534792a266d37890cb8018b3f4b933fde0a0d
 eval_set = graph_family_parameters
 
 
@@ -362,12 +477,6 @@ def evaluate_model():
 if __name__ == "__main__":
     # make the directories if they do not exist
     make_dir()
-<<<<<<< HEAD
 #    generate_data()
-    #train_model()
+#    train_model()
     evaluate_model()
-=======
-    generate_data()
-    #train_model()
-    # evaluate_model()
->>>>>>> 56af95f9a907b65b8449c4374d93dc14f43c8486
