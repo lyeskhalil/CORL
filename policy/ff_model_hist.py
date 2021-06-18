@@ -30,7 +30,7 @@ class FeedForwardModelHist(nn.Module):
 
         self.embedding_dim = embedding_dim
         self.decode_type = None
-        self.num_actions = 5 * (opts.u_size + 1) + 9
+        self.num_actions = 5 * (opts.u_size + 1) + 8
         self.is_bipartite = problem.NAME == "bipartite"
         self.problem = problem
         self.shrink_size = None
