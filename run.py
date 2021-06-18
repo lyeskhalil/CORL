@@ -220,6 +220,7 @@ def run(opts):
             with open(SCOREFILE, "a") as f:
                 f.write(f'{",".join(map(str, params + (avg_reward,min_cr,avg_cr)))}\n')
     else:
+        best_avg_cr = 0.
         for epoch in range(opts.epoch_start, opts.epoch_start + opts.n_epochs):
             # with profiler.profile() as prof:
             #    with profiler.record_function("model_inference"):
@@ -230,7 +231,7 @@ def run(opts):
                 num_workers=0,
                 shuffle=True,
             )
-            train_epoch(
+            avg_reward, min_cr, avg_cr, loss = train_epoch(
                 model,
                 optimizers,
                 baseline,
@@ -241,8 +242,11 @@ def run(opts):
                 problem,
                 tb_logger,
                 opts,
+                best_avg_cr
             )
             # print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=20))
+            best_avg_cr = max(best_avg_cr, avg_cr)
+
 
 
 def train_wandb(model_class, problem, tb_logger, opts, config=None):

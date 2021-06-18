@@ -59,8 +59,8 @@ class StateOSBM(NamedTuple):
         v_features = v_features[:, idx, :].view(v_features.size())
 
         # permute the nodes for data
-        if "supervised" not in opts.model and not opts.eval_only:
-            idx = torch.randperm(adj.shape[1], device=opts.device)
+#        if "supervised" not in opts.model and not opts.eval_only:
+#            idx = torch.randperm(adj.shape[1], device=opts.device)
 
         # adj = adj[:, idx, :].view(adj.size())
         v_features = v_features[:, idx, :].view(v_features.size())
@@ -302,7 +302,7 @@ class StateOSBM(NamedTuple):
                 self.sum_sol_sq - ((self.size ** 2) / curr_sol_size)
             ) / curr_sol_size
             mean_sol = self.size / curr_sol_size
-            matched_ratio = self.matched_nodes.sum(1) / self.u_size
+            matched_ratio = self.matched_nodes.sum(1).unsqueeze(1) / self.u_size
             s = torch.cat(
                 (
                     s,
