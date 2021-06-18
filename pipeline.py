@@ -10,6 +10,7 @@ graph_family = "gmission"
 weight_distribution = "gmission"
 weight_distribution_param = "-1 -1"  # seperate by a space
 graph_family_parameters = "-1"
+
 u_size = 10
 v_size = 30
 dataset_size = 10000
