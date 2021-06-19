@@ -76,7 +76,7 @@ class GNNHist(nn.Module):
         )
 
         self.ff = nn.Sequential(
-            nn.Linear(2 + 4 * opts.embedding_dim, 200), nn.ReLU(), nn.Linear(200, 1),
+            nn.Linear(3 + 4 * opts.embedding_dim, 200), nn.ReLU(), nn.Linear(200, 1),
         )
 
         assert embedding_dim % n_heads == 0
@@ -220,6 +220,7 @@ class GNNHist(nn.Module):
                 (
                     s,
                     idx.repeat(1, state.u_size + 1, 1),
+                    mask.unsqueeze(2),
                     incoming_node_embeddings.repeat(1, state.u_size + 1, 1),
                     embeddings[:, : opts.u_size + 1, :],
                     step_context.repeat(1, state.u_size + 1, 1),
