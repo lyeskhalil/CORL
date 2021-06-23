@@ -1,5 +1,6 @@
 import wandb
 import numpy as np
+import sys
 
 
 learning_rates = list(
@@ -19,8 +20,11 @@ ent_rate = list(
     ).tolist()
 )
 
+if sys.argv[1] == "ent":
+    ent_rate = [0.0]
 
 sweep_config = {
+    "name": sys.argv[2],
     "method": "bayes",
     "metric": {"name": "val_reward", "goal": "maximize"},
     "early_terminate": {"type": "hyperband", "min_iter": 40},
