@@ -201,6 +201,7 @@ def run(opts):
             # training_dataloader = DataLoader(
             #    baseline.wrap_dataset(training_dataset), batch_size=opts.batch_size, num_workers=1, shuffle=True,
             # )
+            best_avg_cr = 0
             for epoch in range(opts.epoch_start, opts.epoch_start + opts.n_epochs):
                 training_dataloader = geoDataloader(
                     baseline.wrap_dataset(training_dataset),
@@ -208,7 +209,7 @@ def run(opts):
                     num_workers=0,
                     shuffle=True,
                 )
-                avg_reward, min_cr, avg_cr = train_epoch(
+                avg_reward, min_cr, avg_cr, loss = train_epoch(
                     model,
                     optimizers,
                     baseline,
@@ -219,7 +220,9 @@ def run(opts):
                     problem,
                     tb_logger,
                     opts,
+                    best_avg_cr
                 )
+                best_avg_cr = max(best_avg_cr, avg_cr)
             avg_reward, min_cr, avg_cr = avg_reward.item(), min_cr, avg_cr.item()
             with open(SCOREFILE, "a") as f:
                 f.write(f'{",".join(map(str, params + (avg_reward,min_cr,avg_cr)))}\n')
@@ -278,7 +281,7 @@ def train_wandb(model_class, problem, tb_logger, opts, config=None):
         # training_dataloader = DataLoader(
         #    baseline.wrap_dataset(training_dataset), batch_size=opts.batch_size, num_workers=1, shuffle=True,
         # )
-
+        best_avg_cr = 0.
         for epoch in range(opts.epoch_start, opts.epoch_start + opts.n_epochs):
             training_dataloader = geoDataloader(
                 baseline.wrap_dataset(training_dataset),
@@ -297,7 +300,9 @@ def train_wandb(model_class, problem, tb_logger, opts, config=None):
                 problem,
                 tb_logger,
                 opts,
+                best_avg_cr
             )
+            best_avg_cr = max(best_avg_cr, avg_cr)
             if "supervised" in opts.model:
 
                 wandb.log(

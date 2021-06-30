@@ -113,7 +113,7 @@ def rollout_eval(models, dataset, opts):
     def eval_model_bat(bat, optimal):
         with torch.no_grad():
             if model.model_name == "supervised" or model.model_name == "ff-supervised":
-                matchings = bat.x.reshape(opts.batch_size, opts.v_size)
+                matchings = bat.x.reshape(opts.batch_size, opts.v_size).to(opts.device)
                 cost, _, a, _ = model(move_to(bat, opts.device), matchings, opts, False)
             else:
                 cost, _, a, _ = model(
@@ -140,7 +140,7 @@ def rollout_eval(models, dataset, opts):
         if (cost == cost1).all().item():
             w, p = 0, 0
         else:
-            w, p = wilcoxon(-cost.squeeze(), -cost1.squeeze(), alternative="greater")
+            w, p = wilcoxon(-cost.squeeze().cpu(), -cost1.squeeze().cpu(), alternative="greater")
         cr = -cost.data.flatten() / move_to(bat.y + (bat.y == 0).float(), opts.device)
         # print(
         #     "\nBatch Competitive ratio: ", min(cr).item(),
@@ -289,6 +289,7 @@ def train_epoch(
     problem,
     tb_logger,
     opts,
+    best_avg_cr
 ):
     print(
         "Start train epoch {}, lr={} for run {}".format(
@@ -390,6 +391,17 @@ def train_epoch(
 
     avg_reward, min_cr, avg_cr, loss = validate(model, val_dataset, opts)
     # avg_reward, min_cr, avg_cr = 0,0,0
+    if avg_cr > best_avg_cr:
+        torch.save(
+            {
+                "model": get_inner_model(model).state_dict(),
+                "optimizer": optimizers[0].state_dict(),
+                "rng_state": torch.get_rng_state(),
+                "cuda_rng_state": torch.cuda.get_rng_state_all(),
+                "baseline": baseline.state_dict(),
+            },
+            os.path.join(opts.save_dir, "best-model.pt"),
+        )
     if not opts.no_tensorboard:
         tb_logger.add_scalar("val_avg_reward", -avg_reward, step)
         tb_logger.add_scalar("min_competitive_ratio", min_cr, step)

@@ -76,7 +76,11 @@ class GNNHist(nn.Module):
         )
 
         self.ff = nn.Sequential(
-            nn.Linear(3 + 4 * opts.embedding_dim, 200), nn.ReLU(), nn.Linear(200, 1),
+            nn.Linear(5 + 4 * opts.embedding_dim, 200),
+            nn.ReLU(), 
+            nn.Linear(200, 200), 
+            nn.ReLU(), 
+            nn.Linear(200, 1)
         )
 
         assert embedding_dim % n_heads == 0
@@ -216,11 +220,15 @@ class GNNHist(nn.Module):
             else:
                 step_context = self.initial_stepcontext.repeat(batch_size, 1, 1)
             u_embeddings = embeddings[:, : opts.u_size + 1, :]
+            fixed_node_identity = torch.zeros(state.batch_size, state.u_size + 1, 1, device=opts.device)
+            fixed_node_identity[:, 0, :] = 1.
             s = torch.cat(
                 (
                     s,
                     idx.repeat(1, state.u_size + 1, 1),
-                    mask.unsqueeze(2),
+                    state.size.unsqueeze(2).repeat(1, state.u_size + 1, 1) / state.u_size,
+                    fixed_node_identity,
+                    state.matched_nodes.unsqueeze(2),
                     incoming_node_embeddings.repeat(1, state.u_size + 1, 1),
                     embeddings[:, : opts.u_size + 1, :],
                     step_context.repeat(1, state.u_size + 1, 1),
