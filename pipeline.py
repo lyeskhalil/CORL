@@ -4,18 +4,22 @@ import subprocess
 
 # Refer to opts.py for details about the flags
 # graph/dataset flags
+
 model_type = "ff-supervised"
+
 problem = "e-obm"
 graph_family = "gmission"
 weight_distribution = "gmission"
 weight_distribution_param = "-1 -1"  # seperate by a space
 graph_family_parameters = "-1"
 
-u_size = 10
-v_size = 30
-dataset_size = 1000
-val_size = 100
+u_size = 94  # 10
+v_size = 200  # 30
+dataset_size = 1
+val_size = 1000
 eval_size = 2000
+
+
 extention = "/{}_{}_{}_{}_{}by{}".format(
     problem,
     graph_family,
@@ -32,8 +36,10 @@ val_dataset = "dataset/val" + extention
 eval_dataset = "dataset/eval" + extention
 
 # model flags
+
 batch_size = 1
 eval_batch_size = 100
+
 embedding_dim = 30  # 60
 n_heads = 1  # 3
 n_epochs = 10
@@ -43,7 +49,8 @@ lr_model = 0.001
 lr_decay = 0.99
 beta_decay = 0.7
 ent_rate = 0
-n_encode_layers = 1
+n_encode_layers = 2
+
 baseline = "exponential"
 # directory io flags
 output_dir = "saved_models"
@@ -55,6 +62,7 @@ eval_models = "inv-ff ff ff-hist ff-supervised inv-ff-hist gnn-hist"
 eval_output = "figures"
 # this is a single checkpoint. Example: outputs_dataset/e-obm_20/run_20201226T171156/epoch-4.pt
 load_path = None
+
 test_transfer = True
 
 
@@ -276,6 +284,6 @@ def evaluate_model():
 if __name__ == "__main__":
     # make the directories if they do not exist
     make_dir()
-    # generate_data()
-    # train_model()
+    #    generate_data()
+    #    train_model()
     evaluate_model()

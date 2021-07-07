@@ -30,9 +30,7 @@ class InvariantFFHist(nn.Module):
         self.problem = problem
         self.model_name = "inv-ff-hist"
         self.ff = nn.Sequential(
-            nn.Linear(14, 100),
-            nn.ReLU(),
-            nn.Linear(100, 100),
+            nn.Linear(16, 100),
             nn.ReLU(),
             nn.Linear(100, 100),
             nn.ReLU(),

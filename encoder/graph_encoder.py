@@ -31,7 +31,6 @@ class MPNN(nn.Module):
             self.node_embed_v = self.node_embed_u
 
         self.conv1 = NNConv(embed_dim, embed_dim, self.l1, aggr="mean")
-        # self.norm = BatchNorm(embed_dim)
         self.n_layers = n_layers
         self.problem = opts.problem
         self.u_size = opts.u_size

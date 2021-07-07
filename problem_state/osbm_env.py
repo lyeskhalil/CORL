@@ -240,7 +240,7 @@ class StateOSBM(NamedTuple):
         return self.idx[v]
 
     def get_curr_state(self, model):
-        mask = self.get_mask()
+        mask = self.get_mask().float()
         opts = self.opts
         i = self.i - self.u_size
         w = self.adj[:, self.idx[i - 1], :].float()
