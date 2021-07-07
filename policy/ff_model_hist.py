@@ -35,14 +35,15 @@ class FeedForwardModelHist(nn.Module):
         self.problem = problem
         self.shrink_size = None
         self.model_name = "ff-hist"
+        hidden_size = 100
         self.ff = nn.Sequential(
-            nn.Linear(self.num_actions, 100),
+            nn.Linear(self.num_actions, hidden_size),
             nn.ReLU(),
-            nn.Linear(100, 100),
+            nn.Linear(hidden_size, hidden_size),
             nn.ReLU(),
-            nn.Linear(100, 100),
+            nn.Linear(hidden_size, hidden_size),
             nn.ReLU(),
-            nn.Linear(100, opts.u_size + 1),
+            nn.Linear(hidden_size, opts.u_size + 1),
         )
 
         def init_weights(m):
