@@ -33,6 +33,7 @@ class StateEdgeBipartite(NamedTuple):
     ):
         graph_size = u_size + v_size + 1
         batch_size = int(input.batch.size(0) / graph_size)
+        # print(batch_size, input.batch.size(0), graph_size)
         adj = to_dense_adj(
             input.edge_index, input.batch, input.weight.unsqueeze(1)
         ).squeeze(-1)
@@ -165,7 +166,7 @@ class StateEdgeBipartite(NamedTuple):
             ) / curr_sol_size
             mean_sol = self.size / curr_sol_size
             matched_ratio = self.matched_nodes.sum(1) / self.u_size
-            # available_ratio = self.adj[:, 0, :].float().sum(1) / (self.u_size + 1)
+            available_ratio = self.adj[:, 0, :].float().sum(1) / (self.u_size + 1)
             s = torch.cat(
                 (
                     w,
@@ -181,7 +182,7 @@ class StateEdgeBipartite(NamedTuple):
                     self.max_sol,
                     self.min_sol,
                     matched_ratio.unsqueeze(1),
-                    # available_ratio.unsqueeze(1),
+                    available_ratio.unsqueeze(1),
                 ),
                 dim=1,
             ).float()
@@ -202,7 +203,7 @@ class StateEdgeBipartite(NamedTuple):
             ) / curr_sol_size
             mean_sol = self.size / curr_sol_size
             matched_ratio = self.matched_nodes.sum(1).unsqueeze(1) / self.u_size
-            # available_ratio = self.adj[:, 0, :].sum(1).unsqueeze(1) / (self.u_size + 1)
+            available_ratio = self.adj[:, 0, :].sum(1).unsqueeze(1) / (self.u_size + 1)
             s = torch.cat(
                 (
                     s,
@@ -219,7 +220,7 @@ class StateEdgeBipartite(NamedTuple):
                     self.max_sol.unsqueeze(2).repeat(1, self.u_size + 1, 1),
                     self.min_sol.unsqueeze(2).repeat(1, self.u_size + 1, 1),
                     matched_ratio.unsqueeze(2).repeat(1, self.u_size + 1, 1),
-                    # available_ratio.unsqueeze(2).repeat(1, self.u_size + 1, 1),
+                    available_ratio.unsqueeze(2).repeat(1, self.u_size + 1, 1),
                 ),
                 dim=2,
             ).float()
@@ -236,6 +237,7 @@ class StateEdgeBipartite(NamedTuple):
             .unsqueeze(0)
             .expand(batch_size, step_size - self.u_size - 1)
         ).float()  # Collecting node features up until the ith incoming node
+
         future_node_feature = torch.ones(batch_size, 1, device=self.adj.device) * -1.0
         fixed_node_feature = self.matched_nodes[:, 1:]
         node_features = torch.cat(
