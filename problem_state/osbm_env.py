@@ -160,6 +160,7 @@ class StateOSBM(NamedTuple):
         hist_sum = self.hist_sum + curr_weights.unsqueeze(1)
         hist_sum_sq = self.hist_sum_sq + curr_weights.unsqueeze(1) ** 2
         hist_deg = self.hist_deg + (curr_weights.unsqueeze(1) != 0).float()
+        print(self.size)
         return self._replace(
             matched_nodes=nodes,
             size=total_weights,
@@ -259,7 +260,6 @@ class StateOSBM(NamedTuple):
             h_mean = self.hist_sum.squeeze(1) / i
             h_var = ((self.hist_sum_sq - ((self.hist_sum ** 2) / i)) / i).squeeze(1)
             h_mean_degree = self.hist_deg.squeeze(1) / i
-            h_mean[:, 0], h_var[:, 0], h_mean_degree[:, 0] = -1.0, -1.0, -1.0
             ind = torch.ones(self.batch_size, 1, device=opts.device) * i / self.v_size
             curr_sol_size = i - self.num_skip
             var_sol = (
@@ -293,7 +293,6 @@ class StateOSBM(NamedTuple):
             h_mean = self.hist_sum / i
             h_var = (self.hist_sum_sq - ((self.hist_sum ** 2) / i)) / i
             h_mean_degree = self.hist_deg / i
-            h_mean[:, :, 0], h_var[:, :, 0], h_mean_degree[:, :, 0] = -1.0, -1.0, -1.0
             idx = (
                 torch.ones(self.batch_size, 1, 1, device=opts.device) * i / self.v_size
             )

@@ -76,7 +76,7 @@ class GNNSimpHist(nn.Module):
         )
 
         self.ff = nn.Sequential(
-            nn.Linear(15 + opts.embedding_dim, 200), nn.ReLU(), nn.Linear(200, 1),
+            nn.Linear(14 + opts.embedding_dim, 200), nn.ReLU(), nn.Linear(200, 1),
         )
 
         assert embedding_dim % n_heads == 0

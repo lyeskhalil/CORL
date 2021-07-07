@@ -4,7 +4,7 @@ import subprocess
 
 # Refer to opts.py for details about the flags
 # graph/dataset flags
-model_type = "gnn-simp-hist"
+model_type = "ff-supervised"
 problem = "e-obm"
 graph_family = "gmission"
 weight_distribution = "gmission"
@@ -13,8 +13,8 @@ graph_family_parameters = "-1"
 
 u_size = 10
 v_size = 30
-dataset_size = 10000
-val_size = 1000
+dataset_size = 1000
+val_size = 100
 eval_size = 2000
 extention = "/{}_{}_{}_{}_{}by{}".format(
     problem,
@@ -32,7 +32,8 @@ val_dataset = "dataset/val" + extention
 eval_dataset = "dataset/eval" + extention
 
 # model flags
-batch_size = 10
+batch_size = 1
+eval_batch_size = 100
 embedding_dim = 30  # 60
 n_heads = 1  # 3
 n_epochs = 10
@@ -54,6 +55,7 @@ eval_models = "inv-ff ff ff-hist ff-supervised inv-ff-hist gnn-hist"
 eval_output = "figures"
 # this is a single checkpoint. Example: outputs_dataset/e-obm_20/run_20201226T171156/epoch-4.pt
 load_path = None
+test_transfer = True
 
 
 def get_latest_model(
@@ -65,7 +67,10 @@ def get_latest_model(
     weight_dist,
     w_dist_param,
     g_fam_param,
+    eval_models,
 ):
+    if m_type not in eval_models:
+        return "None"
     m, v = w_dist_param.split(" ")
     dir = f"outputs/output_{problem}_{graph_family}_{u_size}by{v_size}_p={g_fam_param}_{weight_dist}_m={m}_v={v}_a=3"
 
@@ -76,10 +81,7 @@ def get_latest_model(
     return dir + f"/{m_type}/{list_of_files[-1]}/best-model.pt"
 
 
-attention_models = "None"
-
-ff_supervised_models = get_latest_model(
-    "ff-supervised",
+arg = [
     u_size,
     v_size,
     problem,
@@ -87,64 +89,26 @@ ff_supervised_models = get_latest_model(
     weight_distribution,
     weight_distribution_param,
     graph_family_parameters,
-)
+    eval_models.split(" "),
+]
+attention_models = get_latest_model("attention", *arg)
 
-gnn_hist_models = get_latest_model(
-    "gnn-hist",
-    u_size,
-    v_size,
-    problem,
-    graph_family,
-    weight_distribution,
-    weight_distribution_param,
-    graph_family_parameters,
-)
+ff_supervised_models = get_latest_model("ff-supervised", *arg)
 
-inv_ff_models = get_latest_model(
-    "inv-ff",
-    u_size,
-    v_size,
-    problem,
-    graph_family,
-    weight_distribution,
-    weight_distribution_param,
-    graph_family_parameters,
-)
+gnn_hist_models = get_latest_model("gnn-hist", *arg)
 
-inv_ff_hist_models = get_latest_model(
-    "inv-ff-hist",
-    u_size,
-    v_size,
-    problem,
-    graph_family,
-    weight_distribution,
-    weight_distribution_param,
-    graph_family_parameters,
-)
+gnn_models = get_latest_model("gnn", *arg)
 
-ff_models = get_latest_model(
-    "ff",
-    u_size,
-    v_size,
-    problem,
-    graph_family,
-    weight_distribution,
-    weight_distribution_param,
-    graph_family_parameters,
-)
+gnn_simp_hist_models = get_latest_model("gnn-simp-hist", *arg)
 
-ff_hist_models = get_latest_model(
-    "ff-hist",
-    u_size,
-    v_size,
-    problem,
-    graph_family,
-    weight_distribution,
-    weight_distribution_param,
-    graph_family_parameters,
-)
+inv_ff_models = get_latest_model("inv-ff", *arg)
 
-eval_batch_size = 100
+inv_ff_hist_models = get_latest_model("inv-ff-hist", *arg)
+
+ff_models = get_latest_model("ff", *arg)
+
+ff_hist_models = get_latest_model("ff-hist", *arg)
+
 eval_set = graph_family_parameters
 
 
@@ -269,11 +233,12 @@ def train_model():
 
 
 def evaluate_model():
-    evaluate = """python eval.py --problem {} --embedding_dim {} --load_path {} --ff_models {} --attention_models {} --inv_ff_models {} --ff_hist_models {} \
-        --inv_ff_hist_models {} --gnn_hist_models {} --ff_supervised_models {} --eval_baselines {} \
+    evaluate = """python eval.py --problem {} --graph_family {} --embedding_dim {} --load_path {} --ff_models {} --attention_models {} --inv_ff_models {} --ff_hist_models {} \
+        --inv_ff_hist_models {} --gnn_hist_models {} --gnn_models {} --gnn_simp_hist_models {} --ff_supervised_models {} --eval_baselines {} \
         --baseline {} --eval_models {} --eval_dataset {}  --u_size {} --v_size {} --eval_set {} --eval_size {} --eval_batch_size {} \
-        --n_encode_layers {} --n_heads {} --output_dir {} --dataset_size {} --batch_size {} --encoder mpnn --weight_distribution {}""".format(
+        --n_encode_layers {} --n_heads {} --output_dir {} --dataset_size {} --batch_size {} --encoder mpnn --weight_distribution {} --weight_distribution_param {}""".format(
         problem,
+        graph_family,
         embedding_dim,
         load_path,
         ff_models,
@@ -282,6 +247,8 @@ def evaluate_model():
         ff_hist_models,
         inv_ff_hist_models,
         gnn_hist_models,
+        gnn_models,
+        gnn_simp_hist_models,
         ff_supervised_models,
         eval_baselines,
         baseline,
@@ -298,8 +265,10 @@ def evaluate_model():
         eval_size,
         eval_batch_size,
         weight_distribution,
+        weight_distribution_param,
     )
-
+    if test_transfer:
+        evaluate += " --test_transfer"
     # print(evaluate)
     subprocess.run(evaluate, shell=True)
 

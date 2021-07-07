@@ -477,7 +477,6 @@ def train_batch(
         # Perform backward pass and optimization step
         optimizers[0].zero_grad()
         loss.backward()
-
         # Clip gradient norms and get (clipped) gradient norms for logging
         grad_norms = clip_grad_norms(optimizers[0].param_groups, opts.max_grad_norm)
         optimizers[0].step()
