@@ -23,14 +23,16 @@ class MPNN(nn.Module):
         feed_forward_hidden=512,
     ):
         super(MPNN, self).__init__()
-        self.l1 = nn.Linear(1, embed_dim ** 2)  ##TODO: Change back
+        self.l1 = nn.Linear(1, embed_dim * embed_dim)  # TODO: Change back
         self.node_embed_u = nn.Linear(node_dim_u, embed_dim)
         if node_dim_u != node_dim_v:
             self.node_embed_v = nn.Linear(node_dim_v, embed_dim)
         else:
             self.node_embed_v = self.node_embed_u
 
-        self.conv1 = NNConv(embed_dim, embed_dim, self.l1, aggr="mean") #TODO: Change back
+        self.conv1 = NNConv(
+            embed_dim, embed_dim, self.l1, aggr="mean"
+        )  # TODO: Change back
         if n_layers > 1:
             self.l2 = nn.Linear(1, embed_dim ** 2)
             self.conv2 = NNConv(embed_dim, embed_dim, self.l2, aggr="mean")
@@ -41,17 +43,17 @@ class MPNN(nn.Module):
         self.node_dim_v = node_dim_v
         self.batch_size = opts.batch_size
 
-    def forward(self, x, edge_index, edge_attribute, i, dummy):
+    def forward(self, x, edge_index, edge_attribute, i, dummy, opts):
         i = i.item()
-        graph_size = self.u_size + 1 + i
+        graph_size = opts.u_size + 1 + i
         if i < self.n_layers:
             n_encode_layers = i + 1
         else:
             n_encode_layers = self.n_layers
-        x_u = x[:, : self.node_dim_u * (self.u_size + 1)].reshape(
-            -1, self.u_size + 1, self.node_dim_u
+        x_u = x[:, : self.node_dim_u * (opts.u_size + 1)].reshape(
+            -1, opts.u_size + 1, self.node_dim_u
         )
-        x_v = x[:, self.node_dim_u * (self.u_size + 1) :].reshape(
+        x_v = x[:, self.node_dim_u * (opts.u_size + 1) :].reshape(
             -1, i, self.node_dim_v
         )
         x_u = self.node_embed_u(x_u)
@@ -59,7 +61,7 @@ class MPNN(nn.Module):
         x = torch.cat((x_u, x_v), dim=1).reshape(self.batch_size * graph_size, -1)
 
         for j in range(n_encode_layers):
-        #    x = F.relu(x) # TODO: Change back
+            # x = F.relu(x) # TODO: Change back
             if j == 0:
                 x = self.conv1(x, edge_index, edge_attribute.float())
                 if n_encode_layers > 1:

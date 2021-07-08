@@ -25,14 +25,8 @@ class Greedy(nn.Module):
     ):
         super(Greedy, self).__init__()
         self.decode_type = None
-        self.model_name = "greedy"
-        self.allow_partial = problem.NAME == "sdvrp"
-        self.is_vrp = problem.NAME == "cvrp" or problem.NAME == "sdvrp"
-        self.is_orienteering = problem.NAME == "op"
-        self.is_pctsp = problem.NAME == "pctsp"
-        self.is_bipartite = problem.NAME == "bipartite"
-        self.is_tsp = problem.NAME == "tsp"
         self.problem = problem
+        self.model_name = "greedy"
 
     def forward(self, x, opts, optimizer, baseline, return_pi=False):
         state = self.problem.make_state(x, opts.u_size, opts.v_size, opts)

@@ -8,15 +8,15 @@ import subprocess
 model_type = "ff-supervised"
 
 problem = "e-obm"
-graph_family = "gmission"
-weight_distribution = "gmission"
-weight_distribution_param = "-1 -1"  # seperate by a space
-graph_family_parameters = "-1"
+graph_family = "er"
+weight_distribution = "uniform"
+weight_distribution_param = "0 1"  # seperate by a space
+graph_family_parameters = "0.05 0.1 0.15 0.2"
 
-u_size = 94  # 10
-v_size = 200  # 30
+u_size = 10
+v_size = 30
 dataset_size = 1
-val_size = 1000
+val_size = 1
 eval_size = 2000
 
 
@@ -63,7 +63,7 @@ eval_output = "figures"
 # this is a single checkpoint. Example: outputs_dataset/e-obm_20/run_20201226T171156/epoch-4.pt
 load_path = None
 
-test_transfer = True
+test_transfer = False
 
 
 def get_latest_model(
@@ -74,24 +74,30 @@ def get_latest_model(
     graph_family,
     weight_dist,
     w_dist_param,
-    g_fam_param,
+    g_fams,
     eval_models,
 ):
     if m_type not in eval_models:
         return "None"
     m, v = w_dist_param.split(" ")
-    dir = f"outputs/output_{problem}_{graph_family}_{u_size}by{v_size}_p={g_fam_param}_{weight_dist}_m={m}_v={v}_a=3"
+    models = ""
+    for g_fam_param in g_fams.split(" "):
+        dir = f"outputs/output_{problem}_{graph_family}_{u_size}by{v_size}_p={g_fam_param}_{graph_family}_m={m}_v={v}_a=3"
 
-    list_of_files = sorted(
-        os.listdir(dir + f"/{m_type}"), key=lambda s: int(s[8:12] + s[13:])
-    )
+        list_of_files = sorted(
+            os.listdir(dir + f"/{m_type}"), key=lambda s: int(s[8:12] + s[13:])
+        )
+        if models != "":
+            models += " " + dir + f"/{m_type}/{list_of_files[-1]}/best-model.pt"
+        else:
+            models += dir + f"/{m_type}/{list_of_files[-1]}/best-model.pt"
 
-    return dir + f"/{m_type}/{list_of_files[-1]}/best-model.pt"
+    return models
 
 
 arg = [
-    u_size,
-    v_size,
+    10,
+    30,
     problem,
     graph_family,
     weight_distribution,
@@ -284,6 +290,6 @@ def evaluate_model():
 if __name__ == "__main__":
     # make the directories if they do not exist
     make_dir()
-    #    generate_data()
-    #    train_model()
+    # generate_data()
+    # train_model()
     evaluate_model()
