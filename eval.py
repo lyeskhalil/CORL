@@ -19,11 +19,13 @@ from policy.greedy import Greedy
 from policy.greedy_rt import GreedyRt
 from policy.simple_greedy import SimpleGreedy
 from policy.ff_supervised import SupervisedFFModel
-
+from policy.gnn import GNN
+from policy.gnn_simp_hist import GNNSimpHist
 
 import matplotlib
-
+import seaborn as sns
 import matplotlib.pyplot as plt
+import pandas as pd
 
 
 # from nets.pointer_network import PointerNetwork, CriticNetworkLSTM
@@ -89,48 +91,68 @@ def plot_box(opts, data):
     data is a list of (|graph family param| x |training examples|) arrays
     """
     # plt.figure()
-    num = len(data)
-    plt.xlabel("Graph family parameter")
-    plt.ylabel("Optimality ratio")
-    plt.title("Bipartite graphs of size {}by{}".format(opts.u_size, opts.v_size))
-    ticks = opts.eval_set  # ["0.01", "0.05", "0.1", "0.15", "0.2"]
-    colors = [
-        "#d53e4f",
-        "#3288bd",
-        "#7fbf7b",
-        "#fee08b",
-        "#fc8d59",
-        "#e6f598",
-        "#ff69b4",
-    ]
+    sns.set_style(style="darkgrid")
+    f = plt.figure()
+    # plt.xlabel("Graph family parameter")
+    # plt.ylabel("Optimality ratio")
+    # plt.title("Bipartite graphs of size {}by{}".format(opts.u_size, opts.v_size))
+    ticks = ["0.01", "0.05", "0.1", "0.15", "0.2"]
     i = 0
-    bps = []
-    for d in data:
-        bp = plt.boxplot(
-            d.T,
-            positions=np.array(range(len(d))) * num + (0.5 * i),
-            sym="",
-            widths=0.6,
-            whis=(0, 100),
+    m = ["greedy"] + opts.eval_models
+    # sns.set_style(style="whitegrid")
+    if opts.graph_family != "er":
+        sns.set(font_scale=3)
+        models = []
+        avg_cr = []
+        for i, d in enumerate(data):
+            avg_cr += d.flatten().tolist()
+            models += [m[i]] * len(d.flatten().tolist())
+        data_p = pd.DataFrame({"Model": models, "Average Optimality Ratio": avg_cr})
+        b = sns.boxplot(
+            data=data_p, x="Model", y="Average Optimality Ratio", linewidth=3, width=0.5
         )
-        bps.append(bp["boxes"][0])
-        set_box_color(bp, colors[i])
-        i += 1
+        b.set_title(f"{opts.problem} {opts.graph_family} {opts.u_size}by{opts.v_size}")
+        # b.set_xlabel("Model", fontsize=15)
+        # b.set_ylabel("Average Optimality Ratio", fontsize=15)
 
-    plt.xlim(-1 * num, len(ticks) * num)
-    # plt.ylim(0, 1)
-    print(ticks)
-    plt.xticks(range(0, len(ticks) * num, num), ticks)
-    plt.legend(bps, opts.eval_baselines + opts.eval_models)
+        f.set_size_inches(h=15, w=25)
+        # # _, xlabels = plt.xticks()
+        # b.set_xticklabels(b.get_yticks(), size=7)
+        # # print(b.get_yticks().astype('float32'))
+        # b.set_yticklabels(b.get_yticks().astype('float32'), size=10)
+    else:
+        sns.set(font_scale=2)
+        models = []
+        avg_cr = []
+        p = []
+        for i, d in enumerate(data):
+            avg_cr += d.flatten().tolist()
+            models += [m[i]] * len(d.flatten().tolist())
+            print(len(d.flatten().tolist()), len(ticks))
+            for t in ticks:
+                p += [t] * (len(d.flatten().tolist()) / len(ticks))
+        data_p = pd.DataFrame(
+            {"Model": models, "Average Optimality Ratio": avg_cr, "p": p}
+        )
+
+        b = sns.boxplot(
+            data=data_p, x="p", y="Average Optimality Ratio", hue="Model", linewidth=3
+        )
+
+        b.set_title(f"{opts.problem} {opts.graph_family} {opts.u_size}by{opts.v_size}")
+        # b.set_xlabel("Model", fontsize=15)
+        # b.set_ylabel("Average Optimality Ratio", fontsize=15)
+
+        f.set_size_inches(h=15, w=25)
+        # # _, xlabels = plt.xticks()
+        # b.set_xticklabels(b.get_yticks(), size=7)
+        # # print(b.get_yticks().astype('float32'))
+        # b.set_yticklabels(b.get_yticks().astype('float32'), size=10)
+
     plt.savefig(
         opts.eval_output
-        + "/{}_{}_{}_{}_{}by{}_boxplot".format(
-            opts.problem,
-            opts.graph_family,
-            opts.weight_distribution,
-            opts.weight_distribution_param,
-            opts.u_size,
-            opts.v_size,
+        + "/{}_{}_{}by{}_boxplot".format(
+            opts.problem, opts.graph_family, opts.u_size, opts.v_size,
         ).replace(" ", "")
     )
 
@@ -190,135 +212,6 @@ def plot_agreemant(opts, data, with_opt=False):
     )
 
 
-def plot_action_distribution(opts, data):
-    """
-    plots the box data.
-    data is a list of (|graph family param| x |training examples|) arrays
-    """
-
-    labels = list(range(opts.u_size + 1))
-
-    x = np.arange(len(labels))  # the label locations
-    width = 0.75  # the width of the bars
-
-    # Add some text for labels, title and custom x-axis tick labels, etc.
-
-    colors = [
-        "#d53e4f",
-        "#3288bd",
-        "#7fbf7b",
-        "#fee08b",
-        "#fc8d59",
-        "#e6f598",
-        "#ff69b4",
-    ]
-    fig, axs = plt.subplots(
-        ncols=1, nrows=len(opts.eval_set), sharex=True, sharey=True, figsize=(8, 15)
-    )
-    fig.suptitle(
-        "Action Distribution for {}by{} graphs".format(opts.u_size, opts.v_size)
-    )
-    plots = []
-    models = ["attention", "ff", "greedy"]
-    for j, d in enumerate(data):
-        c = colors[j]
-        for i, a in enumerate(d):
-            # (a,) = axs[i].plot(np.arange(opts.v_size), np.array(a) * 100.0, c)
-
-            rects1 = axs[i].bar(
-                x - (width) * (j + 1), a, width, label=models[j], color=c
-            )
-            plots.append(rects1)
-            axs[i].set_title(opts.eval_set[i])
-
-    plt.legend([plots[0], plots[-5], plots[-1]], models)
-    plt.set_xticks(x)
-    plt.set_xticklabels(labels)
-    plt.xlabel("Actions")
-    fig.text(
-        0.06,
-        0.5,
-        "Action Distribution %",
-        ha="center",
-        va="center",
-        rotation="vertical",
-    )
-    # plt.legend(bps, opts.eval_baselines + opts.eval_models)
-    plt.savefig(
-        opts.eval_output
-        + "/{}_{}_{}_{}_{}by{}_actiondistribution".format(
-            opts.problem,
-            opts.graph_family,
-            opts.weight_distribution,
-            opts.weight_distribution_param,
-            opts.u_size,
-            opts.v_size,
-        ).replace(" ", "")
-    )
-
-
-def line_graph(opts, models, problem):
-    """
-    Evaluate the models on a range of graph family parameters.
-    Draw the line graph of optimality and competative ratios optimality ratio
-    """
-    plt.figure(1)
-    plt.xlabel("Graph family parameter")
-    plt.ylabel("Competitive ratio")
-
-    plt.figure(2)
-    plt.xlabel("Graph family parameter")
-    plt.ylabel("Average ratio to optimal")
-
-    min_p, max_p = float(opts.eval_range[0]), float(opts.eval_range[1])
-    #    for i, j in enumerate(
-    #        np.arange(min_p, max_p, (min_p + max_p) / opts.eval_num_range)
-    #    ):
-    eval_dataset = problem.make_dataset(opts.eval_dataset, opts.eval_size, opts.problem)
-    eval_dataloader = DataLoader(
-        eval_dataset, batch_size=opts.eval_batch_size, num_workers=1
-    )
-
-    for model in models:
-        crs = []
-        avg_crs = []
-        avg_ratio, cr, avg_cr = evaluate(model, eval_dataloader, opts)
-        crs.append(cr)
-        avg_crs.append(avg_cr)
-
-        plt.figure(1)
-        plt.plot(np.arange(min_p, max_p, (min_p + max_p) / opts.eval_num_range), crs)
-
-        plt.figure(2)
-        plt.plot(
-            np.arange(min_p, max_p, (min_p + max_p) / opts.eval_num_range), avg_crs
-        )
-
-    plt.savefig(
-        opts.eval_output
-        + "/{}_{}_{}_{}_{}by{}_competitive_ratio".format(
-            opts.problem,
-            opts.graph_family,
-            opts.weight_distribution,
-            opts.weight_distribution_param,
-            opts.u_size,
-            opts.v_size,
-        ).replace(" ", "")
-    )
-
-    plt.savefig(
-        opts.eval_output
-        + "/{}_{}_{}_{}_{}by{}_avg_opt_ratio".format(
-            opts.problem,
-            opts.graph_family,
-            opts.weight_distribution,
-            opts.weight_distribution_param,
-            opts.u_size,
-            opts.v_size,
-        ).replace(" ", "")
-    )
-
-
 def load_model(opts):
     """
     Load models (here we refer to them as data) from load_path
@@ -347,40 +240,6 @@ def load_models(opts, models_paths):
         load_data = torch_load_cpu(path)
         load_datas.append(load_data)
     return load_datas
-
-
-# def initialize_models(opts, models, load_datas):
-#     problem = load_problem(opts.problem)
-#     for m in range(len(opts.eval_models)):
-#         model_class = {"attention": AttentionModel, "ff": FeedForwardModel}.get(
-#             opts.eval_models[m], None
-#         )
-#         model = model_class(
-#             opts.embedding_dim,
-#             opts.hidden_dim,
-#             problem=problem,
-#             opts=opts,
-#             n_encode_layers=opts.n_encode_layers,
-#             mask_inner=True,
-#             mask_logits=True,
-#             normalization=opts.normalization,
-#             tanh_clipping=opts.tanh_clipping,
-#             checkpoint_encoder=opts.checkpoint_encoder,
-#             shrink_size=opts.shrink_size,
-#             num_actions=opts.u_size + 1,
-#             n_heads=opts.n_heads,
-#             encoder=opts.encoder,
-#         ).to(opts.device)
-
-#         if opts.use_cuda and torch.cuda.device_count() > 1:
-#             model = torch.nn.DataParallel(model)
-
-#         # Overwrite model parameters by parameters to load
-#         model_ = get_inner_model(model)
-#         model_.load_state_dict(
-#             {**model_.state_dict(), **load_datas[m].get("model", {})}
-#         )
-#         models.append(model)
 
 
 def initialize_models(opts, models, load_datas, Model):
@@ -452,6 +311,85 @@ def compare_actions(opts, models, greedy, problem):
     )
 
 
+def test_transeferability(opts, models, greedy, problem):
+
+    sns.set_style("darkgrid")
+    plt.figure()
+    trained_on = (opts.u_size, opts.v_size)
+    g_sizes = [(10, 30), (10, 60), (100, 100), (100, 200)]
+    data = {"Model": [], "Graph Size": [], "Average Optimality Ratio": []}
+    for g in g_sizes:
+        extention = "{}_{}_{}_{}{}_{}by{}".format(
+            opts.problem,
+            opts.graph_family,
+            opts.weight_distribution,
+            opts.weight_distribution_param[0],
+            opts.weight_distribution_param[1],
+            g[0],
+            g[1],
+        ).replace(" ", "")
+
+        eval_dataset = f"dataset/eval/{extention}/parameter_-1"
+        opts.u_size = g[0]
+        opts.v_size = g[1]
+        models = [greedy] + models
+        for m in models:
+            eval_dataset = problem.make_dataset(
+                eval_dataset, opts.eval_size, opts.eval_size, opts.problem, opts
+            )
+            eval_dataloader = DataLoader(
+                eval_dataset, batch_size=opts.eval_batch_size, num_workers=0
+            )
+            if not (
+                m.model_name in ["ff", "ff-hist", "ff-supervised"]
+                and g[0] != trained_on[0]
+            ):
+                (
+                    avg_cost,
+                    cr,
+                    avg_cr,
+                    op,
+                    p,
+                    p1,
+                    p2,
+                    count1,
+                    count2,
+                    avg_j,
+                    wil,
+                ) = evaluate([m, greedy], eval_dataloader, opts)
+                data["Model"].append(m.model_name)
+                data["Graph Size"].append(f"{g[0]}by{g[1]}")
+                data["Average Optimality Ratio"].append(avg_cr.item())
+            else:
+                data["Model"].append(m.model_name)
+                data["Graph Size"].append(f"{g[0]}by{g[1]}")
+                data["Average Optimality Ratio"].append(0.0)
+    data = pd.DataFrame(data)
+    sns.set_style("darkgrid")
+    b = sns.catplot(
+        data=data,
+        hue="Graph Size",
+        x="Model",
+        y="Average Optimality Ratio",
+        legend_out=False,
+        height=7,
+    )
+    b.set_xticklabels(size=11)
+    b.set_ylabels(size=15)
+    b.set_xlabels(size=15)
+    b.ax.set_title(
+        f"Graph Transferability Trained On {trained_on[0]}by{trained_on[1]}",
+        fontsize=20,
+    )
+    plt.savefig(
+        opts.eval_output
+        + "/{}_{}_{}by{}_graph_transfer".format(
+            opts.problem, opts.graph_family, trained_on[0], trained_on[1],
+        ).replace(" ", "")
+    )
+    return
+
+
 def run(opts):
 
     # Pretty print the run args
@@ -488,53 +426,33 @@ def run(opts):
     inv_ff_models = None if opts.inv_ff_models == ["None"] else opts.inv_ff_models
     ff_hist_models = None if opts.ff_hist_models == ["None"] else opts.ff_hist_models
     gnn_hist_models = None if opts.gnn_hist_models == ["None"] else opts.gnn_hist_models
+    gnn_simp_hist_models = (
+        None if opts.gnn_simp_hist_models == ["None"] else opts.gnn_simp_hist_models
+    )
+    gnn_models = None if opts.gnn_models == ["None"] else opts.gnn_models
     ff_supervised_models = (
         None if opts.ff_supervised_models == ["None"] else opts.ff_supervised_models
     )
     inv_ff_hist_models = (
         None if opts.inv_ff_hist_models == ["None"] else opts.inv_ff_hist_models
     )
-
+    model_paths = [
+        (att_models, AttentionModel),
+        (inv_ff_models, InvariantFF),
+        (ff_models, FeedForwardModel),
+        (ff_hist_models, FeedForwardModelHist),
+        (ff_supervised_models, SupervisedFFModel),
+        (inv_ff_hist_models, InvariantFFHist),
+        (gnn_hist_models, GNNHist),
+        (gnn_models, GNN),
+        (gnn_simp_hist_models, GNNSimpHist),
+    ]
     models = []
-    # Initialize models
-    # if single_model is not None:
-    #     load_datas = load_model(opts)
-    #     initialize_models(opts, models, load_datas)
-    if att_models is not None:
-        load_attention_datas = load_models(opts, att_models)
-        initialize_models(
-            opts, models, load_attention_datas, AttentionModel
-        )  # attention models from the directory
-    if inv_ff_models is not None:
-        load_inv_ff_datas = load_models(opts, inv_ff_models)
-        initialize_models(
-            opts, models, load_inv_ff_datas, InvariantFF
-        )  # feed forwad models from the directory
-    if ff_models is not None:
-        load_ff_datas = load_models(opts, ff_models)
-        initialize_models(
-            opts, models, load_ff_datas, FeedForwardModel
-        )  # feed forwad models from the directory
-    if ff_hist_models is not None:
-        load_ff_datas = load_models(opts, ff_hist_models)
-        initialize_models(
-            opts, models, load_ff_datas, FeedForwardModelHist
-        )  # feed forwad models from the directory
-    if ff_supervised_models is not None:
-        load_ff_datas = load_models(opts, ff_supervised_models)
-        initialize_models(
-            opts, models, load_ff_datas, SupervisedFFModel
-        )  # feed forwad models from the directory
-    if inv_ff_hist_models is not None:
-        load_inv_ff_datas = load_models(opts, inv_ff_hist_models)
-        initialize_models(
-            opts, models, load_inv_ff_datas, InvariantFFHist
-        )  # feed forwad models from the directory
-    if gnn_hist_models is not None:
-        load_gnn_hist_datas = load_models(opts, gnn_hist_models)
-        initialize_models(
-            opts, models, load_gnn_hist_datas, GNNHist
-        )  # feed forwad models from the directory
+
+    for m_path, m_class in model_paths:
+        if m_path is not None:
+            model_param = load_models(opts, m_path)
+            initialize_models(opts, models, model_param, m_class)
 
     # Initialize baseline models
     baseline_models = []
@@ -562,7 +480,9 @@ def run(opts):
             opts=opts,
         ).to(opts.device)
         baseline_models.append(model)
-
+    if opts.test_transfer:
+        test_transeferability(opts, models, baseline_models[0], problem)
+        return
     if len(opts.eval_set) > 0:
         baseline_results = []
         trained_models_results = []
@@ -570,118 +490,35 @@ def run(opts):
         for m in baseline_models:  # Get the performance of the baselines
             ops = get_model_op_ratios(opts, m, problem)
             baseline_results.append(ops)
-        # if single_model is not None:
-        #     trained_models_results.append(get_model_op_ratios(opts, models[0], problem))
+
         print(len(models))
         if len(models) > 0:
             # Get the performance of the trained models
-            trained_models_results.append(
-                compare_actions(
-                    opts, models[: len(opts.eval_set)], baseline_models[0], problem
+            for j in range(0, len(models), len(opts.eval_set)):
+                trained_models_results.append(
+                    compare_actions(
+                        opts,
+                        models[j : j + len(opts.eval_set)],
+                        baseline_models[0],
+                        problem,
+                    )
                 )
-            )
-            trained_models_results.append(
-                compare_actions(
-                    opts,
-                    models[len(opts.eval_set) : len(opts.eval_set) * 2],
-                    baseline_models[0],
-                    problem,
-                )
-            )
-            trained_models_results.append(
-                compare_actions(
-                    opts,
-                    models[2 * len(opts.eval_set) : 3 * len(opts.eval_set)],
-                    baseline_models[0],
-                    problem,
-                )
-            )
-            #trained_models_results.append(
-            #     compare_actions(
-            #         opts, models[3 * len(opts.eval_set) : 4 * len(opts.eval_set)], baseline_models[0], problem
-            #     )
-            #)
-            #trained_models_results.append(
-            #     compare_actions(
-            #         opts, models[4 * len(opts.eval_set) : 5 * len(opts.eval_set)], baseline_models[0], problem
-            #     )
-            #)
-            #trained_models_results.append(
-            #     compare_actions(
-            #         opts, models[5 * len(opts.eval_set) :], baseline_models[0], problem
-            #     )
-            #)
-            # print('baseline_results[0]: ', baseline_results[0])
-            # print('trained_models_results ', trained_models_results)
-        # print('baseline_results: ', baseline_results)
-        # print('trained_models_results ', trained_models_results)
 
         results = [
-            np.array(baseline_results[0]),
-            # np.array(baseline_results[1]),
-            np.array(trained_models_results[0][0]),
-            np.array(trained_models_results[1][0]),
-            np.array(trained_models_results[2][0]),
-            #np.array(trained_models_results[3][0]),
-            #np.array(trained_models_results[4][0]),
-            #np.array(trained_models_results[5][0]),
+            np.array(baseline_results[i]) for i in range(len(baseline_results))
+        ] + [
+            np.array(trained_models_results[i][0])
+            for i in range(len(trained_models_results))
         ]
-        results2 = [
-            np.array(trained_models_results[0][1]),
-            np.array(trained_models_results[1][1]),
-            np.array(trained_models_results[2][1]),
-            #np.array(trained_models_results[3][1]),
-            #np.array(trained_models_results[4][1]),
-            #np.array(trained_models_results[5][1]),
-        ]
-        results3 = [
-            np.array(trained_models_results[0][3]),
-            np.array(trained_models_results[1][3]),
-            np.array(trained_models_results[2][3]),
-            #np.array(trained_models_results[3][3]),
-            #np.array(trained_models_results[4][3]),
-            #np.array(trained_models_results[5][3]),
-        ]
-        # results3 = [
-        #     np.array(trained_models_results[0][2]),
-        #     np.array(trained_models_results[1][2]),
-        #     np.array(trained_models_results[1][3]),
-        # ]
 
-        # torch.save(
-        #    torch.tensor(results),
-        #    opts.eval_output + "/{}_{}_{}_{}_{}by{}_results".format(
-        #    opts.problem, opts.graph_family,
-        #    opts.weight_distribution, opts.weight_distribution_param,
-        #    opts.u_size, opts.v_size
-        # ).replace(" ",""),
-        # )
+        # results2 = [np.array(trained_models_results[i][1]) for i in range(len(trained_models_results))]
+
+        # results3 = [np.array(trained_models_results[i][3]) for i in range(len(trained_models_results))]
+
         plot_box(opts, results)
-        #plot_agreemant(opts, results2)
-        #plot_agreemant(opts, results3, with_opt=True)
-        # plot_action_distribution(opts, results3)
-        # line_graph(opts, models + baseline_models , problem)
-
-    # if opts.eval_plot:
-    # plot_box(opts, np.array(torch.load(opts.eval_results_folder)))
-
-    # elif opts.eval_model:
-    #     model1 = FeedForwardModel(
-    #         (opts.u_size + 1) * 2,
-    #         opts.hidden_dim,
-    #         problem,
-    #         n_encode_layers=opts.n_encode_layers,
-    #         mask_inner=True,
-    #         mask_logits=True,
-    #         normalization=opts.normalization,
-    #         tanh_clipping=opts.tanh_clipping,
-    #         checkpoint_encoder=opts.checkpoint_encoder,
-    #         shrink_size=opts.shrink_size,
-    #         num_actions=opts.u_size + 1,
-    #     ).to(opts.device)
-    #     model1_ = get_inner_model(model1)
-    #     model1_.load_state_dict({**model1_.state_dict(), **load_data2.get("model", {})})
-    #     eval_model([model, model1], problem, opts)
+        # test_transeferability(opts, models, baseline_models[0], problem)
+        # plot_agreemant(opts, results2)
+        # plot_agreemant(opts, results3, with_opt=True)
 
 
 if __name__ == "__main__":

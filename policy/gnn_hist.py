@@ -77,10 +77,10 @@ class GNNHist(nn.Module):
 
         self.ff = nn.Sequential(
             nn.Linear(5 + 4 * opts.embedding_dim, 200),
-            nn.ReLU(), 
-            nn.Linear(200, 200), 
-            nn.ReLU(), 
-            nn.Linear(200, 1)
+            nn.ReLU(),
+            nn.Linear(200, 200),
+            nn.ReLU(),
+            nn.Linear(200, 1),
         )
 
         assert embedding_dim % n_heads == 0
@@ -176,6 +176,7 @@ class GNNHist(nn.Module):
                 weights.float(),
                 torch.tensor(i),
                 self.dummy,
+                opts,
             ).reshape(batch_size, step_size, -1)
             pos = torch.argsort(state.idx[:i])[-1]
             incoming_node_embeddings = embeddings[
@@ -220,13 +221,16 @@ class GNNHist(nn.Module):
             else:
                 step_context = self.initial_stepcontext.repeat(batch_size, 1, 1)
             u_embeddings = embeddings[:, : opts.u_size + 1, :]
-            fixed_node_identity = torch.zeros(state.batch_size, state.u_size + 1, 1, device=opts.device)
-            fixed_node_identity[:, 0, :] = 1.
+            fixed_node_identity = torch.zeros(
+                state.batch_size, state.u_size + 1, 1, device=opts.device
+            )
+            fixed_node_identity[:, 0, :] = 1.0
             s = torch.cat(
                 (
                     s,
                     idx.repeat(1, state.u_size + 1, 1),
-                    state.size.unsqueeze(2).repeat(1, state.u_size + 1, 1) / state.u_size,
+                    state.size.unsqueeze(2).repeat(1, state.u_size + 1, 1)
+                    / state.u_size,
                     fixed_node_identity,
                     state.matched_nodes.unsqueeze(2),
                     incoming_node_embeddings.repeat(1, state.u_size + 1, 1),

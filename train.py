@@ -140,7 +140,9 @@ def rollout_eval(models, dataset, opts):
         if (cost == cost1).all().item():
             w, p = 0, 0
         else:
-            w, p = wilcoxon(-cost.squeeze().cpu(), -cost1.squeeze().cpu(), alternative="greater")
+            w, p = wilcoxon(
+                -cost.squeeze().cpu(), -cost1.squeeze().cpu(), alternative="greater"
+            )
         cr = -cost.data.flatten() / move_to(bat.y + (bat.y == 0).float(), opts.device)
         # print(
         #     "\nBatch Competitive ratio: ", min(cr).item(),
@@ -215,18 +217,14 @@ def rollout(model, dataset, opts):
             bat = move_to(bat, opts.device)
             if opts.model == "supervised" or opts.model == "ff-supervised":
                 matchings = bat.x.reshape(opts.batch_size, opts.v_size)
-                cost, _, _, batch_loss = model(
-                    bat, matchings, opts, False
-                )
+                cost, _, _, batch_loss = model(bat, matchings, opts, False)
             else:
                 cost, *_ = model(bat, opts, None, None)
 
         # print(-cost.data.flatten())
         # print(bat[-1])
 
-        cr = (-cost.data.flatten()) / move_to(
-            bat.y + (bat.y == 0).float(), opts.device
-        )
+        cr = (-cost.data.flatten()) / move_to(bat.y + (bat.y == 0).float(), opts.device)
         # print(
         #     "\nBatch Competitive ratio: ", min(cr).item(),
         # )
@@ -289,7 +287,7 @@ def train_epoch(
     problem,
     tb_logger,
     opts,
-    best_avg_cr
+    best_avg_cr,
 ):
     print(
         "Start train epoch {}, lr={} for run {}".format(
@@ -489,7 +487,6 @@ def train_batch(
         # Perform backward pass and optimization step
         optimizers[0].zero_grad()
         loss.backward()
-
         # Clip gradient norms and get (clipped) gradient norms for logging
         grad_norms = clip_grad_norms(optimizers[0].param_groups, opts.max_grad_norm)
         optimizers[0].step()

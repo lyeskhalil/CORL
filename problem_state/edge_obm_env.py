@@ -33,6 +33,7 @@ class StateEdgeBipartite(NamedTuple):
     ):
         graph_size = u_size + v_size + 1
         batch_size = int(input.batch.size(0) / graph_size)
+        # print(batch_size, input.batch.size(0), graph_size)
         adj = to_dense_adj(
             input.edge_index, input.batch, input.weight.unsqueeze(1)
         ).squeeze(-1)
@@ -40,7 +41,7 @@ class StateEdgeBipartite(NamedTuple):
 
         # permute the nodes for data
         idx = torch.arange(adj.shape[1], device=opts.device)
-        #if "supervised" not in opts.model and not opts.eval_only:
+        # if "supervised" not in opts.model and not opts.eval_only:
         #     idx = torch.randperm(adj.shape[1], device=opts.device)
         #     adj = adj[:, idx, :].view(adj.size())
 
@@ -148,8 +149,10 @@ class StateEdgeBipartite(NamedTuple):
         elif model == "inv-ff":
             w = w.clone().float()
             mean_w = w.mean(1)[:, None, None].repeat(1, self.u_size + 1, 1)
-            fixed_node_identity = torch.zeros(self.batch_size, self.u_size + 1, 1, device=opts.device).float()
-            fixed_node_identity[:, 0, :] = 1.
+            fixed_node_identity = torch.zeros(
+                self.batch_size, self.u_size + 1, 1, device=opts.device
+            ).float()
+            fixed_node_identity[:, 0, :] = 1.0
             s = w.reshape(self.batch_size, self.u_size + 1, 1)
             s = torch.cat((fixed_node_identity, s, mean_w,), dim=2,)
 
@@ -158,7 +161,7 @@ class StateEdgeBipartite(NamedTuple):
             h_mean = self.hist_sum.squeeze(1) / i
             h_var = ((self.hist_sum_sq - ((self.hist_sum ** 2) / i)) / i).squeeze(1)
             h_mean_degree = self.hist_deg.squeeze(1) / i
-            #h_mean[:, 0], h_var[:, 0], h_mean_degree[:, 0] = -1.0, -1.0, -1.0
+            # h_mean[:, 0], h_var[:, 0], h_mean_degree[:, 0] = -1.0, -1.0, -1.0
             ind = torch.ones(self.batch_size, 1, device=opts.device) * i / self.v_size
             curr_sol_size = i - self.num_skip
             var_sol = (
@@ -200,9 +203,13 @@ class StateEdgeBipartite(NamedTuple):
             ) / curr_sol_size
             mean_sol = self.size / curr_sol_size
             matched_ratio = self.matched_nodes.sum(1).unsqueeze(1) / self.u_size
-            available_ratio = (self.adj[:, 0, :].sum(1).unsqueeze(1) - 1.) / (self.u_size)
-            fixed_node_identity = torch.zeros(self.batch_size, self.u_size + 1, 1, device=opts.device).float()
-            fixed_node_identity[:, 0, :] = 1.
+            available_ratio = (self.adj[:, 0, :].sum(1).unsqueeze(1) - 1.0) / (
+                self.u_size
+            )
+            fixed_node_identity = torch.zeros(
+                self.batch_size, self.u_size + 1, 1, device=opts.device
+            ).float()
+            fixed_node_identity[:, 0, :] = 1.0
             s = torch.cat(
                 (
                     s,
@@ -237,6 +244,7 @@ class StateEdgeBipartite(NamedTuple):
             .unsqueeze(0)
             .expand(batch_size, step_size - self.u_size - 1)
         ).float()  # Collecting node features up until the ith incoming node
+
         future_node_feature = torch.ones(batch_size, 1, device=self.adj.device) * -1.0
         fixed_node_feature = self.matched_nodes[:, 1:]
         node_features = torch.cat(
