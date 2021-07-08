@@ -596,21 +596,21 @@ def run(opts):
                     problem,
                 )
             )
-            # trained_models_results.append(
+            #trained_models_results.append(
             #     compare_actions(
             #         opts, models[3 * len(opts.eval_set) : 4 * len(opts.eval_set)], baseline_models[0], problem
             #     )
-            # )
-            # trained_models_results.append(
+            #)
+            #trained_models_results.append(
             #     compare_actions(
             #         opts, models[4 * len(opts.eval_set) : 5 * len(opts.eval_set)], baseline_models[0], problem
             #     )
-            # )
-            # trained_models_results.append(
+            #)
+            #trained_models_results.append(
             #     compare_actions(
             #         opts, models[5 * len(opts.eval_set) :], baseline_models[0], problem
             #     )
-            # )
+            #)
             # print('baseline_results[0]: ', baseline_results[0])
             # print('trained_models_results ', trained_models_results)
         # print('baseline_results: ', baseline_results)
@@ -622,26 +622,25 @@ def run(opts):
             np.array(trained_models_results[0][0]),
             np.array(trained_models_results[1][0]),
             np.array(trained_models_results[2][0]),
-            # np.array(trained_models_results[3][0]),
-            # np.array(trained_models_results[4][0]),
-            # np.array(trained_models_results[5][0]),
-            # np.array(trained_models_results[2][0])
+            #np.array(trained_models_results[3][0]),
+            #np.array(trained_models_results[4][0]),
+            #np.array(trained_models_results[5][0]),
         ]
         results2 = [
             np.array(trained_models_results[0][1]),
             np.array(trained_models_results[1][1]),
             np.array(trained_models_results[2][1]),
-            # np.array(trained_models_results[3][1]),
-            # np.array(trained_models_results[4][1]),
-            # np.array(trained_models_results[5][1]),
+            #np.array(trained_models_results[3][1]),
+            #np.array(trained_models_results[4][1]),
+            #np.array(trained_models_results[5][1]),
         ]
         results3 = [
             np.array(trained_models_results[0][3]),
             np.array(trained_models_results[1][3]),
             np.array(trained_models_results[2][3]),
-            # np.array(trained_models_results[3][3]),
-            # np.array(trained_models_results[4][3]),
-            # np.array(trained_models_results[5][3]),
+            #np.array(trained_models_results[3][3]),
+            #np.array(trained_models_results[4][3]),
+            #np.array(trained_models_results[5][3]),
         ]
         # results3 = [
         #     np.array(trained_models_results[0][2]),
@@ -658,8 +657,8 @@ def run(opts):
         # ).replace(" ",""),
         # )
         plot_box(opts, results)
-        plot_agreemant(opts, results2)
-        plot_agreemant(opts, results3, with_opt=True)
+        #plot_agreemant(opts, results2)
+        #plot_agreemant(opts, results3, with_opt=True)
         # plot_action_distribution(opts, results3)
         # line_graph(opts, models + baseline_models , problem)
 
