@@ -53,14 +53,13 @@ class GNNHist(nn.Module):
         self.temp = 1.0
         self.problem = problem
         self.opts = opts
-        # Problem specific context parameters (placeholder and step context dimension)
 
         encoder_class = {"attention": GraphAttentionEncoder, "mpnn": MPNN}.get(
             encoder, None
         )
         if opts.problem == "osbm":
             node_dim_u = 16
-            node_dim_v = 18
+            node_dim_v = 3
         else:
             node_dim_u, node_dim_v = 1, 1
 
@@ -176,7 +175,7 @@ class GNNHist(nn.Module):
                 weights.float(),
                 torch.tensor(i),
                 self.dummy,
-                opts,
+                # opts,
             ).reshape(batch_size, step_size, -1)
             pos = torch.argsort(state.idx[:i])[-1]
             incoming_node_embeddings = embeddings[

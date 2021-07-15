@@ -5,19 +5,19 @@ import subprocess
 # Refer to opts.py for details about the flags
 # graph/dataset flags
 
-model_type = "ff-supervised"
+model_type = "inv-ff-hist"
 
 problem = "e-obm"
-graph_family = "er"
-weight_distribution = "uniform"
-weight_distribution_param = "0 1"  # seperate by a space
-graph_family_parameters = "0.05 0.1 0.15 0.2"
+graph_family = "gmission"
+weight_distribution = "gmission"
+weight_distribution_param = "-1 -1"  # seperate by a space
+graph_family_parameters = "-1"
 
 u_size = 10
 v_size = 30
-dataset_size = 1
-val_size = 1
-eval_size = 2000
+dataset_size = 2
+val_size = 2
+eval_size = 2
 
 
 extention = "/{}_{}_{}_{}_{}by{}".format(
@@ -37,7 +37,7 @@ eval_dataset = "dataset/eval" + extention
 
 # model flags
 
-batch_size = 1
+batch_size = 2
 eval_batch_size = 100
 
 embedding_dim = 30  # 60
@@ -57,7 +57,7 @@ output_dir = "saved_models"
 log_dir = "logs_dataset"
 
 # model evaluation flags
-eval_models = "inv-ff ff ff-hist ff-supervised inv-ff-hist gnn-hist"
+eval_models = "inv-ff ff ff-hist inv-ff-hist"
 # TODO: ADD MODELS TO ABOVE
 eval_output = "figures"
 # this is a single checkpoint. Example: outputs_dataset/e-obm_20/run_20201226T171156/epoch-4.pt
@@ -96,8 +96,8 @@ def get_latest_model(
 
 
 arg = [
-    10,
-    30,
+    u_size,
+    v_size,
     problem,
     graph_family,
     weight_distribution,
@@ -291,5 +291,5 @@ if __name__ == "__main__":
     # make the directories if they do not exist
     make_dir()
     # generate_data()
-    # train_model()
-    evaluate_model()
+    train_model()
+    # evaluate_model()

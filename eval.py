@@ -96,7 +96,7 @@ def plot_box(opts, data):
     # plt.xlabel("Graph family parameter")
     # plt.ylabel("Optimality ratio")
     # plt.title("Bipartite graphs of size {}by{}".format(opts.u_size, opts.v_size))
-    ticks = ["0.01", "0.05", "0.1", "0.15", "0.2"]
+    ticks = ["0.05", "0.1", "0.15", "0.2"]
     i = 0
     m = ["greedy"] + opts.eval_models
     # sns.set_style(style="whitegrid")
@@ -128,9 +128,8 @@ def plot_box(opts, data):
         for i, d in enumerate(data):
             avg_cr += d.flatten().tolist()
             models += [m[i]] * len(d.flatten().tolist())
-            print(len(d.flatten().tolist()), len(ticks))
             for t in ticks:
-                p += [t] * (len(d.flatten().tolist()) / len(ticks))
+                p += [t] * int(len(d.flatten().tolist()) / len(ticks))
         data_p = pd.DataFrame(
             {"Model": models, "Average Optimality Ratio": avg_cr, "p": p}
         )
@@ -313,12 +312,14 @@ def compare_actions(opts, models, greedy, problem):
 
 def test_transeferability(opts, models, greedy, problem):
 
-    sns.set_style("darkgrid")
-    plt.figure()
+    # sns.set_style("darkgrid")
+    # plt.figure()
     trained_on = (opts.u_size, opts.v_size)
-    g_sizes = [(10, 30), (10, 60), (100, 100), (100, 200)]
+    g_sizes = [(10, 30)]
     data = {"Model": [], "Graph Size": [], "Average Optimality Ratio": []}
+    data_matrix = []
     for g in g_sizes:
+        g_list = []
         extention = "{}_{}_{}_{}{}_{}by{}".format(
             opts.problem,
             opts.graph_family,
@@ -333,6 +334,7 @@ def test_transeferability(opts, models, greedy, problem):
         opts.u_size = g[0]
         opts.v_size = g[1]
         models = [greedy] + models
+
         for m in models:
             eval_dataset = problem.make_dataset(
                 eval_dataset, opts.eval_size, opts.eval_size, opts.problem, opts
@@ -360,24 +362,56 @@ def test_transeferability(opts, models, greedy, problem):
                 data["Model"].append(m.model_name)
                 data["Graph Size"].append(f"{g[0]}by{g[1]}")
                 data["Average Optimality Ratio"].append(avg_cr.item())
-            else:
-                data["Model"].append(m.model_name)
-                data["Graph Size"].append(f"{g[0]}by{g[1]}")
-                data["Average Optimality Ratio"].append(0.0)
+                g_list.append(avg_cr.item())
+        data_matrix.append(g_list)
+        # else:
+        #     data["Model"].append(m.model_name)
+        #     data["Graph Size"].append(f"{g[0]}by{g[1]}")
+        #     data["Average Optimality Ratio"].append(0.0)
     data = pd.DataFrame(data)
-    sns.set_style("darkgrid")
-    b = sns.catplot(
-        data=data,
-        hue="Graph Size",
-        x="Model",
-        y="Average Optimality Ratio",
-        legend_out=False,
-        height=7,
+    # b = sns.catplot(
+    #     data=data,
+    #     hue="Graph Size",
+    #     x="Model",
+    #     y="Average Optimality Ratio",
+    #     legend_out=False,
+    #     height=7,
+    # )
+    data_matrix = np.array(
+        torch.load(
+            opts.eval_output
+            + "/{}_{}_{}by{}_graph_transfer.pt".format(
+                opts.problem, opts.graph_family, trained_on[0], trained_on[1]
+            ).replace(" ", "")
+        )
     )
-    b.set_xticklabels(size=11)
-    b.set_ylabels(size=15)
-    b.set_xlabels(size=15)
-    b.ax.set_title(
+    # b = sns.heatmap(data=data_matrix, annot=True, fmt="d")
+    g_sizes = ["10by30", "10by60", "100by100", "100by200"]
+    fig, ax = plt.subplots()
+
+    ax.imshow(data_matrix)
+
+    # We want to show all ticks...
+    ax.set_xticks(np.arange(len(models)))
+    ax.set_yticks(np.arange(len(g_sizes)))
+    # ... and label them with the respective list entries
+    ax.set_xticklabels(list(m.model_name for m in models))
+    ax.set_yticklabels(g_sizes)
+
+    # Rotate the tick labels and set their alignment.
+    plt.setp(ax.get_xticklabels(), rotation=45, ha="right", rotation_mode="anchor")
+
+    # Loop over data dimensions and create text annotations.
+    for i in range(len(g_sizes)):
+        for j in range(len(models)):
+            num = str(data_matrix[i, j])[:4] if data_matrix[i, j] != 0 else "-"
+            ax.text(j, i, num, ha="center", va="center", color="w")
+
+    fig.tight_layout()
+    # b.set_xticklabels(size=11)
+    # b.set_ylabels(size=15)
+    # b.set_xlabels(size=15)
+    ax.set_title(
         f"Graph Transferability Trained On {trained_on[0]}by{trained_on[1]}",
         fontsize=20,
     )
