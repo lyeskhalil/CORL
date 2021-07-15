@@ -25,7 +25,7 @@ def log_values(
     if not opts.no_tensorboard:
         tb_logger.add_scalar("avg_cost", avg_cost, step)
 
-        if opts.model == "supervised" and batch_loss is not None:
+        if opts.model == "ff-supervised" and batch_loss is not None:
                     tb_logger.add_scalar("batch loss", batch_loss, step)
         else:
             if reinforce_loss is not None:

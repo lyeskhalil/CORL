@@ -176,7 +176,7 @@ class GNNHist(nn.Module):
                 weights.float(),
                 torch.tensor(i),
                 self.dummy,
-                opts,
+            #    opts,
             ).reshape(batch_size, step_size, -1)
             pos = torch.argsort(state.idx[:i])[-1]
             incoming_node_embeddings = embeddings[
@@ -232,7 +232,7 @@ class GNNHist(nn.Module):
                     state.size.unsqueeze(2).repeat(1, state.u_size + 1, 1)
                     / state.u_size,
                     fixed_node_identity,
-                    state.matched_nodes.unsqueeze(2),
+                    mask.unsqueeze(2),
                     incoming_node_embeddings.repeat(1, state.u_size + 1, 1),
                     embeddings[:, : opts.u_size + 1, :],
                     step_context.repeat(1, state.u_size + 1, 1),

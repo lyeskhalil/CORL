@@ -66,14 +66,14 @@ def generate_movie_lense_graph(
         sampled_movies = list(np.random.choice(movies_id, size=u))
 
     movies_features = list(map(lambda m: movies[m], sampled_movies))
-    print('sampled_movies: ', sampled_movies)
-    print('movies_features: ', movies_features)
+    #print('sampled_movies: ', sampled_movies)
+    #print('movies_features: ', movies_features)
     users_features = []
     user_freq_dic = {} #{v_id: freq}, used for the IPsolver
     sampled_users_dic = {}  #{user_id: v_id}
     edge_vector_dic = {u:movies_features[u] for u in range(len(sampled_movies))}
     preference_matrix = np.zeros((15, v)) #15 is the number of genres
-    print(preference_matrix.shape)
+    #print(preference_matrix.shape)
 
     for i in range(v):
         sampled_user = np.random.choice(users_id)
@@ -84,21 +84,21 @@ def generate_movie_lense_graph(
             sampled_users_dic[sampled_user] = i
             user_freq_dic[i] = 1
         preference_matrix[:,i] = weight_features[sampled_user]
-        print('weight_features[sampled_user].T: ', weight_features[sampled_user])
+     #   print('weight_features[sampled_user].T: ', weight_features[sampled_user])
         user_info = list(weight_features[sampled_user]) + users[sampled_user]
         for w in range(len(sampled_movies)):
             movie = sampled_movies[w]
             edge = (movie, sampled_user)
             if edge in edges and (w, i+u) not in G.edges:
-                print('added edge ({}, {})'.format(w, i+u))
+        #        print('added edge ({}, {})'.format(w, i+u))
                 G.add_edge(w, i+u)
         users_features.append(user_info)
 
     #user_freq = list(map(lambda id: user_freq_dic[id], user_freq_dic)) + [0] * (v - (len(user_freq_dic)))
 
-    print('G: ', nx.adjacency_matrix(G))
-    print('r_v: ', user_freq_dic)
-    print('user_feaures: ', np.array(users_features))
+    #print('G: ', nx.adjacency_matrix(G))
+    #print('r_v: ', user_freq_dic)
+    #print('user_feaures: ', np.array(users_features))
 
     return G, np.array(movies_features), np.array(users_features), nx.adjacency_matrix(G).todense(), user_freq_dic, edge_vector_dic
 
@@ -113,7 +113,7 @@ def generate_gmission_graph(
 
     G.name = f"gmission_random_graph({u},{v})"
     if vary_fixed:
-        workers = list(np.random.randint(1, 533, size=u))
+        workers = list(np.random.choice(np.arange(1, 533), size=u, replace=False))
     availableWorkers = workers.copy()
     weights = []
     for i in range(v):
@@ -252,7 +252,8 @@ def generate_edge_obm_data_geometric(
         max_w = max(np.array(list(edges.values()), dtype="float"))
         edges = {k: (float(v) / float(max_w)) for k, v in edges.items()}
         np.random.seed(100)
-        workers = list(np.random.randint(1, 533, size=u_size))
+        rep = (graph_family == "gmission")
+        workers = list(np.random.choice(np.arange(1, 533), size=u_size, replace=rep))
         if graph_family == "gmission-max":
             tasks = reduced_tasks
             workers = np.random.choice(reduced_workers, size=u_size, replace=False)
