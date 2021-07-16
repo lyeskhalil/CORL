@@ -249,7 +249,9 @@ class StateOSBM(NamedTuple):
         if model == "ff":
             s = torch.cat((w, mask.float()), dim=1)
         elif model == "inv-ff":
-            mean_w = w.mean(1)[:, None, None].repeat(1, self.u_size + 1, 1)
+            deg = (self.adj[:, i, :] != -1).float().sum(1) - 1
+            mean_w = w.sum(1) / deg
+            mean_w = mean_w[:, None, None].repeat(1, self.u_size + 1, 1)
             s = w.reshape(self.batch_size, self.u_size + 1, 1)
             fixed_node_identity = torch.zeros(
                 self.batch_size, self.u_size + 1, 1, device=opts.device
@@ -287,7 +289,9 @@ class StateOSBM(NamedTuple):
                 dim=1,
             ).float()
         elif model == "inv-ff-hist":
-            mean_w = w.mean(1)[:, None, None].repeat(1, self.u_size + 1, 1)
+            deg = (self.adj[:, i, :] != -1).float().sum(1) - 1
+            mean_w = w.sum(1) / deg
+            mean_w = mean_w[:, None, None].repeat(1, self.u_size + 1, 1)
             s = w.reshape(self.batch_size, self.u_size + 1, 1)
             (
                 h_mean,
@@ -299,7 +303,7 @@ class StateOSBM(NamedTuple):
                 mean_sol,
                 n_skip,
             ) = self.get_hist_features()
-            available_ratio = ((w != 0.0).float().sum(1).unsqueeze(1)) / (self.u_size)
+            available_ratio = deg.unsqueeze(1) / (self.u_size)
             fixed_node_identity = torch.zeros(
                 self.batch_size, self.u_size + 1, 1, device=opts.device
             ).float()

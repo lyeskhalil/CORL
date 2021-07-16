@@ -112,8 +112,7 @@ def generate_gmission_graph(
 
     G.name = f"gmission_random_graph({u},{v})"
     if vary_fixed:
-        rep = u != 100
-        workers = list(np.random.choice(np.arange(1, 533), size=u, replace=rep))
+        workers = list(np.random.choice(np.arange(1, 533), size=u, replace=False))
     availableWorkers = workers.copy()
     weights = []
     for i in range(v):
@@ -259,7 +258,7 @@ def generate_edge_obm_data_geometric(
         max_w = max(np.array(list(edges.values()), dtype="float"))
         edges = {k: (float(v) / float(max_w)) for k, v in edges.items()}
         np.random.seed(100)
-        rep = u_size != 100
+        rep = graph_family == "gmission"
         workers = list(np.random.choice(np.arange(1, 533), size=u_size, replace=rep))
         if graph_family == "gmission-max":
             tasks = reduced_tasks

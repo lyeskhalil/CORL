@@ -172,7 +172,7 @@ class StateEdgeBipartite(NamedTuple):
             s = torch.cat(
                 (
                     w,
-                    mask,
+                    mask.float(),
                     h_mean,
                     h_var,
                     h_mean_degree,
@@ -211,7 +211,7 @@ class StateEdgeBipartite(NamedTuple):
             s = torch.cat(
                 (
                     s,
-                    mask.reshape(-1, self.u_size + 1, 1),
+                    mask.reshape(-1, self.u_size + 1, 1).float(),
                     mean_w,
                     h_mean.transpose(1, 2),
                     h_var.transpose(1, 2),
