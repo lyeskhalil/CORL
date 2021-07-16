@@ -156,11 +156,10 @@ class StateOSBM(NamedTuple):
             self.batch_size * self.num_users, -1
         ).index_copy(0, users_idx, s)
         nodes = self.matched_nodes.squeeze(1).scatter_(-1, selected, 1)
+        hist_deg = self.hist_deg + (curr_weights.unsqueeze(1) != -1.0).float()
         curr_weights[curr_weights == -1.0] = 0.0
         hist_sum = self.hist_sum + curr_weights.unsqueeze(1)
         hist_sum_sq = self.hist_sum_sq + curr_weights.unsqueeze(1) ** 2
-        hist_deg = self.hist_deg + (curr_weights.unsqueeze(1) != 0).float()
-        hist_deg[:, :, 0] = float(v + 1)
         return self._replace(
             matched_nodes=nodes,
             size=total_weights,
@@ -250,6 +249,7 @@ class StateOSBM(NamedTuple):
             s = torch.cat((w, mask.float()), dim=1)
         elif model == "inv-ff":
             deg = (self.adj[:, i, :] != -1).float().sum(1) - 1
+            deg[deg == 0.0] = 1.0
             mean_w = w.sum(1) / deg
             mean_w = mean_w[:, None, None].repeat(1, self.u_size + 1, 1)
             s = w.reshape(self.batch_size, self.u_size + 1, 1)
@@ -290,6 +290,7 @@ class StateOSBM(NamedTuple):
             ).float()
         elif model == "inv-ff-hist":
             deg = (self.adj[:, i, :] != -1).float().sum(1) - 1
+            deg[deg == 0.0] = 1.0
             mean_w = w.sum(1) / deg
             mean_w = mean_w[:, None, None].repeat(1, self.u_size + 1, 1)
             s = w.reshape(self.batch_size, self.u_size + 1, 1)

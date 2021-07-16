@@ -139,15 +139,14 @@ class StateEdgeBipartite(NamedTuple):
     def get_curr_state(self, model):
         mask = self.get_mask()
         opts = self.opts
-        i = self.i - self.u_size
-        w = self.adj[:, 0, :].float()
+        w = self.adj[:, 0, :].float().clone()
         s = None
         if model == "ff":
             s = torch.cat((w, mask.float()), dim=1)
 
         elif model == "inv-ff":
-            w = w.clone().float()
             deg = (w != 0).float().sum(1)
+            deg[deg == 0.0] = 1.0
             mean_w = w.sum(1) / deg
             mean_w = mean_w[:, None, None].repeat(1, self.u_size + 1, 1)
             fixed_node_identity = torch.zeros(
@@ -158,7 +157,6 @@ class StateEdgeBipartite(NamedTuple):
             s = torch.cat((fixed_node_identity, s, mean_w,), dim=2,)
 
         elif model == "ff-hist" or model == "ff-supervised":
-            w = w.clone()
             (
                 h_mean,
                 h_var,
@@ -190,6 +188,7 @@ class StateEdgeBipartite(NamedTuple):
 
         elif model == "inv-ff-hist" or model == "gnn-simp-hist":
             deg = (w != 0).float().sum(1)
+            deg[deg == 0.0] = 1.0
             mean_w = w.sum(1) / deg
             mean_w = mean_w[:, None, None].repeat(1, self.u_size + 1, 1)
             s = w.reshape(self.batch_size, self.u_size + 1, 1)
@@ -220,7 +219,7 @@ class StateEdgeBipartite(NamedTuple):
                     self.size.unsqueeze(2).repeat(1, self.u_size + 1, 1) / self.u_size,
                     mean_sol.unsqueeze(2).repeat(1, self.u_size + 1, 1),
                     var_sol.unsqueeze(2).repeat(1, self.u_size + 1, 1),
-                    n_skip.unsqueeze(2).repeat(1, self.u_size + 1, 1) / i,
+                    n_skip.unsqueeze(2).repeat(1, self.u_size + 1, 1),
                     self.max_sol.unsqueeze(2).repeat(1, self.u_size + 1, 1),
                     self.min_sol.unsqueeze(2).repeat(1, self.u_size + 1, 1),
                     matched_ratio.unsqueeze(2).repeat(1, self.u_size + 1, 1),

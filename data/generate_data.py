@@ -74,7 +74,16 @@ def generate_movie_lense_graph(
     preference_matrix = np.zeros((15, v))  # 15 is the number of genres
 
     for i in range(v):
-        sampled_user = np.random.choice(users_id)
+        j = 0
+        while j == 0:
+            sampled_user = np.random.choice(users_id)
+            user_info = list(weight_features[sampled_user]) + users[sampled_user]
+            for w in range(len(sampled_movies)):
+                movie = sampled_movies[w]
+                edge = (movie, sampled_user)
+                if edge in edges and (w, i + u) not in G.edges:
+                    G.add_edge(w, i + u)
+                    j += 1
         if sampled_user in sampled_users_dic:
             i = sampled_users_dic[sampled_user]
             user_freq_dic[i] += 1
@@ -82,12 +91,6 @@ def generate_movie_lense_graph(
             sampled_users_dic[sampled_user] = i
             user_freq_dic[i] = 1
         preference_matrix[:, i] = weight_features[sampled_user]
-        user_info = list(weight_features[sampled_user]) + users[sampled_user]
-        for w in range(len(sampled_movies)):
-            movie = sampled_movies[w]
-            edge = (movie, sampled_user)
-            if edge in edges and (w, i + u) not in G.edges:
-                G.add_edge(w, i + u)
         users_features.append(user_info)
 
     # user_freq = list(map(lambda id: user_freq_dic[id], user_freq_dic)) + [0] * (v - (len(user_freq_dic)))
