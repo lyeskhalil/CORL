@@ -2,7 +2,7 @@ import argparse
 import os
 import numpy as np
 from numpy.lib.function_base import _i0_2
-from data.data_utils import (
+from data_utils import (
     add_nodes_with_bipartite_label,
     get_solution,
     parse_gmission_dataset,
@@ -95,10 +95,6 @@ def generate_movie_lense_graph(
         users_features.append(user_info)
 
     #user_freq = list(map(lambda id: user_freq_dic[id], user_freq_dic)) + [0] * (v - (len(user_freq_dic)))
-
-    print('G: ', nx.adjacency_matrix(G))
-    print('r_v: ', user_freq_dic)
-    print('user_feaures: ', np.array(users_features))
 
     return G, np.array(movies_features), np.array(users_features), nx.adjacency_matrix(G).todense(), user_freq_dic, edge_vector_dic
 
@@ -212,6 +208,12 @@ def generate_osbm_data_geometric(
         data.x = torch.tensor(
             np.concatenate((movie_features.flatten(), user_features.flatten()))
         )
+        print('\n\nu_size: ', u_size)
+        print('v_size: ',v_size)
+        print('adjacency_matrix: ',adjacency_matrix)
+        print('user_freq: ', user_freq)
+        print('edge_vector_dic: ',edge_vector_dic)
+
         data.y = 10 #solve_submodular_matching(u_size, v_size, adjacency_matrix, user_freq, edge_vector_dic)
         if save_data:
             torch.save(
