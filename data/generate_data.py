@@ -2,7 +2,7 @@ import argparse
 import os
 import numpy as np
 from numpy.lib.function_base import _i0_2
-from data.data_utils import (
+from data_utils import (
     add_nodes_with_bipartite_label,
     get_solution,
     parse_gmission_dataset,
@@ -11,11 +11,11 @@ from data.data_utils import (
     generate_weights_geometric,
 )
 import networkx as nx
+from IPsolvers.IPsolver import solve_submodular_matching
 from scipy.optimize import linear_sum_assignment
 import torch
 from tqdm import tqdm
 
-# from .IPsolvers.IPsolver import solve_submodular_matching
 
 
 def generate_ba_graph(u, v, p, seed):
@@ -61,20 +61,21 @@ def generate_movie_lense_graph(
     G.name = f"movielense_random_graph({u},{v})"
 
     movies_id = np.array(list(movies.keys())).flatten()
-    users_id = np.array(list(users.keys())).flatten()
+    users_id = np.array(list(users.keys())).flatten()[:10]
 
     if vary_fixed:
         sampled_movies = list(np.random.choice(movies_id, size=u, replace=False))
     print(sampled_movies)
     movies_features = list(map(lambda m: movies[m], sampled_movies))
+    
     users_features = []
     user_freq_dic = {}  # {v_id: freq}, used for the IPsolver
     sampled_users_dic = {}  # {user_id: v_id}
-    edge_vector_dic = {u: movies_features[u] for u in range(len(sampled_movies))}
-    preference_matrix = np.zeros((15, v))  # 15 is the number of genres
-
+    #edge_vector_dic = {u: movies_features[u] for u in range(len(sampled_movies))}
+    
     for i in range(v):
-        j = 0
+        # construct the graph
+        j= 0
         while j == 0:
             sampled_user = np.random.choice(users_id)
             user_info = list(weight_features[sampled_user]) + users[sampled_user]
@@ -84,24 +85,44 @@ def generate_movie_lense_graph(
                 if edge in edges and (w, i + u) not in G.edges:
                     G.add_edge(w, i + u)
                     j += 1
+
+        # collect data for the IP solver
         if sampled_user in sampled_users_dic:
             i = sampled_users_dic[sampled_user]
             user_freq_dic[i] += 1
         else:
             sampled_users_dic[sampled_user] = i
             user_freq_dic[i] = 1
-        preference_matrix[:, i] = weight_features[sampled_user]
+        
+        # append user features for the model
         users_features.append(user_info)
 
-    # user_freq = list(map(lambda id: user_freq_dic[id], user_freq_dic)) + [0] * (v - (len(user_freq_dic)))
+    #print('r_v: ', user_freq_dic) 
+    #print('movies_features: ', movies_features)
+    # construct the preference matrix, used by the IP solver
+    #print("G: \n", nx.adjacency_matrix(G).todense())
+    preference_matrix = np.zeros((len(sampled_users_dic), 15))  # 15 is the number of genres
+    #print('sampled_users_dic: ', sampled_users_dic)
+    adjacency_matrix = np.ndarray((len(sampled_users_dic), u))
+    i = 0
+    graph = nx.adjacency_matrix(G).todense()
+    for user_id in sampled_users_dic:
+        preference_matrix[i] = weight_features[user_id]
+        v_id = sampled_users_dic[user_id]
+        #print('v_id: ', v_id)
+        adjacency_matrix[i] = graph[u+v_id, :u]
+        i += 1
 
+    # user_freq = list(map(lambda id: user_freq_dic[id], user_freq_dic)) + [0] * (v - (len(user_freq_dic)))
+    #print('adj_matrix: \n', adjacency_matrix)
     return (
         G,
         np.array(movies_features),
         np.array(users_features),
-        nx.adjacency_matrix(G).todense(),
+        adjacency_matrix,
         user_freq_dic,
-        edge_vector_dic,
+        movies_features,
+        preference_matrix
     )
 
 
@@ -200,7 +221,8 @@ def generate_osbm_data_geometric(
             user_features,
             adjacency_matrix,
             user_freq,
-            edge_vector_dic,
+            movies_features,
+            preference_matrix
         ) = g(
             u_size,
             v_size,
@@ -220,7 +242,7 @@ def generate_osbm_data_geometric(
         data.x = torch.tensor(
             np.concatenate((movie_features.flatten(), user_features.flatten()))
         )
-        data.y = 10  # solve_submodular_matching(u_size, v_size, adjacency_matrix, user_freq, edge_vector_dic)
+        data.y = solve_submodular_matching(u_size, len(user_freq), adjacency_matrix, user_freq, movies_features, preference_matrix)
         if save_data:
             torch.save(
                 data, "{}/data_{}.pt".format(dataset_folder, i),

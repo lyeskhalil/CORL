@@ -21,28 +21,26 @@ Reads data from the specfied file and writes the graph tensor into multu dict of
         ('u2','v2'):3
      })
 """
-def get_data(u_size, v_size, adjacency_matrix):
+def get_data(u_size, v_size, adjacency_matrix, prefrences):
 
-    dic = {}
-    # start = time.time()
-    for u, v in itertools.product(range(u_size), range(u_size, v_size + u_size)):
-        dic[(u, v - u_size)] = adjacency_matrix[u][v]
+    adj_dic = {}
+    w = {}
+    
+    for v, u in itertools.product(range(v_size), range(u_size)):
+        adj_dic[(v, u)] = adjacency_matrix[v][u]
+    _ , dic = gp.multidict(adj_dic)
 
-    #for u, v in itertools.product(range(u_size), range(v_size)):
-    #    dic[(u, v)] = E[u][v]
+    for i, j in itertools.product(range(prefrences.shape[0]), range(prefrences.shape[1])):
+        w[(j, i)] = prefrences[i][j]
 
-    return gp.multidict(dic)
+    return dic, w
 
 def solve_eobm(u_size, v_size, adjacency_matrix):
     try:
         m = gp.Model("wobm")
 
         combinations, dic = get_data(u_size, v_size, adjacency_matrix)
-        
-        print('slving eobm')
-        print('combinations: ', combinations)
-        print('dic: ', dic)
-
+    
         # add variable
         x = m.addVars(combinations, vtype="B", name="(u,v) pairs") 
 
@@ -68,48 +66,50 @@ def solve_eobm(u_size, v_size, adjacency_matrix):
         print("Encountered an attribute error")
 
 
-def solve_submodular_matching(u_size, v_size, adjacency_matrix, r_v, edge_vector_dic, preferences):
+def solve_submodular_matching(u_size, v_size, adjacency_matrix, r_v, movie_features, preferences):
     try:
         m = gp.Model("submatching")
+        m.Params.LogToConsole = 0
 
-        #15 is the fixed number of genres
-        genres= 4 #15 
+        #15 is the fixed number of genres from the movielens dataset
+        genres= 15
 
-        combinations, dic = get_data(u_size, v_size, adjacency_matrix)
+        dic, weight_dic  = get_data(u_size, v_size, adjacency_matrix, preferences)
 
-        print('solving submodular matching')
-        print('combinations: ', combinations)
-        print('dic: ', dic)
+        # add variable for each edge (u,v), where v is the user and u is the movie
+        x = m.addVars(v_size, u_size, vtype="B", name="(u,v) pairs")
 
-        # add variable
-        x = m.addVars(combinations, vtype="B", name="(u,v) pairs")
-        gamma = m.addVars(genres, v_size, name="gamma")
+        # set the variable to zero for edges that do not exist in the graph
+        for key in x:
+           x[key] = 0 if dic[key] == 0 else x[key]
+
+        #create variable for each (genre, user) pair
+        gamma = m.addVars(genres, v_size, vtype="B", name="gamma")
 
         # A is |genres| by |V| matrix containg the total number of edges going from u to genere g at index (g,u)
         A = m.addVars(genres, v_size)
+
+        # first set all variables in A to zero
+        for key in A:
+            A[key] = 0
+
         for z, v in itertools.product(range(genres), range(v_size)):
             for u in range(u_size):
-                if edge_vector_dic[u][z] == 1: #if u belongs to genre z
-                    A[(z, v)] += x[(u, v)]
-
+                if movie_features[u][z] == 1.0: #if u belongs to genre z
+                    A[(z, v)] += x[(v, u)] 
+        
         # set constraints
-        m.addConstrs((x.sum("*", v) <= r_v[v] for v in r_v), "const1")
-        m.addConstrs((x.sum(u, "*") <= 1 for u in range(u_size)), "const2")
+        m.addConstrs((x.sum(v, "*") <= r_v[v] for v in r_v), "const1")
+        m.addConstrs((x.sum("*", u) <= 1 for u in range(u_size)), "const2")
         m.addConstrs((gamma[(z, v)] <= A[(z, v)] for z, v in itertools.product(range(genres), range(v_size))), "const3")
         m.addConstrs((gamma[(z, v)] <= 1 for z, v in itertools.product(range(genres), range(v_size))), "const4")
 
-        # set the objective
-        m.setObjective((preferences* gamma).prod(dic), GRB.MAXIMIZE)
+        # give each gamma variable a weight based on the user preferences and optimiza the sum
+        m.setObjective(gamma.prod(weight_dic), GRB.MAXIMIZE)
         m.optimize()
 
-        #matched = 0
-        #for v in m.getVars():
-        #    if abs(v.x) > 1e-6:
-        #        matched += v.x
-        #print("total nodes matched: ", matched)
-
-        print("total matching score: ", m.objVal)
-        # print("time to generate the dictionary: ", end-start)
+        #print("total matching score: ", m.objVal)
+        return m.objVal
 
     except gp.GurobiError as e:
         print("Error code " + str(e.errno) + ": " + str(e))
@@ -118,42 +118,26 @@ def solve_submodular_matching(u_size, v_size, adjacency_matrix, r_v, edge_vector
 
 
 if __name__ == "__main__":
-
     # {v_id : freq}
-    r_v =  {0: 2, 1: 1}
+    #r_v =  {0: 2, 1: 1}  ##
 
+    # 3 genres (each column), 3 movies (each row)
+    #movie_features = [ ##
+    #    [0.0, 0.0, 1.0], 
+    #    [0.0, 0.0, 1.0], 
+    #    [1.0, 1.0, 0.0]
+    #    ]
 
-    # 4 genres
-    d = {0: [1.0, 0.0, 0.0, 0.0], 
-         1: [0.0, 0.0, 1.0, 0.0], 
-         2: [1.0, 1.0, 0.0, 0.0]}
-
-   # user preferences 
-    p = np.array([
-       [1.2, 3.4, 5, 0],
-       [3, 3, 5, 0]
-    ])
-
-    p1 = sp.csr_matrix(p)
-    print('p1: ',p1)
-
-    E = np.array([
-            [0, 0, 0, 1, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 1, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 1, 0, 0, 0],
-            [1, 0, 0, 0, 0, 0, 0, 0, 0],
-            [1, 1, 1, 0, 0, 0, 0, 0, 0],
-            [1, 0, 0, 0, 0, 0, 0, 0, 0],
-            [1, 1, 1, 0, 0, 0, 0, 0, 0],
-            [0, 1, 0, 0, 0, 0, 0, 0, 0],
-            [1, 1, 0, 0, 0, 0, 0, 0, 0]
-            ])
-
-    # E = np.array([
-    #     [1,0,0],
-    #     [0,1,0],
-    #     [0,0,1]
-    # ])
-
-    solve_submodular_matching(3, 5, E, r_v, d, p)
+   # user preferences  V by |genres|
+    #preferences = np.array([
+    #   [1, 3.4, 5],
+    #   [3, 3, 5]
+    #])
+    
+    #adjacency_matrix = np.array([ ##
+    #     [1,0,1],
+    #     [0,1,0]
+    #])  
+    
+    solve_submodular_matching(3, 5, adjacency_matrix, r_v, movie_features, preferences)
     #solve_eobm(3, 3, E)
