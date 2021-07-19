@@ -263,6 +263,11 @@ def get_options(args=None):
         help="Set this value to only evaluate model on a specific graph size",
     )
     parser.add_argument(
+        "--test_transfer",
+        action="store_true",
+        help="Set this value to test transferability across different graph sizes",
+    )
+    parser.add_argument(
         "--eval_plot", action="store_true", help="plot results on test data",
     )
     parser.add_argument(
@@ -308,6 +313,16 @@ def get_options(args=None):
         "--gnn_hist_models",
         nargs="+",
         help="list of trained gnn-hist models, seperated by space",
+    )
+    parser.add_argument(
+        "--gnn_models",
+        nargs="+",
+        help="list of trained gnn models, seperated by space",
+    )
+    parser.add_argument(
+        "--gnn_simp_hist_models",
+        nargs="+",
+        help="list of trained gnn-simp-hist models, seperated by space",
     )
     parser.add_argument(
         "--attention_models",

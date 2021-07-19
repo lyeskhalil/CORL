@@ -30,9 +30,7 @@ class InvariantFFHist(nn.Module):
         self.problem = problem
         self.model_name = "inv-ff-hist"
         self.ff = nn.Sequential(
-            nn.Linear(13, 100),
-            nn.ReLU(),
-            nn.Linear(100, 100),
+            nn.Linear(16, 100),
             nn.ReLU(),
             nn.Linear(100, 100),
             nn.ReLU(),
@@ -72,11 +70,8 @@ class InvariantFFHist(nn.Module):
         sequences = []
         state = self.problem.make_state(input, opts.u_size, opts.v_size, opts)
 
-        # step_context = 0
-        # batch_size = state.ids.size(0)
         # Perform decoding steps
         i = 1
-        # entropy = 0
         while not (state.all_finished()):
             mask = state.get_mask()
             state.get_current_weights(mask)

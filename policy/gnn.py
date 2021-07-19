@@ -26,7 +26,7 @@ def set_decode_type(model, decode_type):
     model.set_decode_type(decode_type)
 
 
-class GNNHist(nn.Module):
+class GNN(nn.Module):
     def __init__(
         self,
         embedding_dim,
@@ -44,7 +44,7 @@ class GNNHist(nn.Module):
         num_actions=None,
         encoder="mpnn",
     ):
-        super(GNNHist, self).__init__()
+        super(GNN, self).__init__()
 
         self.embedding_dim = embedding_dim
         self.hidden_dim = hidden_dim
@@ -53,13 +53,14 @@ class GNNHist(nn.Module):
         self.temp = 1.0
         self.problem = problem
         self.opts = opts
+        # Problem specific context parameters (placeholder and step context dimension)
 
         encoder_class = {"attention": GraphAttentionEncoder, "mpnn": MPNN}.get(
             encoder, None
         )
         if opts.problem == "osbm":
             node_dim_u = 16
-            node_dim_v = 3
+            node_dim_v = 18
         else:
             node_dim_u, node_dim_v = 1, 1
 
@@ -75,11 +76,7 @@ class GNNHist(nn.Module):
         )
 
         self.ff = nn.Sequential(
-            nn.Linear(5 + 4 * opts.embedding_dim, 200),
-            nn.ReLU(),
-            nn.Linear(200, 200),
-            nn.ReLU(),
-            nn.Linear(200, 1),
+            nn.Linear(2 + opts.embedding_dim, 200), nn.ReLU(), nn.Linear(200, 1),
         )
 
         assert embedding_dim % n_heads == 0
@@ -87,7 +84,7 @@ class GNNHist(nn.Module):
         self.initial_stepcontext = nn.Parameter(torch.Tensor(1, 1, embedding_dim))
         self.initial_stepcontext.data.uniform_(-1, 1)
         self.dummy = torch.ones(1, dtype=torch.float32, requires_grad=True)
-        self.model_name = "gnn-hist"
+        self.model_name = "gnn"
 
     def init_parameters(self):
         for name, param in self.named_parameters():
@@ -142,7 +139,6 @@ class GNNHist(nn.Module):
         batch_size = state.batch_size
         graph_size = state.u_size + state.v_size + 1
         i = 1
-        step_context = 0.0
         while not (state.all_finished()):
             step_size = state.i + 1
             mask = state.get_mask()
@@ -175,7 +171,6 @@ class GNNHist(nn.Module):
                 weights.float(),
                 torch.tensor(i),
                 self.dummy,
-                # opts,
             ).reshape(batch_size, step_size, -1)
             pos = torch.argsort(state.idx[:i])[-1]
             incoming_node_embeddings = embeddings[
@@ -190,52 +185,11 @@ class GNNHist(nn.Module):
                 * i
                 / state.v_size
             )
-
-            if i != 1:
-                past_sol = (
-                    torch.stack(sequences, 1)
-                    + torch.arange(
-                        0, batch_size * (i - 1), i - 1, device=opts.device
-                    ).unsqueeze(1)
-                ).flatten()
-
-                selected_nodes = torch.index_select(
-                    embeddings.reshape(-1, opts.embedding_dim),
-                    0,
-                    past_sol.to(opts.device),
-                ).reshape(batch_size, i - 1, opts.embedding_dim)
-                step_context = (
-                    self.step_context_transf(
-                        torch.cat(
-                            (
-                                selected_nodes,
-                                embeddings[:, state.u_size + 1 : state.u_size + i, :],
-                            ),
-                            dim=2,
-                        )
-                    )
-                    .mean(1)
-                    .unsqueeze(1)
-                )
-            else:
-                step_context = self.initial_stepcontext.repeat(batch_size, 1, 1)
-            u_embeddings = embeddings[:, : opts.u_size + 1, :]
-            fixed_node_identity = torch.zeros(
-                state.batch_size, state.u_size + 1, 1, device=opts.device
-            )
-            fixed_node_identity[:, 0, :] = 1.0
             s = torch.cat(
                 (
                     s,
                     idx.repeat(1, state.u_size + 1, 1),
-                    state.size.unsqueeze(2).repeat(1, state.u_size + 1, 1)
-                    / state.u_size,
-                    fixed_node_identity,
-                    mask.unsqueeze(2),
                     incoming_node_embeddings.repeat(1, state.u_size + 1, 1),
-                    embeddings[:, : opts.u_size + 1, :],
-                    step_context.repeat(1, state.u_size + 1, 1),
-                    u_embeddings.mean(1).unsqueeze(1).repeat(1, state.u_size + 1, 1),
                 ),
                 dim=2,
             )

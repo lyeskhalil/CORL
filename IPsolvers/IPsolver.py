@@ -66,12 +66,13 @@ def solve_eobm(u_size, v_size, adjacency_matrix):
         print("Encountered an attribute error")
 
 
-def solve_submodular_matching(u_size, v_size, adjacency_matrix, r_v, edge_vector_dic, preferences):
+def solve_submodular_matching(u_size, v_size, adjacency_matrix, r_v, movie_features, preferences):
     try:
         m = gp.Model("submatching")
+        m.Params.LogToConsole = 0
 
         #15 is the fixed number of genres from the movielens dataset
-        genres= 3
+        genres= 15
 
         dic, weight_dic  = get_data(u_size, v_size, adjacency_matrix, preferences)
 
@@ -94,11 +95,9 @@ def solve_submodular_matching(u_size, v_size, adjacency_matrix, r_v, edge_vector
 
         for z, v in itertools.product(range(genres), range(v_size)):
             for u in range(u_size):
-                if edge_vector_dic[u][z] == 1.0: #if u belongs to genre z
+                if movie_features[u][z] == 1.0: #if u belongs to genre z
                     A[(z, v)] += x[(v, u)] 
         
-        print('\n A: ', A)
-
         # set constraints
         m.addConstrs((x.sum(v, "*") <= r_v[v] for v in r_v), "const1")
         m.addConstrs((x.sum("*", u) <= 1 for u in range(u_size)), "const2")
@@ -109,8 +108,8 @@ def solve_submodular_matching(u_size, v_size, adjacency_matrix, r_v, edge_vector
         m.setObjective(gamma.prod(weight_dic), GRB.MAXIMIZE)
         m.optimize()
 
-        print("total matching score: ", m.objVal)
-        # print("time to generate the dictionary: ", end-start)
+        #print("total matching score: ", m.objVal)
+        return m.objVal
 
     except gp.GurobiError as e:
         print("Error code " + str(e.errno) + ": " + str(e))
@@ -119,38 +118,26 @@ def solve_submodular_matching(u_size, v_size, adjacency_matrix, r_v, edge_vector
 
 
 if __name__ == "__main__":
-
     # {v_id : freq}
-    r_v =  {0: 2, 1: 1}
+    #r_v =  {0: 2, 1: 1}  ##
 
     # 3 genres (each column), 3 movies (each row)
-    d = np.array([
-        [0.0, 0.0, 1.0], 
-        [0.0, 0.0, 1.0], 
-        [1.0, 1.0, 0.0]
-        ])
+    #movie_features = [ ##
+    #    [0.0, 0.0, 1.0], 
+    #    [0.0, 0.0, 1.0], 
+    #    [1.0, 1.0, 0.0]
+    #    ]
 
-   # user preferences 
-    p = np.array([
-       [1, 3.4, 5],
-       [3, 3, 5]
-    ])
+   # user preferences  V by |genres|
+    #preferences = np.array([
+    #   [1, 3.4, 5],
+    #   [3, 3, 5]
+    #])
     
-    E = np.array([
-         [1,0,1],
-         [0,1,0]
-    ])  
-
-    # ignore this
-    #lst = []
-    #for v in range(2): #2 is V size
-    #    A = np.ndarray((sum(E[v]), 4)) #|ngbrs(v)| by genres 
-    #    i = 0
-    #    for edge_index in np.nonzero(E[v])[0]:
-    #        A[i] = d[edge_index] * p[v]
-    #        i+= 1
-    #    lst.append(A)
-
-
-    solve_submodular_matching(3, 2, E, r_v, d, p)
+    #adjacency_matrix = np.array([ ##
+    #     [1,0,1],
+    #     [0,1,0]
+    #])  
+    
+    solve_submodular_matching(3, 5, adjacency_matrix, r_v, movie_features, preferences)
     #solve_eobm(3, 3, E)

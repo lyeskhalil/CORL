@@ -32,7 +32,13 @@ class InvariantFF(nn.Module):
         self.is_bipartite = problem.NAME == "bipartite"
         self.problem = problem
         self.shrink_size = None
-        self.ff = nn.Sequential(nn.Linear(2, 100), nn.ReLU(), nn.Linear(100, 1),)
+        self.ff = nn.Sequential(
+            nn.Linear(3, 100),
+            nn.ReLU(),
+            nn.Linear(100, 100),
+            nn.ReLU(),
+            nn.Linear(100, 1),
+        )
         self.model_name = "inv-ff"
 
         # def init_weights(m):
