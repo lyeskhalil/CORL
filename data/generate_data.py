@@ -65,7 +65,7 @@ def generate_movie_lense_graph(
 
     if vary_fixed:
         sampled_movies = list(np.random.choice(movies_id, size=u, replace=False))
-
+    print(sampled_movies)
     movies_features = list(map(lambda m: movies[m], sampled_movies))
     users_features = []
     user_freq_dic = {}  # {v_id: freq}, used for the IPsolver
@@ -188,7 +188,7 @@ def generate_osbm_data_geometric(
     edges, users, movies = None, None, None
     if "movielense" in graph_family:
         users, movies, edges, feature_weights = parse_movie_lense_dataset()
-        np.random.seed(100)
+        np.random.seed(2000)
         movies_id = np.array(list(movies.keys())).flatten()
         sampled_movies = list(np.random.choice(movies_id, size=u_size, replace=False))
         g = generate_movie_lense_graph
@@ -212,7 +212,6 @@ def generate_osbm_data_geometric(
             seed + i,
             vary_fixed,
         )
-
         g1.add_node(
             -1, bipartite=0
         )  # add extra node in U that represents not matching the current node to anything
