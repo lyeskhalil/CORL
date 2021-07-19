@@ -537,7 +537,7 @@ def run(opts):
                         problem,
                     )
                 )
-        # results = []
+
         results = [
             np.array(baseline_results[i]) for i in range(len(baseline_results))
         ] + [
