@@ -243,14 +243,7 @@ def generate_osbm_data_geometric(
         data.x = torch.tensor(
             np.concatenate((movie_features.flatten(), user_features.flatten()))
         )
-        print('\n\n u_size: ', u_size)
-        print('v_size: ',v_size)
-        print('adjacency_matrix: ',adjacency_matrix)
-        print('user_freq: ', user_freq)
-        print('edge_vector_dic: ',movies_features)
-
         data.y = solve_submodular_matching(u_size, len(user_freq), adjacency_matrix, user_freq, movies_features, preference_matrix)
-        print('solution: ', data.y)
         if save_data:
             torch.save(
                 data, "{}/data_{}.pt".format(dataset_folder, i),
