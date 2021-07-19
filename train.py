@@ -147,10 +147,13 @@ def rollout_eval(models, dataset, opts):
         # print(
         #     "\nBatch Competitive ratio: ", min(cr).item(),
         # )
-        num_agree_opt = (a == bat.x.reshape(a.size(0), -1)).float().sum(0)
-        greedy_agree_opt = (a1 == bat.x.reshape(a.size(0), -1)).float().sum(0)
-        # num_agree_opt = torch.tensor([0])
-        # greedy_agree_opt = torch.tensor([0])
+
+        if "movielense" in opts.graph_family:
+            num_agree_opt = torch.tensor([0])
+            greedy_agree_opt = torch.tensor([0])
+        else:
+            num_agree_opt = (a == bat.x.reshape(a.size(0), -1)).float().sum(0)
+            greedy_agree_opt = (a1 == bat.x.reshape(a.size(0), -1)).float().sum(0)
         return (
             cost.data.cpu(),
             cr,
