@@ -2,7 +2,7 @@ import argparse
 import os
 import numpy as np
 from numpy.lib.function_base import _i0_2
-from data_utils import (
+from data.data_utils import (
     add_nodes_with_bipartite_label,
     get_solution,
     parse_gmission_dataset,
@@ -61,11 +61,10 @@ def generate_movie_lense_graph(
     G.name = f"movielense_random_graph({u},{v})"
 
     movies_id = np.array(list(movies.keys())).flatten()
-    users_id = np.array(list(users.keys())).flatten()[:10]
+    users_id = np.array(list(users.keys())).flatten()
 
     if vary_fixed:
         sampled_movies = list(np.random.choice(movies_id, size=u, replace=False))
-    print(sampled_movies)
     movies_features = list(map(lambda m: movies[m], sampled_movies))
     
     users_features = []
@@ -75,7 +74,7 @@ def generate_movie_lense_graph(
     
     for i in range(v):
         # construct the graph
-        j= 0
+        j = 0
         while j == 0:
             sampled_user = np.random.choice(users_id)
             user_info = list(weight_features[sampled_user]) + users[sampled_user]
@@ -212,6 +211,7 @@ def generate_osbm_data_geometric(
         np.random.seed(2000)
         movies_id = np.array(list(movies.keys())).flatten()
         sampled_movies = list(np.random.choice(movies_id, size=u_size, replace=False))
+        print(sampled_movies)
         g = generate_movie_lense_graph
         vary_fixed = "var" in graph_family
     for i in tqdm(range(dataset_size)):

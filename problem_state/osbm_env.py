@@ -50,14 +50,14 @@ class StateOSBM(NamedTuple):
             (torch.zeros(batch_size, 1, num_genres, device=opts.device), u_features),
             dim=1,
         )
-        print(u_features)
+        # print(u_features)
         offset = u_size * num_genres
 
         v_features = input.x.reshape(batch_size, -1)[:, offset:].reshape(
             batch_size, v_size, -1
         )
         idx = torch.arange(adj.shape[1], device=opts.device)
-        print(v_features)
+        # print(v_features)
         # permute the nodes for data
         #        if "supervised" not in opts.model and not opts.eval_only:
         #            idx = torch.randperm(adj.shape[1], device=opts.device)

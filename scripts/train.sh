@@ -2,15 +2,15 @@
 #SBATCH --gres=gpu:v100l:1       # Request GPU "generic resources"
 #SBATCH --cpus-per-task=6  # Cores proportional to GPUs: 6 on Cedar, 16 on Graham.
 #SBATCH --mem=32000M       # Memory proportional to GPUs: 32000 Cedar, 64000 Graham.
-#SBATCH --time=02:00:00
+#SBATCH --time=10:00:00
 #SBATCH --output=%N-%j.out
 
 U_SIZE=$1
 V_SIZE=$2
 GRAPH_FAMILY=$4
-PROBLEM="e-obm"
+PROBLEM=${13}
 FAMILY_PARAMETER=$3
-TRAIN_SIZE=10000
+TRAIN_SIZE=20000
 VAL_SIZE=1000
 EMBEDDING_SIZE=30
 MAX_WEIGHT=100
@@ -29,14 +29,14 @@ virtualenv --no-download $SLURM_TMPDIR/env
 source $SLURM_TMPDIR/env/bin/activate
 pip install --no-index --upgrade pip
 
-pip install --no-index --no-cache-dir --upgrade --force-reinstall -r requirements.txt
+pip install --no-index -r requirements.txt
 
 
 # Prepare data
 tar xf ~/projects/def-khalile2/alomrani/$DATASET.tar -C $SLURM_TMPDIR/
 mkdir $SLURM_TMPDIR/logs_$DATASET
 
-python run.py --seed 89759 --problem $PROBLEM --encoder mpnn --batch_size 200 --eval_batch_size 200 --embedding_dim $EMBEDDING_SIZE --n_heads 1 --u_size $U_SIZE --v_size $V_SIZE --n_epochs 120 --train_dataset $SLURM_TMPDIR/$DATASET/train --val_dataset $SLURM_TMPDIR/$DATASET/val --dataset_size $TRAIN_SIZE --val_size $VAL_SIZE --checkpoint_epochs 10 --baseline exponential --exp_beta ${11} --lr_model $9 --lr_decay ${10} --ent_rate ${12} --output_dir $SLURM_TMPDIR/output_$DATASET --log_dir $SLURM_TMPDIR/logs_$DATASET --max_grad_norm 1.0 --n_encode_layers 3 --model $MODEL
+python run.py --problem $PROBLEM --encoder mpnn --batch_size ${15} --eval_batch_size ${15} --embedding_dim $EMBEDDING_SIZE --n_heads 1 --u_size $U_SIZE --v_size $V_SIZE --n_epochs 300 --train_dataset $SLURM_TMPDIR/$DATASET/train --val_dataset $SLURM_TMPDIR/$DATASET/val --dataset_size $TRAIN_SIZE --val_size $VAL_SIZE --checkpoint_epochs 10 --baseline exponential --exp_beta ${11} --lr_model $9 --lr_decay ${10} --ent_rate ${12} --output_dir $SLURM_TMPDIR/output_$DATASET --log_dir $SLURM_TMPDIR/logs_$DATASET --max_grad_norm 1.0 --n_encode_layers ${14} --model $MODEL
 
 cp -r $SLURM_TMPDIR/output_$DATASET ~/projects/def-khalile2/alomrani/
 cp -r $SLURM_TMPDIR/logs_$DATASET ~/projects/def-khalile2/alomrani/

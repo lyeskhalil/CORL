@@ -187,7 +187,7 @@ class GNNHist(nn.Module):
             s = w.reshape(state.batch_size, state.u_size + 1, 1)
             idx = (
                 torch.ones(state.batch_size, 1, 1, device=opts.device)
-                * i
+                * (i - 1.)
                 / state.v_size
             )
 
