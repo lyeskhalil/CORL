@@ -1,23 +1,7 @@
 import torch
 from torch import nn
-from torch.utils.checkpoint import checkpoint
-import math
-from typing import NamedTuple
-
 import torch.nn.functional as F
-
-# from utils.tensor_functions import compute_in_batches
-
-from encoder.graph_encoder_v2 import GraphAttentionEncoder
-from train import clip_grad_norms
-
-from encoder.graph_encoder import MPNN
 from torch.nn import DataParallel
-from torch_geometric.utils import subgraph
-
-# from utils.functions import sample_many
-
-import time
 
 
 def set_decode_type(model, decode_type):
@@ -146,7 +130,8 @@ class SupervisedFFModel(nn.Module):
             if training:
                 mask = torch.zeros(mask.shape, device=opts.device)
             selected, p = self._select_node(
-                pi, mask.bool(),
+                pi,
+                mask.bool(),
             )  # Squeeze out steps dimension
             # entropy += torch.sum(p * (p.log()), dim=1)
             state = state.update((selected)[:, None])

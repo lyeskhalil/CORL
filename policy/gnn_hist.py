@@ -2,22 +2,12 @@ import torch
 from torch import nn
 from torch.utils.checkpoint import checkpoint
 import math
-from typing import NamedTuple
-
-import torch.nn.functional as F
-
-# from utils.tensor_functions import compute_in_batches
 
 from encoder.graph_encoder_v2 import GraphAttentionEncoder
-from train import clip_grad_norms
 
 from encoder.graph_encoder import MPNN
 from torch.nn import DataParallel
 from torch_geometric.utils import subgraph
-
-# from utils.functions import sample_many
-
-import time
 
 
 def set_decode_type(model, decode_type):
@@ -187,7 +177,7 @@ class GNNHist(nn.Module):
             s = w.reshape(state.batch_size, state.u_size + 1, 1)
             idx = (
                 torch.ones(state.batch_size, 1, 1, device=opts.device)
-                * (i - 1.)
+                * (i - 1.0)
                 / state.v_size
             )
 

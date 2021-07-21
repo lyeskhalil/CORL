@@ -1,8 +1,5 @@
 import torch
 from torch import nn
-from torch.utils.checkpoint import checkpoint
-import math
-from typing import NamedTuple
 
 
 class InvariantFFHist(nn.Module):
