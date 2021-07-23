@@ -85,11 +85,11 @@ def generate_movie_lense_graph(
 
         # collect data for the IP solver
         if sampled_user in sampled_users_dic:
-            i = sampled_users_dic[sampled_user]
-            user_freq_dic[i] += 1
+            k = sampled_users_dic[sampled_user]
+            user_freq_dic[k].append(i)
         else:
             sampled_users_dic[sampled_user] = i
-            user_freq_dic[i] = 1
+            user_freq_dic[i] = [i]
 
         # append user features for the model
         users_features.append(user_info)
@@ -211,7 +211,6 @@ def generate_osbm_data_geometric(
         np.random.seed(2000)
         movies_id = np.array(list(movies.keys())).flatten()
         sampled_movies = list(np.random.choice(movies_id, size=u_size, replace=False))
-        print(sampled_movies)
         g = generate_movie_lense_graph
         vary_fixed = "var" in graph_family
     for i in tqdm(range(dataset_size)):
@@ -242,13 +241,17 @@ def generate_osbm_data_geometric(
         data.x = torch.tensor(
             np.concatenate((movie_features.flatten(), user_features.flatten()))
         )
-        data.y = solve_submodular_matching(
+        optimal_sol = solve_submodular_matching(
             u_size,
             len(user_freq),
             adjacency_matrix,
             user_freq,
             movies_features,
             preference_matrix,
+            v_size,
+        )
+        data.y = torch.cat(
+            (torch.tensor([optimal_sol[0]]), torch.tensor(optimal_sol[1]))
         )
         if save_data:
             torch.save(
@@ -292,6 +295,7 @@ def generate_edge_obm_data_geometric(
         np.random.seed(100)
         rep = graph_family == "gmission"
         workers = list(np.random.choice(np.arange(1, 533), size=u_size, replace=rep))
+        # random.shuffle(workers)  # TODO: REMOVE
         if graph_family == "gmission-max":
             tasks = reduced_tasks
             workers = np.random.choice(reduced_workers, size=u_size, replace=False)
