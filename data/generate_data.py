@@ -17,38 +17,51 @@ import torch
 from tqdm import tqdm
 
 
-
-def generate_ba_graph(u, v, p, seed):
+def generate_ba_graph(
+    u,
+    v,
+    tasks,
+    edges,
+    workers,
+    graph_family_parameter,
+    seed,
+    weight_distribution,
+    weight_param,
+    vary_fixed=False,
+    ):
     """
     Genrates a graph using the preferential attachment scheme
     """
     np.random.seed(seed)
-
     G = nx.Graph()
     G = add_nodes_with_bipartite_label(G, u, v)
 
-    G.name = f"ba_random_graph({u},{v},{p})"
+    G.name = f"ba_random_graph({u},{v},{graph_family_parameter})"
 
-    deg = np.zeros(u)
+    u_deg_list = np.zeros(u)
 
-    v1 = 0.0
-    w = 0
+    for v_node in range(v):
+        degree_v = np.random.binomial(u, float(graph_family_parameter) / v) #number of neighbours of v
 
-    while v1 < v:
-        d = np.random.binomial(u, float(p) / v)
+        for _ in range(degree_v):
+            #update current degree of offline nodes
+            mu = (1 + u_deg_list) / (u + np.sum(u_deg_list))
+            u_node = np.random.choice(np.arange(0, u), p=list(mu))
+            if (u_node, u_node + v_node) not in G.edges:
+                G.add_edge(u_node, u_node + v_node)
+                u_deg_list[u_node] += 1
 
-        while w < d:
-            p1 = deg + 1
-            p1 = p1 / np.sum(p1)
-            f = np.random.choice(np.arange(0, u), p=list(p1))
-            if (f, v) not in G.edges:
-                G.add_edge(f, v)
-                deg[f] += 1
-                w += 1
+    weights, w = generate_weights_geometric(
+        weight_distribution, u, v, weight_param, G, seed
+    )
 
-        v1 += 1
+    d = [dict(weight=float(i)) for i in list(w)]
+    nx.set_edge_attributes(G, dict(zip(list(G.edges), d)))
 
-    return G
+    print('\nu_deg_list: ', u_deg_list)
+    #print('weights: ', weights)
+
+    return G, weights, w
 
 
 def generate_movie_lense_graph(
@@ -168,14 +181,14 @@ def generate_er_graph(
     tasks,
     edges,
     workers,
-    p,
+    graph_family_parameter,
     seed,
     weight_distribution,
     weight_param,
     vary_fixed=False,
 ):
 
-    g1 = nx.bipartite.random_graph(u, v, p, seed=seed)
+    g1 = nx.bipartite.random_graph(u, v, graph_family_parameter, seed=seed)
     weights, w = generate_weights_geometric(
         weight_distribution, u, v, weight_param, g1, seed
     )

@@ -229,11 +229,11 @@ def get_options(args=None):
         "--graph_family_parameter",
         type=float,
         default=0.6,
-        help="parameter of the graph family distribution",
+        help="parameter of the graph family distribution (p is the probablity of and edge for ER and average degree of a node for BA)",
     )
 
     # Evaluation
-
+    
     parser.add_argument(
         "--eval_num",
         type=int,
