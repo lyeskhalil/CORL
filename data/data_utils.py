@@ -286,10 +286,13 @@ def generate_weights_geometric(distribution, u_size, v_size, parameters, g1, see
         weights = nx.bipartite.biadjacency_matrix(
             g1, range(0, u_size), range(u_size, u_size + v_size)
         ).toarray()
+        print('weights: ', weights)
         graph = 10 * weights * weights.sum(axis=1).reshape(-1, 1)
+        print('graph: ', graph)
         noise = np.random.randint(
             int(parameters[0]), int(parameters[1]), (u_size, v_size)
         )
+        print('noise: ', noise)
         weights = np.where(graph, graph + noise, graph)
         w = torch.cat(
             (torch.zeros(v_size, 1).float(), torch.tensor(weights).T.float()), 1
