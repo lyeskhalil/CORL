@@ -1,6 +1,6 @@
 import torch
 from typing import NamedTuple
-from torch_geometric.utils import to_dense_adj, subgraph
+from torch_geometric.utils import to_dense_adj
 
 # from utils.boolmask import mask_long2bool, mask_long_scatter
 
@@ -29,7 +29,10 @@ class StateEdgeBipartite(NamedTuple):
 
     @staticmethod
     def initialize(
-        input, u_size, v_size, opts,
+        input,
+        u_size,
+        v_size,
+        opts,
     ):
         graph_size = u_size + v_size + 1
         batch_size = int(input.batch.size(0) / graph_size)
@@ -53,16 +56,35 @@ class StateEdgeBipartite(NamedTuple):
             batch_size=batch_size,
             # Keep visited with depot so we can scatter efficiently (if there is an action for depot)
             matched_nodes=(  # Visited as mask is easier to understand, as long more memory efficient
-                torch.zeros(batch_size, u_size + 1, device=input.batch.device,)
+                torch.zeros(
+                    batch_size,
+                    u_size + 1,
+                    device=input.batch.device,
+                )
             ),
             hist_sum=(  # Visited as mask is easier to understand, as long more memory efficient
-                torch.zeros(batch_size, 1, u_size + 1, device=input.batch.device,)
+                torch.zeros(
+                    batch_size,
+                    1,
+                    u_size + 1,
+                    device=input.batch.device,
+                )
             ),
             hist_deg=(  # Visited as mask is easier to understand, as long more memory efficient
-                torch.zeros(batch_size, 1, u_size + 1, device=input.batch.device,)
+                torch.zeros(
+                    batch_size,
+                    1,
+                    u_size + 1,
+                    device=input.batch.device,
+                )
             ),
             hist_sum_sq=(  # Visited as mask is easier to understand, as long more memory efficient
-                torch.zeros(batch_size, 1, u_size + 1, device=input.batch.device,)
+                torch.zeros(
+                    batch_size,
+                    1,
+                    u_size + 1,
+                    device=input.batch.device,
+                )
             ),
             min_sol=torch.zeros(batch_size, 1, device=input.batch.device),
             max_sol=torch.zeros(batch_size, 1, device=input.batch.device),
@@ -147,6 +169,7 @@ class StateEdgeBipartite(NamedTuple):
         elif model == "inv-ff":
             deg = (w != 0).float().sum(1)
             deg[deg == 0.0] = 1.0
+            print(deg)
             mean_w = w.sum(1) / deg
             mean_w = mean_w[:, None, None].repeat(1, self.u_size + 1, 1)
             fixed_node_identity = torch.zeros(
@@ -154,7 +177,14 @@ class StateEdgeBipartite(NamedTuple):
             ).float()
             fixed_node_identity[:, 0, :] = 1.0
             s = w.reshape(self.batch_size, self.u_size + 1, 1)
-            s = torch.cat((fixed_node_identity, s, mean_w,), dim=2,)
+            s = torch.cat(
+                (
+                    fixed_node_identity,
+                    s,
+                    mean_w,
+                ),
+                dim=2,
+            )
 
         elif model == "ff-hist" or model == "ff-supervised":
             (
@@ -171,9 +201,9 @@ class StateEdgeBipartite(NamedTuple):
                 (
                     w,
                     mask.float(),
-                    h_mean,
-                    h_var,
-                    h_mean_degree,
+                    h_mean.squeeze(1),
+                    h_var.squeeze(1),
+                    h_mean_degree.squeeze(1),
                     self.size / self.u_size,
                     ind.float(),
                     mean_sol,
@@ -181,7 +211,7 @@ class StateEdgeBipartite(NamedTuple):
                     n_skip,
                     self.max_sol,
                     self.min_sol,
-                    matched_ratio.unsqueeze(1),
+                    matched_ratio,
                 ),
                 dim=1,
             ).float()

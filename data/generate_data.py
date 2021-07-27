@@ -1,8 +1,7 @@
 import argparse
 import os
 import numpy as np
-from numpy.lib.function_base import _i0_2
-from data_utils import (
+from data.data_utils import (
     add_nodes_with_bipartite_label,
     get_solution,
     parse_gmission_dataset,
@@ -17,6 +16,7 @@ import torch
 from tqdm import tqdm
 
 
+<<<<<<< HEAD
 def generate_ba_graph(
     u,
     v,
@@ -29,6 +29,9 @@ def generate_ba_graph(
     weight_param,
     vary_fixed=False,
     ):
+=======
+def generate_ba_graph(u, v, p, seed):
+>>>>>>> 02ee8e75fe1129e45961c16b3ac9f53f89204458
     """
     Genrates a graph using the preferential attachment scheme
     """
@@ -74,21 +77,20 @@ def generate_movie_lense_graph(
     G.name = f"movielense_random_graph({u},{v})"
 
     movies_id = np.array(list(movies.keys())).flatten()
-    users_id = np.array(list(users.keys())).flatten()[:10]
+    users_id = np.array(list(users.keys())).flatten()
 
     if vary_fixed:
         sampled_movies = list(np.random.choice(movies_id, size=u, replace=False))
-
     movies_features = list(map(lambda m: movies[m], sampled_movies))
-    
+
     users_features = []
     user_freq_dic = {}  # {v_id: freq}, used for the IPsolver
     sampled_users_dic = {}  # {user_id: v_id}
-    #edge_vector_dic = {u: movies_features[u] for u in range(len(sampled_movies))}
-    
+    # edge_vector_dic = {u: movies_features[u] for u in range(len(sampled_movies))}
+
     for i in range(v):
         # construct the graph
-        j= 0
+        j = 0
         while j == 0:
             sampled_user = np.random.choice(users_id)
             user_info = list(weight_features[sampled_user]) + users[sampled_user]
@@ -101,33 +103,35 @@ def generate_movie_lense_graph(
 
         # collect data for the IP solver
         if sampled_user in sampled_users_dic:
-            i = sampled_users_dic[sampled_user]
-            user_freq_dic[i] += 1
+            k = sampled_users_dic[sampled_user]
+            user_freq_dic[k].append(i)
         else:
             sampled_users_dic[sampled_user] = i
-            user_freq_dic[i] = 1
-        
+            user_freq_dic[i] = [i]
+
         # append user features for the model
         users_features.append(user_info)
 
-    #print('r_v: ', user_freq_dic) 
-    #print('movies_features: ', movies_features)
+    # print('r_v: ', user_freq_dic)
+    # print('movies_features: ', movies_features)
     # construct the preference matrix, used by the IP solver
-    #print("G: \n", nx.adjacency_matrix(G).todense())
-    preference_matrix = np.zeros((len(sampled_users_dic), 15))  # 15 is the number of genres
-    #print('sampled_users_dic: ', sampled_users_dic)
+    # print("G: \n", nx.adjacency_matrix(G).todense())
+    preference_matrix = np.zeros(
+        (len(sampled_users_dic), 15)
+    )  # 15 is the number of genres
+    # print('sampled_users_dic: ', sampled_users_dic)
     adjacency_matrix = np.ndarray((len(sampled_users_dic), u))
     i = 0
     graph = nx.adjacency_matrix(G).todense()
     for user_id in sampled_users_dic:
         preference_matrix[i] = weight_features[user_id]
         v_id = sampled_users_dic[user_id]
-        #print('v_id: ', v_id)
-        adjacency_matrix[i] = graph[u+v_id, :u]
+        # print('v_id: ', v_id)
+        adjacency_matrix[i] = graph[u + v_id, :u]
         i += 1
 
     # user_freq = list(map(lambda id: user_freq_dic[id], user_freq_dic)) + [0] * (v - (len(user_freq_dic)))
-    #print('adj_matrix: \n', adjacency_matrix)
+    # print('adj_matrix: \n', adjacency_matrix)
     return (
         G,
         np.array(movies_features),
@@ -135,7 +139,7 @@ def generate_movie_lense_graph(
         adjacency_matrix,
         user_freq_dic,
         movies_features,
-        preference_matrix
+        preference_matrix,
     )
 
 
@@ -222,7 +226,7 @@ def generate_osbm_data_geometric(
     edges, users, movies = None, None, None
     if "movielense" in graph_family:
         users, movies, edges, feature_weights = parse_movie_lense_dataset()
-        np.random.seed(100)
+        np.random.seed(2000)
         movies_id = np.array(list(movies.keys())).flatten()
         sampled_movies = list(np.random.choice(movies_id, size=u_size, replace=False))
         g = generate_movie_lense_graph
@@ -235,7 +239,7 @@ def generate_osbm_data_geometric(
             adjacency_matrix,
             user_freq,
             movies_features,
-            preference_matrix
+            preference_matrix,
         ) = g(
             u_size,
             v_size,
@@ -247,7 +251,6 @@ def generate_osbm_data_geometric(
             seed + i,
             vary_fixed,
         )
-
         g1.add_node(
             -1, bipartite=0
         )  # add extra node in U that represents not matching the current node to anything
@@ -256,10 +259,22 @@ def generate_osbm_data_geometric(
         data.x = torch.tensor(
             np.concatenate((movie_features.flatten(), user_features.flatten()))
         )
-        data.y = solve_submodular_matching(u_size, len(user_freq), adjacency_matrix, user_freq, movies_features, preference_matrix)
+        optimal_sol = solve_submodular_matching(
+            u_size,
+            len(user_freq),
+            adjacency_matrix,
+            user_freq,
+            movies_features,
+            preference_matrix,
+            v_size,
+        )
+        data.y = torch.cat(
+            (torch.tensor([optimal_sol[0]]), torch.tensor(optimal_sol[1]))
+        )
         if save_data:
             torch.save(
-                data, "{}/data_{}.pt".format(dataset_folder, i),
+                data,
+                "{}/data_{}.pt".format(dataset_folder, i),
             )
         else:
             D.append(data)
@@ -298,6 +313,7 @@ def generate_edge_obm_data_geometric(
         np.random.seed(100)
         rep = graph_family == "gmission"
         workers = list(np.random.choice(np.arange(1, 533), size=u_size, replace=rep))
+        # random.shuffle(workers)  # TODO: REMOVE
         if graph_family == "gmission-max":
             tasks = reduced_tasks
             workers = np.random.choice(reduced_workers, size=u_size, replace=False)
@@ -340,7 +356,8 @@ def generate_edge_obm_data_geometric(
         data.y = torch.tensor(optimal).float()  # tuple of optimla and size of matching
         if save_data:
             torch.save(
-                data, "{}/data_{}.pt".format(dataset_folder, i),
+                data,
+                "{}/data_{}.pt".format(dataset_folder, i),
             )
         else:
             D.append(data)
@@ -353,7 +370,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "--problem", type=str, default="obm", help="Problem: 'obm', 'e-obm', 'osbm'",
+        "--problem",
+        type=str,
+        default="obm",
+        help="Problem: 'obm', 'e-obm', 'osbm'",
     )
     parser.add_argument(
         "--weight_distribution",
@@ -368,23 +388,33 @@ if __name__ == "__main__":
         help="parameters of weight distribtion ",
     )
     parser.add_argument(
-        "--max_weight", type=int, default=4000, help="max weight in graph",
+        "--max_weight",
+        type=int,
+        default=4000,
+        help="max weight in graph",
     )
 
     parser.add_argument(
         "--dataset_size", type=int, default=100, help="Size of the dataset"
     )
     # parser.add_argument(
-    #     "--save_format", type=str, default='train', help="Save a dataset as one pickle file or one file for each example (for training)"
+    #     "--save_format", type=str, default='train', help="Save a dataset as one pickle file or one file for
+    # each example (for training)"
     # )
     parser.add_argument(
         "--dataset_folder", type=str, default="dataset/train", help="dataset folder"
     )
     parser.add_argument(
-        "--u_size", type=int, default=10, help="Sizes of U set (default 10 by 10)",
+        "--u_size",
+        type=int,
+        default=10,
+        help="Sizes of U set (default 10 by 10)",
     )
     parser.add_argument(
-        "--v_size", type=int, default=10, help="Sizes of V set (default 10 by 10)",
+        "--v_size",
+        type=int,
+        default=10,
+        help="Sizes of V set (default 10 by 10)",
     )
     parser.add_argument(
         "--graph_family",

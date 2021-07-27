@@ -88,3 +88,10 @@ target/
 .mypy_cache/
 data/__pycache__/generate_data.cpython-38.pyc
 dataset/eval/*
+dataset/*
+logs/*
+outputs/*
+*.png
+saved_models/*
+logs_dataset/*
+*.pt

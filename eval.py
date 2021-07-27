@@ -58,7 +58,8 @@ def get_model_op_ratios(opts, model, problem):
 
 def get_models_op_ratios(opts, models, problem):
     """
-    given the model, run the model trained on a parameter on the evaluation dataset for that parameter and return the optmiality ratios
+    given the model, run the model trained on a parameter on the evaluation dataset for
+    that parameter and return the optmiality ratios
     """
     # get the path to the test set dir
     ops = []
@@ -95,7 +96,7 @@ def plot_box(opts, data):
     f = plt.figure()
     # plt.xlabel("Graph family parameter")
     # plt.ylabel("Optimality ratio")
-    # plt.title("Bipartite graphs of size {}by{}".format(opts.u_size, opts.v_size))
+    # plt.title("Bipartite graphs of size {}×{}".format(opts.u_size, opts.v_size))
     ticks = ["0.05", "0.1", "0.15", "0.2"]
     i = 0
     m = ["greedy"] + opts.eval_models
@@ -111,7 +112,7 @@ def plot_box(opts, data):
         b = sns.boxplot(
             data=data_p, x="Model", y="Average Optimality Ratio", linewidth=3, width=0.5
         )
-        b.set_title(f"{opts.problem} {opts.graph_family} {opts.u_size}by{opts.v_size}")
+        b.set_title(f"{opts.problem} {opts.graph_family} {opts.u_size}×{opts.v_size}")
         # b.set_xlabel("Model", fontsize=15)
         # b.set_ylabel("Average Optimality Ratio", fontsize=15)
 
@@ -138,7 +139,7 @@ def plot_box(opts, data):
             data=data_p, x="p", y="Average Optimality Ratio", hue="Model", linewidth=3
         )
 
-        b.set_title(f"{opts.problem} {opts.graph_family} {opts.u_size}by{opts.v_size}")
+        b.set_title(f"{opts.problem} {opts.graph_family} {opts.u_size}×{opts.v_size}")
         # b.set_xlabel("Model", fontsize=15)
         # b.set_ylabel("Average Optimality Ratio", fontsize=15)
 
@@ -150,8 +151,11 @@ def plot_box(opts, data):
 
     plt.savefig(
         opts.eval_output
-        + "/{}_{}_{}by{}_boxplot".format(
-            opts.problem, opts.graph_family, opts.u_size, opts.v_size,
+        + "/{}_{}_{}×{}_boxplot".format(
+            opts.problem,
+            opts.graph_family,
+            opts.u_size,
+            opts.v_size,
         ).replace(" ", "")
     )
 
@@ -173,7 +177,7 @@ def plot_agreemant(opts, data, with_opt=False):
     fig, axs = plt.subplots(
         ncols=1, nrows=len(opts.eval_set), sharex=True, sharey=True, figsize=(8, 10)
     )
-    fig.suptitle("Agreemant plots for {}by{} graphs".format(opts.u_size, opts.v_size))
+    fig.suptitle("Agreemant plots for {}×{} graphs".format(opts.u_size, opts.v_size))
     plots = []
     for j, d in enumerate(data):
         c = colors[j]
@@ -199,7 +203,7 @@ def plot_agreemant(opts, data, with_opt=False):
         s = "_with_opt"
     plt.savefig(
         opts.eval_output
-        + "/{}_{}_{}_{}_{}by{}_agreemantplot{}".format(
+        + "/{}_{}_{}_{}_{}×{}_agreemantplot{}".format(
             opts.problem,
             opts.graph_family,
             opts.weight_distribution,
@@ -263,7 +267,7 @@ def initialize_models(opts, models, load_datas, Model):
         if opts.use_cuda and torch.cuda.device_count() > 1:
             model = torch.nn.DataParallel(model)
 
-        # Overwrite model parameters by parameters to load
+        # Overwrite model parameters × parameters to load
         model_ = get_inner_model(model)
         model_.load_state_dict(
             {**model_.state_dict(), **load_datas[m].get("model", {})}
@@ -360,13 +364,13 @@ def test_transeferability(opts, models, greedy, problem):
                     wil,
                 ) = evaluate([m, greedy], eval_dataloader, opts)
                 data["Model"].append(m.model_name)
-                data["Graph Size"].append(f"{g[0]}by{g[1]}")
+                data["Graph Size"].append(f"{g[0]}×{g[1]}")
                 data["Average Optimality Ratio"].append(avg_cr.item())
                 g_list.append(avg_cr.item())
         data_matrix.append(g_list)
         # else:
         #     data["Model"].append(m.model_name)
-        #     data["Graph Size"].append(f"{g[0]}by{g[1]}")
+        #     data["Graph Size"].append(f"{g[0]}×{g[1]}")
         #     data["Average Optimality Ratio"].append(0.0)
     data = pd.DataFrame(data)
     # b = sns.catplot(
@@ -377,6 +381,7 @@ def test_transeferability(opts, models, greedy, problem):
     #     legend_out=False,
     #     height=7,
     # )
+
     data_matrix = np.array(
         torch.load(
             opts.eval_output
@@ -386,16 +391,27 @@ def test_transeferability(opts, models, greedy, problem):
         )
     )
     # b = sns.heatmap(data=data_matrix, annot=True, fmt="d")
-    g_sizes = ["10by30", "10by60", "100by100", "100by200"]
+    g_sizes = ["10×30", "10×60", "100×100", "100×200"]
     fig, ax = plt.subplots()
-
+    d1 = data_matrix.copy()
+    data_matrix = 1.0 - data_matrix
+    data_matrix[d1 == 0.0] = 0.1
     ax.imshow(data_matrix)
 
+    models = [
+        "greedy",
+        "inv-ff",
+        "ff",
+        "ff-hist",
+        "ff-supervised",
+        "inv-ff-hist",
+        "gnn-hist",
+    ]
     # We want to show all ticks...
     ax.set_xticks(np.arange(len(models)))
     ax.set_yticks(np.arange(len(g_sizes)))
     # ... and label them with the respective list entries
-    ax.set_xticklabels(list(m.model_name for m in models))
+    ax.set_xticklabels(list(m for m in models))
     ax.set_yticklabels(g_sizes)
 
     # Rotate the tick labels and set their alignment.
@@ -404,22 +420,26 @@ def test_transeferability(opts, models, greedy, problem):
     # Loop over data dimensions and create text annotations.
     for i in range(len(g_sizes)):
         for j in range(len(models)):
-            num = str(data_matrix[i, j])[:4] if data_matrix[i, j] != 0 else "-"
-            ax.text(j, i, num, ha="center", va="center", color="w")
+            num = str(d1[i, j])[:4] if d1[i, j] != 0.0 else "-"
+            ax.text(j, i, num, ha="center", va="center", color="w", fontsize=12)
 
     fig.tight_layout()
     # b.set_xticklabels(size=11)
     # b.set_ylabels(size=15)
     # b.set_xlabels(size=15)
     ax.set_title(
-        f"Graph Transferability Trained On {trained_on[0]}by{trained_on[1]}",
+        f"Graph Transferability Trained On {trained_on[0]}×{trained_on[1]}",
         fontsize=20,
     )
     plt.savefig(
         opts.eval_output
-        + "/{}_{}_{}by{}_graph_transfer".format(
-            opts.problem, opts.graph_family, trained_on[0], trained_on[1],
-        ).replace(" ", "")
+        + "/{}_{}_{}×{}_graph_transfer".format(
+            opts.problem,
+            opts.graph_family,
+            trained_on[0],
+            trained_on[1],
+        ).replace(" ", ""),
+        dpi=200,
     )
     return
 
@@ -537,7 +557,7 @@ def run(opts):
                         problem,
                     )
                 )
-        # results = []
+
         results = [
             np.array(baseline_results[i]) for i in range(len(baseline_results))
         ] + [

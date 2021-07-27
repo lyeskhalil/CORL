@@ -5,7 +5,6 @@ import torch
 import math
 import matplotlib.pyplot as plt
 
-from torch.utils.data import DataLoader
 from torch.nn import DataParallel
 
 from utils.log_utils import log_values
@@ -111,9 +110,15 @@ def rollout_eval(models, dataset, opts):
     model.eval()
 
     def eval_model_bat(bat, optimal):
+        bat = move_to(bat, opts.device)
+        if opts.problem == "osbm":
+            matchings = bat.y.reshape(opts.batch_size, opts.v_size + 1)[:, 1:]
+            opt_size = bat.y.reshape(opts.batch_size, opts.v_size + 1)[:, 0]
+        else:
+            matchings = bat.x.reshape(opts.batch_size, opts.v_size)
+            opt_size = bat.y
         with torch.no_grad():
             if model.model_name == "supervised" or model.model_name == "ff-supervised":
-                matchings = bat.x.reshape(opts.batch_size, opts.v_size).to(opts.device)
                 cost, _, a, _ = model(move_to(bat, opts.device), matchings, opts, False)
             else:
                 cost, _, a, _ = model(
@@ -143,14 +148,15 @@ def rollout_eval(models, dataset, opts):
             w, p = wilcoxon(
                 -cost.squeeze().cpu(), -cost1.squeeze().cpu(), alternative="greater"
             )
-        cr = -cost.data.flatten() / move_to(bat.y + (bat.y == 0).float(), opts.device)
+        cr = -cost.data.flatten() / move_to(
+            opt_size + (opt_size == 0).float(), opts.device
+        )
         # print(
         #     "\nBatch Competitive ratio: ", min(cr).item(),
         # )
-        num_agree_opt = (a == bat.x.reshape(a.size(0), -1)).float().sum(0)
-        greedy_agree_opt = (a1 == bat.x.reshape(a.size(0), -1)).float().sum(0)
-        # num_agree_opt = torch.tensor([0])
-        # greedy_agree_opt = torch.tensor([0])
+
+        num_agree_opt = (a == matchings).float().sum(0)
+        greedy_agree_opt = (a1 == matchings).float().sum(0)
         return (
             cost.data.cpu(),
             cr,
@@ -213,10 +219,15 @@ def rollout(model, dataset, opts):
 
     def eval_model_bat(bat, optimal):
         batch_loss = 0
+        bat = move_to(bat, opts.device)
+        if opts.problem == "osbm":
+            matchings = bat.y.reshape(opts.batch_size, opts.v_size + 1)[:, 1:]
+            opt_size = bat.y.reshape(opts.batch_size, opts.v_size + 1)[:, 0]
+        else:
+            matchings = bat.x.reshape(opts.batch_size, opts.v_size)
+            opt_size = bat.y
         with torch.no_grad():
-            bat = move_to(bat, opts.device)
             if opts.model == "supervised" or opts.model == "ff-supervised":
-                matchings = bat.x.reshape(opts.batch_size, opts.v_size)
                 cost, _, _, batch_loss = model(bat, matchings, opts, False)
             else:
                 cost, *_ = model(bat, opts, None, None)
@@ -224,7 +235,9 @@ def rollout(model, dataset, opts):
         # print(-cost.data.flatten())
         # print(bat[-1])
 
-        cr = (-cost.data.flatten()) / move_to(bat.y + (bat.y == 0).float(), opts.device)
+        cr = (-cost.data.flatten()) / move_to(
+            opt_size + (opt_size == 0).float(), opts.device
+        )
         # print(
         #     "\nBatch Competitive ratio: ", min(cr).item(),
         # )
@@ -513,7 +526,10 @@ def train_batch_supervised(
 ):
     # Evaluate model, get costs and log probabilities
     batch = move_to(batch, opts.device)
-    matchings = batch.x.reshape(opts.batch_size, opts.v_size)
+    if opts.problem == "e-obm":
+        matchings = batch.x.reshape(opts.batch_size, opts.v_size)
+    else:
+        matchings = batch.y.reshape(opts.batch_size, opts.v_size + 1)[:, 1:]
     # print("batch.y ", batch.y)
     cost, log_likelihood, e, batch_loss = model(
         batch, matchings, opts, optimizers, training=True

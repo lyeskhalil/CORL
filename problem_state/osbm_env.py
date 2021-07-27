@@ -2,8 +2,6 @@ import torch
 from typing import NamedTuple
 from torch_geometric.utils import to_dense_adj, sort_edge_index
 
-# from utils.boolmask import mask_long2bool, mask_long_scatter
-
 
 class StateOSBM(NamedTuple):
     # Fixed input
@@ -33,7 +31,10 @@ class StateOSBM(NamedTuple):
 
     @staticmethod
     def initialize(
-        input, u_size, v_size, opts,
+        input,
+        u_size,
+        v_size,
+        opts,
     ):
         num_genres = 15
         num_users = 200
@@ -50,14 +51,14 @@ class StateOSBM(NamedTuple):
             (torch.zeros(batch_size, 1, num_genres, device=opts.device), u_features),
             dim=1,
         )
-        print(u_features)
+        # print(u_features)
         offset = u_size * num_genres
 
         v_features = input.x.reshape(batch_size, -1)[:, offset:].reshape(
             batch_size, v_size, -1
         )
         idx = torch.arange(adj.shape[1], device=opts.device)
-        print(v_features)
+        # print(v_features)
         # permute the nodes for data
         #        if "supervised" not in opts.model and not opts.eval_only:
         #            idx = torch.randperm(adj.shape[1], device=opts.device)
@@ -75,16 +76,35 @@ class StateOSBM(NamedTuple):
             v_size=v_size,
             batch_size=batch_size,
             matched_nodes=(
-                torch.zeros(batch_size, u_size + 1, device=input.batch.device,)
+                torch.zeros(
+                    batch_size,
+                    u_size + 1,
+                    device=input.batch.device,
+                )
             ),
             hist_sum=(
-                torch.zeros(batch_size, 1, u_size + 1, device=input.batch.device,)
+                torch.zeros(
+                    batch_size,
+                    1,
+                    u_size + 1,
+                    device=input.batch.device,
+                )
             ),
             hist_deg=(
-                torch.zeros(batch_size, 1, u_size + 1, device=input.batch.device,)
+                torch.zeros(
+                    batch_size,
+                    1,
+                    u_size + 1,
+                    device=input.batch.device,
+                )
             ),
             hist_sum_sq=(
-                torch.zeros(batch_size, 1, u_size + 1, device=input.batch.device,)
+                torch.zeros(
+                    batch_size,
+                    1,
+                    u_size + 1,
+                    device=input.batch.device,
+                )
             ),
             min_sol=torch.zeros(batch_size, 1, device=input.batch.device),
             max_sol=torch.zeros(batch_size, 1, device=input.batch.device),
@@ -257,7 +277,14 @@ class StateOSBM(NamedTuple):
                 self.batch_size, self.u_size + 1, 1, device=opts.device
             ).float()
             fixed_node_identity[:, 0, :] = 1.0
-            s = torch.cat((fixed_node_identity, s, mean_w,), dim=2,)
+            s = torch.cat(
+                (
+                    fixed_node_identity,
+                    s,
+                    mean_w,
+                ),
+                dim=2,
+            )
         elif model == "ff-hist" or model == "ff-supervised":
             (
                 h_mean,
