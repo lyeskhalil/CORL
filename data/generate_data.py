@@ -43,16 +43,17 @@ def generate_ba_graph(
 
     for v_node in range(v):
         degree_v = np.random.binomial(
-            u, float(graph_family_parameter) / v
+            u, float(graph_family_parameter) / u
         )  # number of neighbours of v
-
-        for _ in range(degree_v):
+        mu = (1 + u_deg_list) / (u + np.sum(u_deg_list))
+        num_added = 0
+        while num_added < degree_v:
             # update current degree of offline nodes
-            mu = (1 + u_deg_list) / (u + np.sum(u_deg_list))
             u_node = np.random.choice(np.arange(0, u), p=list(mu))
             if (u_node, u + v_node) not in G.edges:
                 G.add_edge(u_node, u + v_node)
                 u_deg_list[u_node] += 1
+                num_added += 1
 
     weights, w = generate_weights_geometric(
         weight_distribution, u, v, weight_param, G, seed
@@ -62,6 +63,7 @@ def generate_ba_graph(
     edges = sorted(list(G.edges), key=lambda e: e[0])
     nx.set_edge_attributes(G, dict(zip(edges, d)))
     # print('weights: ', weights)
+    # print(u_deg_list, u_deg_list.mean())
 
     return G, weights, w
 
