@@ -25,10 +25,25 @@ class GreedyRt(nn.Module):
         self.decode_type = None
         self.problem = problem
         self.model_name = "greedy-rt"
-        max_weight_dict = {"gmission-var": 18.8736, "gmission": 18.8736, "er": 100.0}
-        norm_weight = {"gmission-var": 18.8736, "gmission": 18.8736, "er": 100.0}
-        self.max_weight = max_weight_dict[opts.graph_family]
-        self.norm_weights = norm_weight[opts.graph_family]
+        max_weight_dict = {
+            "gmission-var": 18.8736,
+            "gmission": 18.8736,
+            "er": 100.0,
+            "ba": float(opts.graph_family_parameter)
+            + float(opts.weight_distribution_param[1]),
+        }
+        norm_weight = {
+            "gmission-var": 18.8736,
+            "gmission": 18.8736,
+            "er": 100.0,
+            "ba": 100.0,
+        }
+        if opts.graph_family == "gmission-perm":
+            graph_family = "gmission"
+        else:
+            graph_family = opts.graph_family
+        self.max_weight = max_weight_dict[graph_family]
+        self.norm_weights = norm_weight[graph_family]
 
     def forward(self, x, opts, optimizer, baseline, return_pi=False):
         state = self.problem.make_state(x, opts.u_size, opts.v_size, opts)

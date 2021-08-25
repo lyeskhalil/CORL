@@ -95,17 +95,14 @@ class FeedForwardModelHist(nn.Module):
         state = self.problem.make_state(input, opts.u_size, opts.v_size, opts)
 
         i = 1.0
-
         while not (state.all_finished()):
             mask = state.get_mask()
             state.get_current_weights(mask)
 
             s, mask = state.get_curr_state(self.model_name)
-
             pi = self.ff(s)
             # Select the indices of the next nodes in the sequences, result (batch_size) long
             selected, p = self._select_node(pi, mask.bool())
-
             state = state.update((selected)[:, None])
             outputs.append(p)
             sequences.append(selected)
