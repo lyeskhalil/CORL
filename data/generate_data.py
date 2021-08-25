@@ -10,13 +10,12 @@ from data.data_utils import (
     generate_weights_geometric,
 )
 import networkx as nx
-from IPsolvers.IPsolver import solve_submodular_matching
+#from IPsolvers.IPsolver import solve_submodular_matching
 from scipy.optimize import linear_sum_assignment
 import torch
 from tqdm import tqdm
 
 
-<<<<<<< HEAD
 def generate_ba_graph(
     u,
     v,
@@ -29,9 +28,6 @@ def generate_ba_graph(
     weight_param,
     vary_fixed=False,
     ):
-=======
-def generate_ba_graph(u, v, p, seed):
->>>>>>> 02ee8e75fe1129e45961c16b3ac9f53f89204458
     """
     Genrates a graph using the preferential attachment scheme
     """
@@ -51,7 +47,7 @@ def generate_ba_graph(u, v, p, seed):
             mu = (1 + u_deg_list) / (u + np.sum(u_deg_list))
             u_node = np.random.choice(np.arange(0, u), p=list(mu))
             if (u_node, u_node + v_node) not in G.edges:
-                G.add_edge(u_node, u_node + v_node)
+                G.add_edge(u_node, u + v_node)
                 u_deg_list[u_node] += 1
 
     weights, w = generate_weights_geometric(
@@ -61,7 +57,7 @@ def generate_ba_graph(u, v, p, seed):
     d = [dict(weight=float(i)) for i in list(w)]
     nx.set_edge_attributes(G, dict(zip(list(G.edges), d)))
 
-    print('\nu_deg_list: ', u_deg_list)
+    #print('\nu_deg_list: ', u_deg_list)
     #print('weights: ', weights)
 
     return G, weights, w
