@@ -127,8 +127,8 @@ class SupervisedFFModel(nn.Module):
             # s = w
             pi = self.ff(s)
             # Select the indices of the next nodes in the sequences, result (batch_size) long
-            if training:
-                mask = torch.zeros(mask.shape, device=opts.device)
+            # if training:
+            #     mask = torch.zeros(mask.shape, device=opts.device)
             selected, p = self._select_node(
                 pi,
                 mask.bool(),
@@ -157,7 +157,6 @@ class SupervisedFFModel(nn.Module):
             # print("Loss: ", loss)
             # keep track for logging
             total_loss += loss
-
             i += 1
         # Collected lists, return Tensor
         batch_loss = total_loss / state.v_size
@@ -185,7 +184,7 @@ class SupervisedFFModel(nn.Module):
             mask
         ] = (
             -1e6
-        )  # TODO: Masking doesn't really make sense with supervised since input samples are independent, should only masking during testing.
+        )  # Masking doesn't really make sense with supervised since input samples are independent, should only masking during testing.
         _, selected = p.max(1)
         return selected, p
 

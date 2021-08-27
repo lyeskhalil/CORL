@@ -17,45 +17,50 @@ class GreedyRt(nn.Module):
         normalization=None,
         checkpoint_encoder=False,
         shrink_size=None,
-        n_heads=None,
         num_actions=None,
+        n_heads=None,
         encoder=None,
     ):
         super(GreedyRt, self).__init__()
         self.decode_type = None
-        self.allow_partial = problem.NAME == "sdvrp"
-        self.is_vrp = problem.NAME == "cvrp" or problem.NAME == "sdvrp"
-        self.is_orienteering = problem.NAME == "op"
-        self.is_pctsp = problem.NAME == "pctsp"
-        self.is_bipartite = problem.NAME == "bipartite"
-        self.is_tsp = problem.NAME == "tsp"
         self.problem = problem
+        self.model_name = "greedy-rt"
+        max_weight_dict = {"gmission-var": 18.8736, "gmission": 18.8736, "er": 100.0}
+        norm_weight = {"gmission-var": 18.8736, "gmission": 18.8736, "er": 100.0}
+        self.max_weight = max_weight_dict[opts.graph_family]
+        self.norm_weights = norm_weight[opts.graph_family]
 
-    def forward(self, x, opts):
+    def forward(self, x, opts, optimizer, baseline, return_pi=False):
         state = self.problem.make_state(x, opts.u_size, opts.v_size, opts)
         t = torch.tensor(
             np.e
             ** np.random.randint(
-                1, np.ceil(np.log(1 + opts.max_weight)), (opts.batch_size, 1)
+                1, np.ceil(np.log(1 + self.max_weight)), (opts.batch_size, 1)
             ),
             device=opts.device,
         )
         sequences = []
         while not (state.all_finished()):
-            v = state.i.item() - (state.u_size.item() + 1)
-            w = (state.weights[:, v, :].clone()).float()
+            mask = state.get_mask()
+            w = state.get_current_weights(mask).clone()
             mask = state.get_mask()
             w[mask.bool()] = 0.0
-            temp = w.clone()
+            temp = (
+                w * self.norm_weights
+            )  # re-normalize the weights since they are mostly between 0 and 1.
+            temp[
+                temp > 0.0
+            ] += 1.0  # To make sure all weights are at least 1 (needed for greedy-rt to work).
             w[temp >= t] = 1.0
             w[temp < t] = 0.0
-            # m = (1. - (w == torch.zeros(1, w.size(1))).long()).sum(1)
             w[w.sum(1) == 0, 0] = 1.0
             selected = (w / torch.sum(w, dim=1)[:, None]).multinomial(1)
             state = state.update(selected)
 
-            sequences.append(selected)
-        return -state.size / state.v_size.item(), torch.stack(sequences, 1)
+            sequences.append(selected.squeeze(1))
+        if return_pi:
+            return -state.size, None, torch.stack(sequences, 1), None
+        return -state.size, torch.stack(sequences, 1), None
 
     def set_decode_type(self, decode_type, temp=None):
         self.decode_type = decode_type

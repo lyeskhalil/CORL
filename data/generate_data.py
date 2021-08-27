@@ -15,6 +15,8 @@ from scipy.optimize import linear_sum_assignment
 import torch
 from tqdm import tqdm
 
+gmission_fixed_workers = [229, 521, 527, 80, 54, 281, 508, 317, 94, 351]
+
 
 def generate_ba_graph(
     u,
@@ -27,7 +29,11 @@ def generate_ba_graph(
     weight_distribution,
     weight_param,
     vary_fixed=False,
+<<<<<<< HEAD
     ):
+=======
+):
+>>>>>>> b66311c74d3ca1cae0b60e719a1014d16443fdc1
     """
     Genrates a graph using the preferential attachment scheme
     """
@@ -40,25 +46,39 @@ def generate_ba_graph(
     u_deg_list = np.zeros(u)
 
     for v_node in range(v):
-        degree_v = np.random.binomial(u, float(graph_family_parameter) / v) #number of neighbours of v
-
-        for _ in range(degree_v):
-            #update current degree of offline nodes
-            mu = (1 + u_deg_list) / (u + np.sum(u_deg_list))
+        degree_v = np.random.binomial(
+            u, float(graph_family_parameter) / u
+        )  # number of neighbours of v
+        mu = (1 + u_deg_list) / (u + np.sum(u_deg_list))
+        num_added = 0
+        while num_added < degree_v:
+            # update current degree of offline nodes
             u_node = np.random.choice(np.arange(0, u), p=list(mu))
+<<<<<<< HEAD
             if (u_node, u_node + v_node) not in G.edges:
+=======
+            if (u_node, u + v_node) not in G.edges:
+>>>>>>> b66311c74d3ca1cae0b60e719a1014d16443fdc1
                 G.add_edge(u_node, u + v_node)
                 u_deg_list[u_node] += 1
+                num_added += 1
 
     weights, w = generate_weights_geometric(
         weight_distribution, u, v, weight_param, G, seed
     )
-
     d = [dict(weight=float(i)) for i in list(w)]
+<<<<<<< HEAD
     nx.set_edge_attributes(G, dict(zip(list(G.edges), d)))
 
     #print('\nu_deg_list: ', u_deg_list)
     #print('weights: ', weights)
+=======
+    edges = sorted(list(G.edges), key=lambda e: e[1])
+    edges = sorted(list(G.edges), key=lambda e: e[0])
+    nx.set_edge_attributes(G, dict(zip(edges, d)))
+    # print('weights: ', weights)
+    # print(u_deg_list, u_deg_list.mean())
+>>>>>>> b66311c74d3ca1cae0b60e719a1014d16443fdc1
 
     return G, weights, w
 
@@ -307,7 +327,7 @@ def generate_edge_obm_data_geometric(
         max_w = max(np.array(list(edges.values()), dtype="float"))
         edges = {k: (float(v) / float(max_w)) for k, v in edges.items()}
         np.random.seed(100)
-        rep = graph_family == "gmission"
+        rep = graph_family == "gmission" and u_size == 10
         workers = list(np.random.choice(np.arange(1, 533), size=u_size, replace=rep))
         # random.shuffle(workers)  # TODO: REMOVE
         if graph_family == "gmission-max":
