@@ -25,7 +25,11 @@ class FeedForwardModel(nn.Module):
 
         self.embedding_dim = embedding_dim
         self.decode_type = None
-        self.num_actions = 2 * (opts.u_size + 1)
+        self.num_actions = (
+            2 * (opts.u_size + 1)
+            if opts.problem != "adwords"
+            else 3 * (opts.u_size + 1)
+        )
         self.is_bipartite = problem.NAME == "bipartite"
         self.problem = problem
         self.shrink_size = None
