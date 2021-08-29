@@ -14,6 +14,7 @@ import networkx as nx
 from scipy.optimize import linear_sum_assignment
 import torch
 from tqdm import tqdm
+import random
 
 gmission_fixed_workers = [229, 521, 527, 80, 54, 281, 508, 317, 94, 351]
 
@@ -298,6 +299,84 @@ def generate_osbm_data_geometric(
     return (list(D), torch.tensor(M), torch.tensor(S))
 
 
+def generate_adwords_data_geometric(
+    u_size,
+    v_size,
+    weight_distribution,
+    weight_param,
+    graph_family_parameter,
+    seed,
+    graph_family,
+    dataset_folder,
+    dataset_size,
+    save_data,
+):
+    """
+    Generates edge weighted bipartite graphs using the ER/BA schemes in pytorch geometric format
+
+    Supports uniformm, normal, and power distributions.
+    """
+    D, M, S = [], [], []
+    vary_fixed = False
+    edges, users, movies = None, None, None
+    if "movielense" in graph_family:
+        users, movies, edges, feature_weights = parse_movie_lense_dataset()
+        np.random.seed(2000)
+        movies_id = np.array(list(movies.keys())).flatten()
+        sampled_movies = list(np.random.choice(movies_id, size=u_size, replace=False))
+        g = generate_movie_lense_graph
+        vary_fixed = "var" in graph_family
+    for i in tqdm(range(dataset_size)):
+        (
+            g1,
+            movie_features,
+            user_features,
+            adjacency_matrix,
+            user_freq,
+            movies_features,
+            preference_matrix,
+        ) = g(
+            u_size,
+            v_size,
+            users,
+            edges,
+            movies,
+            sampled_movies,
+            feature_weights,
+            seed + i,
+            vary_fixed,
+        )
+        g1.add_node(
+            -1, bipartite=0
+        )  # add extra node in U that represents not matching the current node to anything
+        g1.add_edges_from(list(zip([-1] * v_size, range(u_size, u_size + v_size))))
+        data = from_networkx(g1)
+        data.x = torch.tensor(
+            np.concatenate((movie_features.flatten(), user_features.flatten()))
+        )
+        optimal_sol = solve_submodular_matching(
+            u_size,
+            len(user_freq),
+            adjacency_matrix,
+            user_freq,
+            movies_features,
+            preference_matrix,
+            v_size,
+        )
+        data.y = torch.cat(
+            (torch.tensor([optimal_sol[0]]), torch.tensor(optimal_sol[1]))
+        )
+        if save_data:
+            torch.save(
+                data,
+                "{}/data_{}.pt".format(dataset_folder, i),
+            )
+        else:
+            D.append(data)
+        # ordered_m = np.take(np.take(m, order, axis=1), order, axis=0)
+    return (list(D), torch.tensor(M), torch.tensor(S))
+
+
 def generate_edge_obm_data_geometric(
     u_size,
     v_size,
@@ -329,7 +408,8 @@ def generate_edge_obm_data_geometric(
         np.random.seed(100)
         rep = graph_family == "gmission" and u_size == 10
         workers = list(np.random.choice(np.arange(1, 533), size=u_size, replace=rep))
-        # random.shuffle(workers)  # TODO: REMOVE
+        if graph_family == "gmission-perm":
+            random.shuffle(workers)  # TODO: REMOVE
         if graph_family == "gmission-max":
             tasks = reduced_tasks
             workers = np.random.choice(reduced_workers, size=u_size, replace=False)
@@ -389,7 +469,7 @@ if __name__ == "__main__":
         "--problem",
         type=str,
         default="obm",
-        help="Problem: 'obm', 'e-obm', 'osbm'",
+        help="Problem: 'e-obm', 'osbm', 'adwords'",
     )
     parser.add_argument(
         "--weight_distribution",
@@ -499,7 +579,18 @@ if __name__ == "__main__":
             True,
         )
     elif opts.problem == "adwords":
-        pass
+        dataset = generate_adwords_data_geometric(
+            opts.u_size,
+            opts.v_size,
+            opts.weight_distribution,
+            opts.weight_distribution_param,
+            opts.graph_family_parameter,
+            opts.seed,
+            opts.graph_family,
+            opts.dataset_folder,
+            opts.dataset_size,
+            True,
+        )
     elif opts.problem == "displayads":
         pass
     else:

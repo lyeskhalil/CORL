@@ -51,7 +51,11 @@ class SupervisedFFModel(nn.Module):
 
         self.embedding_dim = embedding_dim
         self.decode_type = None
-        self.num_actions = 5 * (opts.u_size + 1) + 8
+        self.num_actions = self.num_actions = (
+            5 * (opts.u_size + 1) + 8
+            if opts.problem != "adwords"
+            else 7 * (opts.u_size + 1) + 8
+        )
         self.is_bipartite = problem.NAME == "bipartite"
         self.problem = problem
         self.shrink_size = None
@@ -122,7 +126,7 @@ class SupervisedFFModel(nn.Module):
         total_loss = 0
         while not (state.all_finished()):
             mask = state.get_mask()
-            state.get_current_weights(mask)
+            w = state.get_current_weights(mask)
             s, mask = state.get_curr_state(self.model_name)
             # s = w
             pi = self.ff(s)

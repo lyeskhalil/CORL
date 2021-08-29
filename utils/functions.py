@@ -1,20 +1,24 @@
-import warnings
 import torch
 import numpy as np
 import os
-import json
 from tqdm import tqdm
 from multiprocessing.dummy import Pool as ThreadPool
 from multiprocessing import Pool
 from problem_state.obm_dataset import Bipartite
 from problem_state.edge_obm_dataset import EdgeBipartite
 from problem_state.osbm_dataset import OSBM
+from problem_state.adwords_dataset import AdwordsBipartite
 import torch.nn.functional as F
 
 
 def load_problem(name):
 
-    problem = {"obm": Bipartite, "e-obm": EdgeBipartite, "osbm": OSBM}.get(name, None)
+    problem = {
+        "obm": Bipartite,
+        "e-obm": EdgeBipartite,
+        "osbm": OSBM,
+        "adwords": AdwordsBipartite,
+    }.get(name, None)
     assert problem is not None, "Currently unsupported problem: {}!".format(name)
     return problem
 

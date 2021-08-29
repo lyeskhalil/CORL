@@ -25,12 +25,12 @@ class InvariantFF(nn.Module):
 
         self.embedding_dim = embedding_dim
         self.decode_type = None
-        self.num_actions = 2 * (opts.u_size + 1)
+        self.num_actions = 3 if opts.problem != "adwords" else 4
         self.is_bipartite = problem.NAME == "bipartite"
         self.problem = problem
         self.shrink_size = None
         self.ff = nn.Sequential(
-            nn.Linear(3, 100),
+            nn.Linear(self.num_actions, 100),
             nn.ReLU(),
             nn.Linear(100, 100),
             nn.ReLU(),

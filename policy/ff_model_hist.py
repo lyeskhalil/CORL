@@ -26,10 +26,12 @@ class FeedForwardModelHist(nn.Module):
 
         self.embedding_dim = embedding_dim
         self.decode_type = None
-        self.num_actions = 5 * (opts.u_size + 1) + 8
-        self.is_bipartite = problem.NAME == "bipartite"
+        self.num_actions = (
+            5 * (opts.u_size + 1) + 8
+            if opts.problem != "adwords"
+            else 7 * (opts.u_size + 1) + 8
+        )
         self.problem = problem
-        self.shrink_size = None
         self.model_name = "ff-hist"
         hidden_size = 100
         self.ff = nn.Sequential(
@@ -41,11 +43,6 @@ class FeedForwardModelHist(nn.Module):
             nn.ReLU(),
             nn.Linear(hidden_size, opts.u_size + 1),
         )
-
-        def init_weights(m):
-            if type(m) == nn.Linear:
-                torch.nn.init.xavier_uniform_(m.weight)
-                m.bias.data.fill_(0.0001)
 
         # self.ff.apply(init_weights)
         # self.init_parameters()
@@ -95,17 +92,14 @@ class FeedForwardModelHist(nn.Module):
         state = self.problem.make_state(input, opts.u_size, opts.v_size, opts)
 
         i = 1.0
-
         while not (state.all_finished()):
             mask = state.get_mask()
             state.get_current_weights(mask)
 
             s, mask = state.get_curr_state(self.model_name)
-
             pi = self.ff(s)
             # Select the indices of the next nodes in the sequences, result (batch_size) long
             selected, p = self._select_node(pi, mask.bool())
-
             state = state.update((selected)[:, None])
             outputs.append(p)
             sequences.append(selected)
@@ -119,6 +113,7 @@ class FeedForwardModelHist(nn.Module):
 
     def _select_node(self, probs, mask):
         assert (probs == probs).all(), "Probs should not contain any nans"
+
         probs[mask] = -1e8
         p = torch.log_softmax(probs, dim=1)
         if self.decode_type == "greedy":
