@@ -3,10 +3,9 @@ from gurobipy import GRB
 import itertools
 import numpy as np
 
-
-def get_data(u_size, v_size, adjacency_matrix, prefrences):
+def get_data_adwords(u_size, v_size, adjacency_matrix):
     """
-    pre-process the data for groubi
+    pre-process the data for groubi for the adwords problem
     Reads data from the specfied file and writes the graph tensor into multu dict of the following form:
         combinations, ms= gp.multidict({
             ('u1','v1'):10,
@@ -14,6 +13,19 @@ def get_data(u_size, v_size, adjacency_matrix, prefrences):
             ('u2','v1'):9,
             ('u2','v2'):3
         })
+    """
+
+    adj_dic = {}
+
+    for u, v in itertools.product(range(u_size), range(v_size)):
+        adj_dic[(u, v)] = adjacency_matrix[u][v]
+
+    return gp.multidict(adj_dic)
+
+
+def get_data_osbm(u_size, v_size, adjacency_matrix, prefrences):
+    """
+    pre-process the data for groubi for the osbm problem
     """
 
     adj_dic = {}
@@ -30,24 +42,25 @@ def get_data(u_size, v_size, adjacency_matrix, prefrences):
     return dic, w
 
 
-def solve_eobm(u_size, v_size, adjacency_matrix):
+def solve_adwords(u_size, v_size, adjacency_matrix, budgets):
     try:
-        m = gp.Model("wobm")
+        m = gp.Model("adwords")
+        m.Params.LogToConsole = 0
 
-        combinations, dic = get_data(u_size, v_size, adjacency_matrix)
+        _ , dic = get_data_adwords(u_size, v_size, adjacency_matrix)
 
         # add variable
-        x = m.addVars(combinations, vtype="B", name="(u,v) pairs")
+        x = m.addVars(u_size, v_size, vtype="B", name="(u,v) pairs")
 
         # set constraints
         m.addConstrs((x.sum("*", v) <= 1 for v in range(v_size)), "V")
-        m.addConstrs((x.sum(u, "*") <= 1 for u in range(u_size)), "U")
+        m.addConstrs((x.prod(dic, u, "*") <= budgets[u] for u in range(u_size)), "U")
 
         # set the objective
         m.setObjective(x.prod(dic), GRB.MAXIMIZE)
         m.optimize()
 
-        print("total matching score: ", m.objVal)
+        return m.objVal
 
     except gp.GurobiError as e:
         print("Error code " + str(e.errno) + ": " + str(e))
@@ -63,7 +76,7 @@ def solve_submodular_matching(
         m.Params.LogToConsole = 0
         # 15 is the fixed number of genres from the movielens dataset
         genres = 15
-        dic, weight_dic = get_data(u_size, v_size, adjacency_matrix, preferences)
+        dic, weight_dic = get_data_osbm(u_size, v_size, adjacency_matrix, preferences)
 
         # add variable for each edge (u,v), where v is the user and u is the movie
         x = m.addVars(v_size, u_size, vtype="B", name="(u,v) pairs")
@@ -137,6 +150,9 @@ def solve_submodular_matching(
 
 
 if __name__ == "__main__":
+
+    # osbm exmaple:
+
     # {v_id : freq}
     # r_v = {0: [1, 2], 1: [0]}
 
@@ -153,9 +169,19 @@ if __name__ == "__main__":
     #     [1, 1, 1]
     # ])
 
-    # adjacency_matrix = np.array([
-    #     [1, 1, 1],
-    #     [1, 1, 1]
+    #print(solve_submodular_matching(3, 2, adjacency_matrix, r_v, movie_features, preferences, 3))
+
+
+
+    # adwords exmaple:
+
+    #U by V matrix
+    #adjacency_matrix = np.array([
+    #    [1, 2, 0],
+    #    [0, 1, 0],
+    #    [4, 0, 0]
     # ])
-    pass
-    # print(solve_submodular_matching(3, 2, adjacency_matrix, r_v, movie_features, preferences, 3))
+    
+    #budgets = [3, 1, 4]
+    #print(solve_adwords(3, 3, adjacency_matrix, budgets))
+    
