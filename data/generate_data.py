@@ -145,6 +145,99 @@ def generate_movie_lense_graph(
     )
 
 
+def generate_movie_lense_adwords_graph(
+    u,
+    v,
+    users,
+    edges,
+    movies,
+    popularity,
+    sampled_movies,
+    weight_features,
+    seed,
+    vary_fixed=False,
+):
+    np.random.seed(seed)
+    G = nx.Graph()
+    G = add_nodes_with_bipartite_label(G, u, v)
+
+    G.name = f"movielense_adwords_random_graph({u},{v})"
+
+    movies_id = np.array(list(movies.keys())).flatten()
+    users_id = np.array(list(users.keys())).flatten()
+
+    if vary_fixed:
+        sampled_movies = list(np.random.choice(movies_id, size=u, replace=False))
+    movies_features = list(map(lambda m: movies[m], sampled_movies))
+    capacities = map(lambda m: popularity[m] * 3 + abs(np.random.rand()))
+    users_features = []
+    user_freq_dic = {}  # {v_id: freq}, used for the IPsolver
+    sampled_users_dic = {}  # {user_id: v_id}
+    # edge_vector_dic = {u: movies_features[u] for u in range(len(sampled_movies))}
+
+    for i in range(v):
+        # construct the graph
+        j = 0
+        while j == 0:
+            sampled_user = np.random.choice(users_id)
+            user_info = list(weight_features[sampled_user]) + users[sampled_user]
+            for w in range(len(sampled_movies)):
+                movie = sampled_movies[w]
+                edge = (movie, sampled_user)
+                if edge in edges and (w, i + u) not in G.edges:
+                    G.add_edge(
+                        w,
+                        i + u,
+                        weight=float(
+                            (sum(weight_features[sampled_user]))
+                            / len(weight_features[sampled_user])
+                        ),
+                    )
+                    j += 1
+
+        # collect data for the IP solver
+        if sampled_user in sampled_users_dic:
+            k = sampled_users_dic[sampled_user]
+            user_freq_dic[k].append(i)
+        else:
+            sampled_users_dic[sampled_user] = i
+            user_freq_dic[i] = [i]
+
+        # append user features for the model
+        users_features.append(user_info)
+
+    # print('r_v: ', user_freq_dic)
+    # print('movies_features: ', movies_features)
+    # construct the preference matrix, used by the IP solver
+    # print("G: \n", nx.adjacency_matrix(G).todense())
+    preference_matrix = np.zeros(
+        (len(sampled_users_dic), 15)
+    )  # 15 is the number of genres
+    # print('sampled_users_dic: ', sampled_users_dic)
+    adjacency_matrix = np.ndarray((len(sampled_users_dic), u))
+    i = 0
+    graph = nx.adjacency_matrix(G).todense()
+    for user_id in sampled_users_dic:
+        preference_matrix[i] = weight_features[user_id]
+        v_id = sampled_users_dic[user_id]
+        # print('v_id: ', v_id)
+        adjacency_matrix[i] = graph[u + v_id, :u]
+        i += 1
+
+    # user_freq = list(map(lambda id: user_freq_dic[id], user_freq_dic)) + [0] * (v - (len(user_freq_dic)))
+    # print('adj_matrix: \n', adjacency_matrix)
+    return (
+        G,
+        np.array(movies_features),
+        np.array(users_features),
+        adjacency_matrix,
+        user_freq_dic,
+        movies_features,
+        preference_matrix,
+        capacities,
+    )
+
+
 def generate_gmission_graph(
     u, v, tasks, edges, workers, p, seed, weight_dist, weight_param, vary_fixed=False
 ):
@@ -227,7 +320,7 @@ def generate_osbm_data_geometric(
     vary_fixed = False
     edges, users, movies = None, None, None
     if "movielense" in graph_family:
-        users, movies, edges, feature_weights = parse_movie_lense_dataset()
+        users, movies, edges, feature_weights, _ = parse_movie_lense_dataset()
         np.random.seed(2000)
         movies_id = np.array(list(movies.keys())).flatten()
         sampled_movies = list(np.random.choice(movies_id, size=u_size, replace=False))
@@ -304,12 +397,12 @@ def generate_adwords_data_geometric(
     D, M, S = [], [], []
     vary_fixed = False
     edges, users, movies = None, None, None
-    if "movielense" in graph_family:
-        users, movies, edges, feature_weights = parse_movie_lense_dataset()
+    if "movielense-ads" in graph_family:
+        users, movies, edges, feature_weights, popularity = parse_movie_lense_dataset()
         np.random.seed(2000)
         movies_id = np.array(list(movies.keys())).flatten()
         sampled_movies = list(np.random.choice(movies_id, size=u_size, replace=False))
-        g = generate_movie_lense_graph
+        g = generate_movie_lense_adwords_graph
         vary_fixed = "var" in graph_family
     for i in tqdm(range(dataset_size)):
         (
@@ -320,12 +413,14 @@ def generate_adwords_data_geometric(
             user_freq,
             movies_features,
             preference_matrix,
+            capacities,
         ) = g(
             u_size,
             v_size,
             users,
             edges,
             movies,
+            popularity,
             sampled_movies,
             feature_weights,
             seed + i,
@@ -336,9 +431,7 @@ def generate_adwords_data_geometric(
         )  # add extra node in U that represents not matching the current node to anything
         g1.add_edges_from(list(zip([-1] * v_size, range(u_size, u_size + v_size))))
         data = from_networkx(g1)
-        data.x = torch.tensor(
-            np.concatenate((movie_features.flatten(), user_features.flatten()))
-        )
+        data.x = torch.tensor(capacities)
         optimal_sol = solve_submodular_matching(
             u_size,
             len(user_freq),
