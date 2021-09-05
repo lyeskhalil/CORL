@@ -3,6 +3,7 @@ from gurobipy import GRB
 import itertools
 import numpy as np
 
+
 def get_data_adwords(u_size, v_size, adjacency_matrix):
     """
     pre-process the data for groubi for the adwords problem
@@ -18,7 +19,7 @@ def get_data_adwords(u_size, v_size, adjacency_matrix):
     adj_dic = {}
 
     for u, v in itertools.product(range(u_size), range(v_size)):
-        adj_dic[(u, v)] = adjacency_matrix[u][v]
+        adj_dic[(u, v)] = adjacency_matrix[v, u]
 
     return gp.multidict(adj_dic)
 
@@ -47,7 +48,7 @@ def solve_adwords(u_size, v_size, adjacency_matrix, budgets):
         m = gp.Model("adwords")
         m.Params.LogToConsole = 0
 
-        _ , dic = get_data_adwords(u_size, v_size, adjacency_matrix)
+        _, dic = get_data_adwords(u_size, v_size, adjacency_matrix)
 
         # add variable
         x = m.addVars(u_size, v_size, vtype="B", name="(u,v) pairs")
@@ -60,7 +61,22 @@ def solve_adwords(u_size, v_size, adjacency_matrix, budgets):
         m.setObjective(x.prod(dic), GRB.MAXIMIZE)
         m.optimize()
 
-        return m.objVal
+        solution = np.zeros(v_size).tolist()
+        sol_dict = dict(x)
+        s = sorted(sol_dict.keys(), key=(lambda k: k[0]))
+        matched = 0
+        for i in range(v_size):
+            idx = i * u_size
+            nodes = s[idx : idx + u_size]
+            for j, u in enumerate(nodes):
+                if (type(x[u]) is not int) and x[u].x == 1:
+                    print(u, i)
+                    solution[i] = u[0] + 1
+                    matched += 1
+                else:
+                    solution[i] = 0
+        print(matched)
+        return m.objVal, solution
 
     except gp.GurobiError as e:
         print("Error code " + str(e.errno) + ": " + str(e))
@@ -169,19 +185,16 @@ if __name__ == "__main__":
     #     [1, 1, 1]
     # ])
 
-    #print(solve_submodular_matching(3, 2, adjacency_matrix, r_v, movie_features, preferences, 3))
-
-
+    # print(solve_submodular_matching(3, 2, adjacency_matrix, r_v, movie_features, preferences, 3))
 
     # adwords exmaple:
 
-    #U by V matrix
-    #adjacency_matrix = np.array([
+    # U by V matrix
+    # adjacency_matrix = np.array([
     #    [1, 2, 0],
     #    [0, 1, 0],
     #    [4, 0, 0]
     # ])
-    
-    #budgets = [3, 1, 4]
-    #print(solve_adwords(3, 3, adjacency_matrix, budgets))
-    
+
+    budgets = [3, 1, 4]
+    # print(solve_adwords(3, 3, adjacency_matrix, budgets))

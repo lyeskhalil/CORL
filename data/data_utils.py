@@ -175,6 +175,7 @@ def parse_movie_lense_dataset():
     edges = {}
     feature_weights = {}
     user_ids = []
+    popularity = {}
     for u in f_users:
         info = u.split(",")[:4]
         info[1] = float(gender_map[info[1]])
@@ -194,12 +195,14 @@ def parse_movie_lense_dataset():
         one_hot_encoding = np.zeros(num_genres)
         one_hot_encoding[genres_id] = 1.0
         movies[info[0]] = list(one_hot_encoding)
+        popularity[info[0]] = 0
 
     for e in f_edges:
         info = e.split(",")
         genres = info[3].split("|")
         genres[-1] = genres[-1].split("\n")[0]  # remove "\n" character
         edges[(info[2], info[1])] = list(map(lambda g: genre_map[g], genres))
+        popularity[info[2]] += 1
 
     for w in f_feature_weights:
         feature = w.split(",")
@@ -208,7 +211,7 @@ def parse_movie_lense_dataset():
             feature_weights[feature[1]] = [0.0] * num_genres
         feature_weights[feature[1]][genre_map[feature[0]]] = float(feature[2]) / 5.0
 
-    return users, movies, edges, feature_weights
+    return users, movies, edges, feature_weights, popularity
 
 
 def find_best_tasks(tasks, edges):

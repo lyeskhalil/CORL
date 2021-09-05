@@ -10,7 +10,7 @@ from data.data_utils import (
     generate_weights_geometric,
 )
 import networkx as nx
-#from IPsolvers.IPsolver import solve_submodular_matching
+from IPsolvers.IPsolver import solve_submodular_matching, solve_adwords
 from scipy.optimize import linear_sum_assignment
 import torch
 from tqdm import tqdm
@@ -30,11 +30,7 @@ def generate_ba_graph(
     weight_distribution,
     weight_param,
     vary_fixed=False,
-<<<<<<< HEAD
-    ):
-=======
 ):
->>>>>>> b66311c74d3ca1cae0b60e719a1014d16443fdc1
     """
     Genrates a graph using the preferential attachment scheme
     """
@@ -55,11 +51,7 @@ def generate_ba_graph(
         while num_added < degree_v:
             # update current degree of offline nodes
             u_node = np.random.choice(np.arange(0, u), p=list(mu))
-<<<<<<< HEAD
             if (u_node, u_node + v_node) not in G.edges:
-=======
-            if (u_node, u + v_node) not in G.edges:
->>>>>>> b66311c74d3ca1cae0b60e719a1014d16443fdc1
                 G.add_edge(u_node, u + v_node)
                 u_deg_list[u_node] += 1
                 num_added += 1
@@ -68,18 +60,10 @@ def generate_ba_graph(
         weight_distribution, u, v, weight_param, G, seed
     )
     d = [dict(weight=float(i)) for i in list(w)]
-<<<<<<< HEAD
     nx.set_edge_attributes(G, dict(zip(list(G.edges), d)))
 
-    #print('\nu_deg_list: ', u_deg_list)
-    #print('weights: ', weights)
-=======
-    edges = sorted(list(G.edges), key=lambda e: e[1])
-    edges = sorted(list(G.edges), key=lambda e: e[0])
-    nx.set_edge_attributes(G, dict(zip(edges, d)))
+    # print('\nu_deg_list: ', u_deg_list)
     # print('weights: ', weights)
-    # print(u_deg_list, u_deg_list.mean())
->>>>>>> b66311c74d3ca1cae0b60e719a1014d16443fdc1
 
     return G, weights, w
 
@@ -184,7 +168,12 @@ def generate_movie_lense_adwords_graph(
     if vary_fixed:
         sampled_movies = list(np.random.choice(movies_id, size=u, replace=False))
     movies_features = list(map(lambda m: movies[m], sampled_movies))
-    capacities = map(lambda m: popularity[m] * 3 + abs(np.random.rand()))
+    capacities = list(
+        map(
+            lambda m: ((200 - popularity[m]) / 200) * 100 + np.random.rand(),
+            sampled_movies,
+        )
+    )
     users_features = []
     user_freq_dic = {}  # {v_id: freq}, used for the IPsolver
     sampled_users_dic = {}  # {user_id: v_id}
@@ -203,13 +192,15 @@ def generate_movie_lense_adwords_graph(
                     G.add_edge(
                         w,
                         i + u,
-                        weight=float(
-                            (sum(weight_features[sampled_user]))
-                            / len(weight_features[sampled_user])
-                        ),
+                        weight=(
+                            torch.sum(
+                                torch.tensor(list(weight_features[sampled_user]))
+                                * torch.tensor(movies[movie])
+                            )
+                        ).item()
+                        / len(weight_features[sampled_user]),
                     )
                     j += 1
-
         # collect data for the IP solver
         if sampled_user in sampled_users_dic:
             k = sampled_users_dic[sampled_user]
@@ -229,16 +220,8 @@ def generate_movie_lense_adwords_graph(
         (len(sampled_users_dic), 15)
     )  # 15 is the number of genres
     # print('sampled_users_dic: ', sampled_users_dic)
-    adjacency_matrix = np.ndarray((len(sampled_users_dic), u))
-    i = 0
     graph = nx.adjacency_matrix(G).todense()
-    for user_id in sampled_users_dic:
-        preference_matrix[i] = weight_features[user_id]
-        v_id = sampled_users_dic[user_id]
-        # print('v_id: ', v_id)
-        adjacency_matrix[i] = graph[u + v_id, :u]
-        i += 1
-
+    adjacency_matrix = graph[:, :u]
     # user_freq = list(map(lambda id: user_freq_dic[id], user_freq_dic)) + [0] * (v - (len(user_freq_dic)))
     # print('adj_matrix: \n', adjacency_matrix)
     return (
@@ -447,15 +430,8 @@ def generate_adwords_data_geometric(
         g1.add_edges_from(list(zip([-1] * v_size, range(u_size, u_size + v_size))))
         data = from_networkx(g1)
         data.x = torch.tensor(capacities)
-        optimal_sol = solve_submodular_matching(
-            u_size,
-            len(user_freq),
-            adjacency_matrix,
-            user_freq,
-            movies_features,
-            preference_matrix,
-            v_size,
-        )
+        print(data.x)
+        optimal_sol = solve_adwords(u_size, v_size, adjacency_matrix, capacities)
         data.y = torch.cat(
             (torch.tensor([optimal_sol[0]]), torch.tensor(optimal_sol[1]))
         )

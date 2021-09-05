@@ -107,8 +107,8 @@ class StateAdwordsBipartite(NamedTuple):
     def update(self, selected):
         # Update the state
         w = self.adj[:, 0, :].clone()
-        curr_budget = self.curr_budget - w
         selected_weights = w.gather(1, selected).to(self.adj.device)
+        curr_budget = self.curr_budget - selected_weights
         skip = (selected == 0).float()
         num_skip = self.num_skip + skip
         if self.i == self.u_size + 1:
