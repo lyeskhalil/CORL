@@ -18,8 +18,8 @@ def get_data_adwords(u_size, v_size, adjacency_matrix):
 
     adj_dic = {}
 
-    for u, v in itertools.product(range(u_size), range(v_size)):
-        adj_dic[(u, v)] = adjacency_matrix[v, u]
+    for v, u in itertools.product(range(v_size), range(u_size)):
+        adj_dic[(v, u)] = adjacency_matrix[v][u]
 
     return gp.multidict(adj_dic)
 
@@ -51,31 +51,25 @@ def solve_adwords(u_size, v_size, adjacency_matrix, budgets):
         _, dic = get_data_adwords(u_size, v_size, adjacency_matrix)
 
         # add variable
-        x = m.addVars(u_size, v_size, vtype="B", name="(u,v) pairs")
+        x = m.addVars(v_size, u_size, vtype="B", name="(u,v) pairs")
 
         # set constraints
-        m.addConstrs((x.sum("*", v) <= 1 for v in range(v_size)), "V")
-        m.addConstrs((x.prod(dic, u, "*") <= budgets[u] for u in range(u_size)), "U")
+        m.addConstrs((x.sum(v, "*") <= 1 for v in range(v_size)), "V")
+        m.addConstrs((x.prod(dic, "*", u) <= budgets[u] for u in range(u_size)), "U")
 
         # set the objective
         m.setObjective(x.prod(dic), GRB.MAXIMIZE)
         m.optimize()
 
         solution = np.zeros(v_size).tolist()
-        sol_dict = dict(x)
-        s = sorted(sol_dict.keys(), key=(lambda k: k[0]))
-        matched = 0
-        for i in range(v_size):
-            idx = i * u_size
-            nodes = s[idx : idx + u_size]
-            for j, u in enumerate(nodes):
-                if (type(x[u]) is not int) and x[u].x == 1:
-                    print(u, i)
-                    solution[i] = u[0] + 1
-                    matched += 1
-                else:
-                    solution[i] = 0
-        print(matched)
+        for v in range(v_size):
+            u = 0
+            for nghbr_v in x.select(v, "*"):
+                if nghbr_v.getAttr("x") == 1:
+                    solution[v] = u + 1
+                    break
+                u += 1
+        print(solution)
         return m.objVal, solution
 
     except gp.GurobiError as e:
@@ -174,27 +168,29 @@ if __name__ == "__main__":
 
     # # 3 genres (each column), 3 movies (each row)
     # movie_features = [
-    #     [0.0, 0.0, 1.0],
-    #     [0.0, 0.0, 1.0],
-    #     [0.0, 1.0, 1.0]
+    #    [0.0, 0.0, 1.0],
+    #    [0.0, 0.0, 1.0],
+    #    [0.0, 1.0, 1.0]
     # ]
 
     # # user preferences  V by |genres|
     # preferences = np.array([
-    #     [0.999, 0.4, 0.222],
-    #     [1, 1, 1]
+    #    [0.999, 0.4, 0.222],
+    #    [1, 1, 1]
+    # ])
+
+    # adjacency_matrix = np.array([
+    #   [1, 2, 0],
+    #   [0, 1, 0],
+    #   [4, 0, 0]
     # ])
 
     # print(solve_submodular_matching(3, 2, adjacency_matrix, r_v, movie_features, preferences, 3))
 
     # adwords exmaple:
 
-    # U by V matrix
-    # adjacency_matrix = np.array([
-    #    [1, 2, 0],
-    #    [0, 1, 0],
-    #    [4, 0, 0]
-    # ])
+    # V by U matrix
+    adjacency_matrix = np.array([[1, 2, 0], [0, 1, 0], [4, 0, 0]])
 
     budgets = [3, 1, 4]
-    # print(solve_adwords(3, 3, adjacency_matrix, budgets))
+    print(solve_adwords(3, 3, adjacency_matrix, budgets))
