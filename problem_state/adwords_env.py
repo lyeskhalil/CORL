@@ -1,6 +1,7 @@
 import torch
 from typing import NamedTuple
 from torch_geometric.utils import to_dense_adj
+import torch.nn.functional as F
 
 # from utils.boolmask import mask_long2bool, mask_long_scatter
 
@@ -18,10 +19,11 @@ class StateAdwordsBipartite(NamedTuple):
     max_sol: torch.Tensor
     sum_sol_sq: torch.Tensor
     num_skip: torch.Tensor
+    orig_budget: torch.Tensor
+    curr_budget: torch.Tensor
 
     adj: torch.Tensor
     # State
-    matched_nodes: torch.Tensor  # Keeps track of nodes that have been matched
     size: torch.Tensor  # size of current matching
     i: int  # Keeps track of step
     opts: dict
@@ -110,7 +112,14 @@ class StateAdwordsBipartite(NamedTuple):
         # Update the state
         w = self.adj[:, 0, :].clone()
         selected_weights = w.gather(1, selected).to(self.adj.device)
-        curr_budget = self.curr_budget - selected_weights
+        one_hot_w = (
+            F.one_hot(selected, num_classes=self.u_size + 1)
+            .to(self.adj.device)
+            .squeeze(1)
+            * selected_weights
+        )
+        print(one_hot_w.shape)
+        curr_budget = self.curr_budget - one_hot_w
         skip = (selected == 0).float()
         num_skip = self.num_skip + skip
         if self.i == self.u_size + 1:
@@ -159,7 +168,6 @@ class StateAdwordsBipartite(NamedTuple):
         s = None
         if model == "ff":
             s = torch.cat((w, self.curr_budget, mask.float()), dim=1)
-
         elif model == "inv-ff":
             deg = (w != 0).float().sum(1)
             deg[deg == 0.0] = 1.0
