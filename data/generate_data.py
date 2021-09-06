@@ -215,6 +215,7 @@ def generate_movie_lense_adwords_graph(
                         / max_num_genres,
                     )
                     j += 1
+
         # collect data for the IP solver
         if sampled_user in sampled_users_dic:
             k = sampled_users_dic[sampled_user]
@@ -441,11 +442,13 @@ def generate_adwords_data_geometric(
         g1.add_node(
             -1, bipartite=0
         )  # add extra node in U that represents not matching the current node to anything
-        g1.add_edges_from(list(zip([-1] * v_size, range(u_size, u_size + v_size))))
+        g1.add_edges_from(
+            list(zip([-1] * v_size, range(u_size, u_size + v_size))), weight=0
+        )
         data = from_networkx(g1)
         data.x = torch.tensor(capacities)
-        print(data.x)
         optimal_sol = solve_adwords(u_size, v_size, adjacency_matrix, capacities)
+        print(data.x, optimal_sol)
         data.y = torch.cat(
             (torch.tensor([optimal_sol[0]]), torch.tensor(optimal_sol[1]))
         )
