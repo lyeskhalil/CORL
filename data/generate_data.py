@@ -145,6 +145,16 @@ def generate_movie_lense_graph(
     )
 
 
+def generate_capacity(u_size, v_size, max_num_users, popularity, movie):
+    if u_size == 10 and v_size == 50:
+        m, v = 1, 0.5
+    elif u_size == 10 and v_size == 150:
+        m, v = 3, 0.5
+    return ((max_num_users - popularity[movie]) / max_num_users) * 100 + abs(
+        np.random.normal(m, v)
+    )
+
+
 def generate_movie_lense_adwords_graph(
     u,
     v,
@@ -172,8 +182,7 @@ def generate_movie_lense_adwords_graph(
     max_num_users = 200
     capacities = list(
         map(
-            lambda m: ((max_num_users - popularity[m]) / max_num_users) * 100
-            + np.random.rand(),
+            lambda m: generate_capacity(u, v, max_num_users, popularity, m),
             sampled_movies,
         )
     )

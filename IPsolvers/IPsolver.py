@@ -69,7 +69,6 @@ def solve_adwords(u_size, v_size, adjacency_matrix, budgets):
                     solution[v] = u + 1
                     break
                 u += 1
-        print(solution)
         return m.objVal, solution
 
     except gp.GurobiError as e:

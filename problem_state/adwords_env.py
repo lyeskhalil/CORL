@@ -41,7 +41,9 @@ class StateAdwordsBipartite(NamedTuple):
             input.edge_index, input.batch, input.weight.unsqueeze(1)
         ).squeeze(-1)
         adj = adj[:, u_size + 1 :, : u_size + 1]
-        budgets = input.x.reshape(batch_size, -1)
+        budgets = torch.cat(
+            (torch.zeros(batch_size, 1), input.x.reshape(batch_size, -1)), dim=1
+        )
         # permute the nodes for data
         idx = torch.arange(adj.shape[1], device=opts.device)
         # if "supervised" not in opts.model and not opts.eval_only:

@@ -210,7 +210,6 @@ def parse_movie_lense_dataset():
         if feature[1] not in feature_weights:
             feature_weights[feature[1]] = [0.0] * num_genres
         feature_weights[feature[1]][genre_map[feature[0]]] = float(feature[2]) / 5.0
-
     return users, movies, edges, feature_weights, popularity
 
 
