@@ -19,7 +19,7 @@ def get_data_adwords(u_size, v_size, adjacency_matrix):
     adj_dic = {}
 
     for v, u in itertools.product(range(v_size), range(u_size)):
-        adj_dic[(v, u)] = adjacency_matrix[v][u]
+        adj_dic[(v, u)] = adjacency_matrix[v, u]
 
     return gp.multidict(adj_dic)
 

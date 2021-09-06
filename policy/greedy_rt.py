@@ -29,7 +29,9 @@ class GreedyRt(nn.Module):
             "gmission-var": 18.8736,
             "gmission": 18.8736,
             "er": 100.0,
-            "ba": float(opts.graph_family_parameter)
+            "ba": float(
+                opts.graph_family_parameter
+            )  # Make sure to set this properly before running!
             + float(opts.weight_distribution_param[1]),
         }
         norm_weight = {

@@ -14,7 +14,8 @@ from IPsolvers.IPsolver import solve_submodular_matching, solve_adwords
 from scipy.optimize import linear_sum_assignment
 import torch
 from tqdm import tqdm
-import random
+
+# import random
 
 gmission_fixed_workers = [229, 521, 527, 80, 54, 281, 508, 317, 94, 351]
 
@@ -168,9 +169,11 @@ def generate_movie_lense_adwords_graph(
     if vary_fixed:
         sampled_movies = list(np.random.choice(movies_id, size=u, replace=False))
     movies_features = list(map(lambda m: movies[m], sampled_movies))
+    max_num_users = 200
     capacities = list(
         map(
-            lambda m: ((200 - popularity[m]) / 200) * 100 + np.random.rand(),
+            lambda m: ((max_num_users - popularity[m]) / max_num_users) * 100
+            + np.random.rand(),
             sampled_movies,
         )
     )
@@ -178,7 +181,9 @@ def generate_movie_lense_adwords_graph(
     user_freq_dic = {}  # {v_id: freq}, used for the IPsolver
     sampled_users_dic = {}  # {user_id: v_id}
     # edge_vector_dic = {u: movies_features[u] for u in range(len(sampled_movies))}
-
+    max_num_genres = (
+        4  # maximum number of genres that any movie belongs (based on data)
+    )
     for i in range(v):
         # construct the graph
         j = 0
@@ -198,7 +203,7 @@ def generate_movie_lense_adwords_graph(
                                 * torch.tensor(movies[movie])
                             )
                         ).item()
-                        / len(weight_features[sampled_user]),
+                        / max_num_genres,
                     )
                     j += 1
         # collect data for the IP solver
@@ -221,7 +226,7 @@ def generate_movie_lense_adwords_graph(
     )  # 15 is the number of genres
     # print('sampled_users_dic: ', sampled_users_dic)
     graph = nx.adjacency_matrix(G).todense()
-    adjacency_matrix = graph[:, :u]
+    adjacency_matrix = graph[u:, :u]
     # user_freq = list(map(lambda id: user_freq_dic[id], user_freq_dic)) + [0] * (v - (len(user_freq_dic)))
     # print('adj_matrix: \n', adjacency_matrix)
     return (
@@ -477,8 +482,8 @@ def generate_edge_obm_data_geometric(
         np.random.seed(100)
         rep = graph_family == "gmission" and u_size == 10
         workers = list(np.random.choice(np.arange(1, 533), size=u_size, replace=rep))
-        if graph_family == "gmission-perm":
-            random.shuffle(workers)  # TODO: REMOVE
+        # if graph_family == "gmission-perm":
+        # np.random.shuffle(workers)  # TODO: REMOVE
         if graph_family == "gmission-max":
             tasks = reduced_tasks
             workers = np.random.choice(reduced_workers, size=u_size, replace=False)
