@@ -7,18 +7,20 @@ import subprocess
 
 model_type = "inv-ff-hist"
 
-problem = "e-obm"
-graph_family = "gmission"
-weight_distribution = "gmission"
-weight_distribution_param = "-1 -1"  # seperate by a space
+problem = "adwords"
+graph_family = "ba"
+weight_distribution = "uniform"
+weight_distribution_param = "0 1"  # seperate by a space
 graph_family_parameters = "-1"
 
 u_size = 10
 v_size = 30
-dataset_size = 2
+dataset_size = 20
 val_size = 2
 eval_size = 2
 
+# for adwords only
+capacity_params='0 1'
 
 extention = "/{}_{}_{}_{}_{}by{}".format(
     problem,
@@ -155,7 +157,7 @@ def generate_data():
 
         generate_train = """python data/generate_data.py --problem {} --dataset_size {} --dataset_folder {} \
                             --u_size {} --v_size {} --graph_family {} --weight_distribution {} \
-                            --weight_distribution_param {} --graph_family_parameter {}""".format(
+                            --weight_distribution_param {} --graph_family_parameter {} --capacity_params {}""".format(
             problem,
             dataset_size,
             train_dir,
@@ -165,11 +167,12 @@ def generate_data():
             weight_distribution,
             weight_distribution_param,
             n,
+            capacity_params,
         )
 
         generate_val = """python data/generate_data.py --problem {} --dataset_size {} --dataset_folder {}  \
                             --u_size {} --v_size {} --graph_family {} --weight_distribution {} \
-                            --weight_distribution_param {} --graph_family_parameter {} --seed 20000""".format(
+                            --weight_distribution_param {} --graph_family_parameter {} --capacity_params {} --seed 20000""".format(
             problem,
             val_size,
             val_dir,
@@ -179,11 +182,12 @@ def generate_data():
             weight_distribution,
             weight_distribution_param,
             n,
+            capacity_params,
         )
 
         generate_eval = """python data/generate_data.py --problem {} --dataset_size {} --dataset_folder {} \
                             --u_size {} --v_size {} --graph_family {} --weight_distribution {} \
-                            --weight_distribution_param {} --graph_family_parameter {} --seed 40000""".format(
+                            --weight_distribution_param {} --graph_family_parameter {} capacity_params {} --seed 40000""".format(
             problem,
             eval_size,
             eval_dir,
@@ -193,6 +197,7 @@ def generate_data():
             weight_distribution,
             weight_distribution_param,
             n,
+            capacity_params,
         )
 
         # print(generate_train)
@@ -290,6 +295,6 @@ def evaluate_model():
 if __name__ == "__main__":
     # make the directories if they do not exist
     make_dir()
-    # generate_data()
-    train_model()
+    generate_data()
+    # train_model()
     # evaluate_model()

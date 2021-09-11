@@ -31,6 +31,8 @@ def generate_ba_graph(
     weight_distribution,
     weight_param,
     vary_fixed=False,
+    capacity_param_1=None,
+    capacity_param_2=None
 ):
     """
     Genrates a graph using the preferential attachment scheme
@@ -63,9 +65,10 @@ def generate_ba_graph(
     d = [dict(weight=float(i)) for i in list(w)]
     nx.set_edge_attributes(G, dict(zip(list(G.edges), d)))
 
-    # print('\nu_deg_list: ', u_deg_list)
-    # print('weights: ', weights)
-
+    if opt.problem == 'adwords':
+        capacities = np.random.uniform(capacity_param_1,capacity_param_2,u) 
+        return G, weights, w, capacities
+    
     return G, weights, w
 
 
@@ -298,6 +301,8 @@ def generate_er_graph(
     weight_distribution,
     weight_param,
     vary_fixed=False,
+    capacity_param_1=None,
+    capacity_param_2=None
 ):
 
     g1 = nx.bipartite.random_graph(u, v, graph_family_parameter, seed=seed)
@@ -308,6 +313,10 @@ def generate_er_graph(
     # c = nx.convert_matrix.to_numpy_array(g1, s)
     d = [dict(weight=float(i)) for i in list(w)]
     nx.set_edge_attributes(g1, dict(zip(list(g1.edges), d)))
+
+    if opt.problem == 'adwords':
+        capacities = np.random.uniform(capacity_param_1,capacity_param_2,u) 
+        return g1, weights, w, capacities
 
     return g1, weights, w
 
@@ -326,7 +335,6 @@ def generate_osbm_data_geometric(
 ):
     """
     Generates edge weighted bipartite graphs using the ER/BA schemes in pytorch geometric format
-
     Supports uniformm, normal, and power distributions.
     """
     D, M, S = [], [], []
@@ -403,62 +411,99 @@ def generate_adwords_data_geometric(
     save_data,
 ):
     """
-    Generates edge weighted bipartite graphs using the ER/BA schemes in pytorch geometric format
-
-    Supports uniformm, normal, and power distributions.
+    Generates edge weighted bipartite graphs with budgets(ie, capacities) using the ER/BA as well 
+    as movielens schemes in pytorch geometric format
+    Supports uniformm, normal, and power distributions for weigth generation. Uniform for capacity generation.
     """
     D, M, S = [], [], []
     vary_fixed = False
     edges, users, movies = None, None, None
-    if "movielense-ads" in graph_family:
+
+    # make er or ba dataset
+    if graph_family == "er" or graph_family == "ba":
+        g = generate_er_graph if graph_family == "er" else generate_ba_graph
+        edges, tasks, workers = None, None, None
+        capacity_param_1= opts.capacity_params.split()[0]
+        capacity_param_2= opts.capacity_params.split()[1]
+        for i in tqdm(range(dataset_size)):
+            g1, weights, w, capacities= g(
+                u_size,
+                v_size,
+                tasks,
+                edges,
+                workers,
+                graph_family_parameter,
+                seed + i,
+                weight_distribution,
+                weight_param,
+                False, 
+                capacity_param_1,
+                capacity_param_2
+            )
+            g1.add_node(
+                -1, bipartite=0
+            )  # add extra node in U that represents not matching the current node to anything
+            g1.add_edges_from(
+                list(zip([-1] * v_size, range(u_size, u_size + v_size))), weight=0
+            )
+            data = from_networkx(g1)
+            optimal_sol = solve_adwords(u_size, v_size, weights, capacities)
+            data.x = torch.tensor(capacities)
+            data.y = torch.cat(
+                (torch.tensor([optimal_sol[0]]), torch.tensor(optimal_sol[1]))
+            )
+
+    # make movieLens dataset
+    elif "movielense-ads" in graph_family:
         users, movies, edges, feature_weights, popularity = parse_movie_lense_dataset()
         np.random.seed(2000)
         movies_id = np.array(list(movies.keys())).flatten()
         sampled_movies = list(np.random.choice(movies_id, size=u_size, replace=False))
         g = generate_movie_lense_adwords_graph
         vary_fixed = "var" in graph_family
-    for i in tqdm(range(dataset_size)):
-        (
-            g1,
-            movie_features,
-            user_features,
-            adjacency_matrix,
-            user_freq,
-            movies_features,
-            preference_matrix,
-            capacities,
-        ) = g(
-            u_size,
-            v_size,
-            users,
-            edges,
-            movies,
-            popularity,
-            sampled_movies,
-            feature_weights,
-            seed + i,
-            vary_fixed,
-        )
-        g1.add_node(
-            -1, bipartite=0
-        )  # add extra node in U that represents not matching the current node to anything
-        g1.add_edges_from(
-            list(zip([-1] * v_size, range(u_size, u_size + v_size))), weight=0
-        )
-        data = from_networkx(g1)
-        data.x = torch.tensor(capacities)
-        optimal_sol = solve_adwords(u_size, v_size, adjacency_matrix, capacities)
-        print(data.x, optimal_sol)
-        data.y = torch.cat(
-            (torch.tensor([optimal_sol[0]]), torch.tensor(optimal_sol[1]))
-        )
-        if save_data:
-            torch.save(
-                data,
-                "{}/data_{}.pt".format(dataset_folder, i),
+        for i in tqdm(range(dataset_size)):
+            (
+                g1,
+                movie_features,
+                user_features,
+                adjacency_matrix,
+                user_freq,
+                movies_features,
+                preference_matrix,
+                capacities,
+            ) = g(
+                u_size,
+                v_size,
+                users,
+                edges,
+                movies,
+                popularity,
+                sampled_movies,
+                feature_weights,
+                seed + i,
+                vary_fixed,
             )
-        else:
-            D.append(data)
+            g1.add_node(
+                -1, bipartite=0
+            )  # add extra node in U that represents not matching the current node to anything
+            g1.add_edges_from(
+                list(zip([-1] * v_size, range(u_size, u_size + v_size))), weight=0
+            )
+            data = from_networkx(g1)
+            data.x = torch.tensor(capacities)
+            optimal_sol = solve_adwords(u_size, v_size, adjacency_matrix, capacities)
+            print(data.x, optimal_sol)
+            data.y = torch.cat(
+                (torch.tensor([optimal_sol[0]]), torch.tensor(optimal_sol[1]))
+            )
+    
+    if save_data:
+        torch.save(
+            data,
+            "{}/data_{}.pt".format(dataset_folder, i),
+        )
+    else:
+        D.append(data)
         # ordered_m = np.take(np.take(m, order, axis=1), order, axis=0)
     return (list(D), torch.tensor(M), torch.tensor(S))
 
@@ -477,7 +522,6 @@ def generate_edge_obm_data_geometric(
 ):
     """
     Generates edge weighted bipartite graphs using the ER/BA schemes in pytorch geometric format
-
     Supports uniformm, normal, and power distributions.
     """
     D, M, S = [], [], []
