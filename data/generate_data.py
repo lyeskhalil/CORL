@@ -447,7 +447,8 @@ def generate_adwords_data_geometric(
                 list(zip([-1] * v_size, range(u_size, u_size + v_size))), weight=0
             )
             data = from_networkx(g1)
-            optimal_sol = solve_adwords(u_size, v_size, weights, capacities)
+            #optimal_sol = solve_adwords(u_size, v_size, weights, capacities)
+            optimal_sol = 10, []
             data.x = torch.tensor(capacities)
             data.y = torch.cat(
                 (torch.tensor([optimal_sol[0]]), torch.tensor(optimal_sol[1]))
