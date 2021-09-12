@@ -28,7 +28,7 @@ Code
 
 **Environments**: The environment is implemented under the dir "problem_state" for  4 problems, namely obme, e-obm, adwords, and osbm.
 
-**Models**: The models can be found under dir "policy"
+**Models**: The models and the greedy baseline can be found under dir "policy"
 
 Shout-Outs
 --------
