@@ -52,7 +52,7 @@ def get_options(args=None):
 
     parser.add_argument(
         "--capacity_params",
-        type=int,
+        type=str,
         default='0 1',
         help="paramters of the Uniform distribution from which the capacities are selected from. Seperate by a space",
     )
