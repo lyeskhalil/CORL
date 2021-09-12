@@ -65,7 +65,7 @@ def generate_ba_graph(
     d = [dict(weight=float(i)) for i in list(w)]
     nx.set_edge_attributes(G, dict(zip(list(G.edges), d)))
 
-    if opt.problem == 'adwords':
+    if opts.problem == 'adwords':
         capacities = np.random.uniform(capacity_param_1,capacity_param_2,u) 
         return G, weights, w, capacities
     
@@ -314,7 +314,7 @@ def generate_er_graph(
     d = [dict(weight=float(i)) for i in list(w)]
     nx.set_edge_attributes(g1, dict(zip(list(g1.edges), d)))
 
-    if opt.problem == 'adwords':
+    if opts.problem == 'adwords':
         capacities = np.random.uniform(capacity_param_1,capacity_param_2,u) 
         return g1, weights, w, capacities
 
