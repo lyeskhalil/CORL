@@ -20,7 +20,9 @@ run the file pipeline.py to do the following:
 - evalate the models (see evaluate_model())
 
 If you wish to only do one of the above, comment out the right function at the button of the file. 
+
 You will need to open the file pipeline.py and change the flags on top of the file to generete the desired datasets, set model specifications, etc. See options.py for a detailed description of the flags. 
+
 The dir "Dataset" includes a toy dataset of 50 trianing + 10 validation + 10 evaluation data points, where each datapoint is 10by30 bipartite graph(see the flags in pipeline for other specifications). Each data file "data_x.pt" also includes the optimal solution as well as the value of the optimal solution.
 
 Code
