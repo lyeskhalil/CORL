@@ -3,8 +3,6 @@ Deep RL for Online Combinatorial Optimization
 
 Deep Policies for Online Bipartite Matching: A Reinforcement Learning Approach
 
-**Environment Details**:
-
 Setting up
 ------------
 clone the repo and create a new python environment for you to run this project.
@@ -26,7 +24,11 @@ You will need to open the file pipeline.py and change the flags on top of the fi
 
 Code
 --------
+**Data Generation**: The dir "data" contains the base graph for gMission and MovieLens datasets in raw .txt format. data/generate_data.py produces datasets of bipartite graphs from these base graphs as well as from synthetic BA and ER graph generation schemes. 
 
+**Environments**: The environment is implemented under the dir "problem_state" for  4 problems, namely obme, e-obm, adwords, and osbm.
+
+**Models**: The models can be found under dir "policy"
 
 Shout-Outs
 --------
