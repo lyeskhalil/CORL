@@ -187,7 +187,7 @@ def generate_data():
 
         generate_eval = """python data/generate_data.py --problem {} --dataset_size {} --dataset_folder {} \
                             --u_size {} --v_size {} --graph_family {} --weight_distribution {} \
-                            --weight_distribution_param {} --graph_family_parameter {} capacity_params {} --seed 40000""".format(
+                            --weight_distribution_param {} --graph_family_parameter {} --capacity_params {} --seed 40000""".format(
             problem,
             eval_size,
             eval_dir,
