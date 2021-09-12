@@ -19,8 +19,8 @@ dataset_size = 50
 val_size = 10
 eval_size = 10
 
-# for adwords only
-capacity_params='0 1'
+# add this to the flags for adwords only.
+# capacity_params='0 1'
 
 extention = "/{}_{}_{}_{}_{}by{}".format(
     problem,
@@ -157,7 +157,7 @@ def generate_data():
 
         generate_train = """python data/generate_data.py --problem {} --dataset_size {} --dataset_folder {} \
                             --u_size {} --v_size {} --graph_family {} --weight_distribution {} \
-                            --weight_distribution_param {} --graph_family_parameter {} --capacity_params {}""".format(
+                            --weight_distribution_param {} --graph_family_parameter {} """.format(
             problem,
             dataset_size,
             train_dir,
@@ -167,12 +167,11 @@ def generate_data():
             weight_distribution,
             weight_distribution_param,
             n,
-            capacity_params,
         )
 
         generate_val = """python data/generate_data.py --problem {} --dataset_size {} --dataset_folder {}  \
                             --u_size {} --v_size {} --graph_family {} --weight_distribution {} \
-                            --weight_distribution_param {} --graph_family_parameter {} --capacity_params {} --seed 20000""".format(
+                            --weight_distribution_param {} --graph_family_parameter {} --seed 20000""".format(
             problem,
             val_size,
             val_dir,
@@ -182,12 +181,11 @@ def generate_data():
             weight_distribution,
             weight_distribution_param,
             n,
-            capacity_params,
         )
 
         generate_eval = """python data/generate_data.py --problem {} --dataset_size {} --dataset_folder {} \
                             --u_size {} --v_size {} --graph_family {} --weight_distribution {} \
-                            --weight_distribution_param {} --graph_family_parameter {} --capacity_params {} --seed 40000""".format(
+                            --weight_distribution_param {} --graph_family_parameter {} --seed 40000""".format(
             problem,
             eval_size,
             eval_dir,
@@ -197,7 +195,6 @@ def generate_data():
             weight_distribution,
             weight_distribution_param,
             n,
-            capacity_params,
         )
 
         # print(generate_train)

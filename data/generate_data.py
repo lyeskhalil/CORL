@@ -10,7 +10,7 @@ from data.data_utils import (
     generate_weights_geometric,
 )
 import networkx as nx
-from IPsolvers.IPsolver import solve_submodular_matching, solve_adwords
+#from IPsolvers.IPsolver import solve_submodular_matching, solve_adwords
 from scipy.optimize import linear_sum_assignment
 import torch
 from tqdm import tqdm
@@ -671,7 +671,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--capacity_params",
-        type=int,
+        type=str,
         default='0 1',
         help="paramters of the Uniform distribution from which the capacities are selected from. Seperate by a space",
     )
