@@ -1,25 +1,34 @@
 corl
 ==============================
 
-Exploring Online Bipartite Matching using Reinforcement Learning
+Deep Policies for Online Bipartite Matching: A Reinforcement Learning Approach
 
 **Environment Details**:
-- Python 3.7
 
 Setting up
 ------------
-To get started, run:  
-`git clone git@github.com:alomrani/CORL.git`
+clone the repo and create a new python environment for you to run this project.
 
-Run `make create_environment`. This will create a new python environment for you to run this project. It will do it with conda if you have it installed or virtualenvwrapper otherwise.
-
-Now with you new virtual environment, run: 
+To get started, install all the libraries listed in requirements.txt. This can be done by running.
 `pip install -r requirements.txt`.
 
-If you plan on contributing, please run:  
-`pre-commit install`
+You will also need to install gurobi to run the poject (see [here](https://www.gurobi.com/documentation/9.1/quickstart_mac/cs_using_pip_to_install_gr.html)).
+
+Running the Code
+------------
+run the file pipeline.py to do the following:
+- generate a dataset (see generate_data())
+- train a list of model on the dataset (see train_model())
+- evalate the models (see evaluate_model())
+- 
+If you wish to only do one of the above, comment out the right function at the button of the file. 
+You will need to open the file pipeline.py and change the flags on top of the file to generete the desired datasets, set model specifications, etc. See options.py for a detailed description of the flags. The current flags will prodcue ...
+
+Code
+--------
+
 
 Shout-Outs
 --------
 
-<p><small>Project template based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
+<p><small>Original project template based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
