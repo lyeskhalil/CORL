@@ -7,17 +7,17 @@ import subprocess
 
 model_type = "inv-ff-hist"
 
-problem = "adwords"
-graph_family = "ba"
+problem = "e-obm"
+graph_family = "er"
 weight_distribution = "uniform"
 weight_distribution_param = "0 1"  # seperate by a space
-graph_family_parameters = "-1"
+graph_family_parameters = "0.5"
 
 u_size = 10
 v_size = 30
-dataset_size = 20
-val_size = 2
-eval_size = 2
+dataset_size = 50
+val_size = 10
+eval_size = 10
 
 # for adwords only
 capacity_params='0 1'
@@ -60,7 +60,7 @@ log_dir = "logs_dataset"
 
 # model evaluation flags
 eval_models = "inv-ff ff ff-hist inv-ff-hist"
-# TODO: ADD MODELS TO ABOVE
+# ADD MODELS TO ABOVE
 eval_output = "figures"
 # this is a single checkpoint. Example: outputs_dataset/e-obm_20/run_20201226T171156/epoch-4.pt
 load_path = None
@@ -85,14 +85,14 @@ def get_latest_model(
     models = ""
     for g_fam_param in g_fams.split(" "):
         dir = f"outputs/output_{problem}_{graph_family}_{u_size}by{v_size}_p={g_fam_param}_{graph_family}_m={m}_v={v}_a=3"
-
-        list_of_files = sorted(
-            os.listdir(dir + f"/{m_type}"), key=lambda s: int(s[8:12] + s[13:])
-        )
-        if models != "":
-            models += " " + dir + f"/{m_type}/{list_of_files[-1]}/best-model.pt"
-        else:
-            models += dir + f"/{m_type}/{list_of_files[-1]}/best-model.pt"
+        if os.path.isdir(dir):
+            list_of_files = sorted(
+                os.listdir(dir + f"/{m_type}"), key=lambda s: int(s[8:12] + s[13:])
+            )
+            if models != "":
+                models += " " + dir + f"/{m_type}/{list_of_files[-1]}/best-model.pt"
+            else:
+                models += dir + f"/{m_type}/{list_of_files[-1]}/best-model.pt"
 
     return models
 
