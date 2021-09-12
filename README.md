@@ -18,7 +18,7 @@ run the file pipeline.py to do the following:
 - generate a dataset (see generate_data())
 - train a list of model on the dataset (see train_model())
 - evalate the models (see evaluate_model())
-- 
+
 If you wish to only do one of the above, comment out the right function at the button of the file. 
 You will need to open the file pipeline.py and change the flags on top of the file to generete the desired datasets, set model specifications, etc. See options.py for a detailed description of the flags. The current flags will prodcue ...
 
