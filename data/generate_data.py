@@ -447,6 +447,7 @@ def generate_adwords_data_geometric(
                 list(zip([-1] * v_size, range(u_size, u_size + v_size))), weight=0
             )
             data = from_networkx(g1)
+            # uncomment to get the optimal from the ipsolver
             #optimal_sol = solve_adwords(u_size, v_size, weights, capacities)
             optimal_sol = 10, []
             data.x = torch.tensor(capacities)
@@ -666,6 +667,13 @@ if __name__ == "__main__":
         type=int,
         default=5,
         help="number of eval datasets to generate for a given range of family parameters",
+    )
+
+    parser.add_argument(
+        "--capacity_params",
+        type=int,
+        default='0 1',
+        help="paramters of the Uniform distribution from which the capacities are selected from. Seperate by a space",
     )
 
     parser.add_argument(
