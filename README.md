@@ -5,12 +5,12 @@ Deep Policies for Online Bipartite Matching: A Reinforcement Learning Approach
 
 Setting up
 ------------
-clone the repo and create a new python environment for you to run this project.
-
-To get started, install all the libraries listed in requirements.txt. This can be done by running.
+Clone the repo and create a new python environment for you to run this project.
+1. Install Pytorch Geometric (see [here](https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html)).
+2. Instal and obtain a licsnece for Gurobi (see [here](https://www.gurobi.com/documentation/9.1/quickstart_mac/cs_using_pip_to_install_gr.html)).
+3. Install all the other libraries listed in requirements.txt. This can be done by running.
 `pip install -r requirements.txt`.
 
-You will also need to install gurobi to run the poject (see [here](https://www.gurobi.com/documentation/9.1/quickstart_mac/cs_using_pip_to_install_gr.html)).
 
 Running the Code
 ------------
@@ -33,7 +33,3 @@ Code
 
 **Models**: The models and the greedy baseline can be found under dir "policy"
 
-Shout-Outs
---------
-
-<p><small>Project template based on the <a target="_blank" href="https://drivendata.github.io/cookiecutter-data-science/">cookiecutter data science project template</a>. #cookiecutterdatascience</small></p>
