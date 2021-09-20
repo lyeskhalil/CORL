@@ -7,8 +7,8 @@ Setting up
 ------------
 Clone the repo and create a new python environment for you to run this project.
 1. Install Pytorch Geometric (see [here](https://pytorch-geometric.readthedocs.io/en/latest/notes/installation.html)).
-2. Instal and obtain a licsnece for Gurobi (see [here](https://www.gurobi.com/documentation/9.1/quickstart_mac/cs_using_pip_to_install_gr.html)).
-3. Install all the other libraries listed in requirements.txt. This can be done by running.
+2. Instal and obtain a license for Gurobi (see [here](https://www.gurobi.com/documentation/9.1/quickstart_mac/cs_using_pip_to_install_gr.html)).
+3. Install all the other libraries listed in requirements.txt. This can be done by running:
 `pip install -r requirements.txt`.
 
 
