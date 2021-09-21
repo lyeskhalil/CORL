@@ -3,6 +3,7 @@ Deep RL for Online Combinatorial Optimization
 
 Deep Policies for Online Bipartite Matching: A Reinforcement Learning Approach
 
+NOTE: The repository is currently being re-organized for easier use.
 Setting up
 ------------
 Clone the repo and create a new python environment for you to run this project.
