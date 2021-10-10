@@ -5,23 +5,13 @@
 # backwards compatibility
 
 #Dev Requirements
-imagesize>=1.2.0
 matplotlib>=3.2.1
 networkx>=2.4
 numpy>=1.19.0
-pathlib2>=2.3.5
-Pillow>=7.1.2
-pyflakes>=2.0.0
 pylint>=2.5.3
-python-dateutil>=2.8.1
 scipy>=1.4.0
 tensorboard>=2.2.2
 tensorboard-plugin-wit>=1.7.0
 torch==1.7.0
 torchvision==0.8.1
 tqdm>=4.47.0
-torch-scatter
-torch-sparse
-torch-cluster
-torch-spline-conv
-torch-geometric

@@ -10,12 +10,10 @@ from data.data_utils import (
     generate_weights_geometric,
 )
 import networkx as nx
-from IPsolvers.IPsolver import solve_submodular_matching, solve_adwords
+from IPsolvers.IPsolver import solve_submodular_matching
 from scipy.optimize import linear_sum_assignment
 import torch
 from tqdm import tqdm
-
-# import random
 
 gmission_fixed_workers = [229, 521, 527, 80, 54, 281, 508, 317, 94, 351]
 
@@ -447,8 +445,7 @@ def generate_adwords_data_geometric(
         )
         data = from_networkx(g1)
         data.x = torch.tensor(capacities)
-        optimal_sol = solve_adwords(u_size, v_size, adjacency_matrix, capacities)
-        print(data.x, optimal_sol)
+        optimal_sol = (1.0, torch.zeros(v_size))
         data.y = torch.cat(
             (torch.tensor([optimal_sol[0]]), torch.tensor(optimal_sol[1]))
         )
@@ -494,8 +491,8 @@ def generate_edge_obm_data_geometric(
         np.random.seed(100)
         rep = graph_family == "gmission" and u_size == 10
         workers = list(np.random.choice(np.arange(1, 533), size=u_size, replace=rep))
-        # if graph_family == "gmission-perm":
-        # np.random.shuffle(workers)  # TODO: REMOVE
+        if graph_family == "gmission-perm":
+            np.random.shuffle(workers)  # TODO: REMOVE
         if graph_family == "gmission-max":
             tasks = reduced_tasks
             workers = np.random.choice(reduced_workers, size=u_size, replace=False)

@@ -1,11 +1,10 @@
-import numpy as np
 import os
 import subprocess
 
 # Refer to opts.py for details about the flags
 # graph/dataset flags
 
-model_type = "inv-ff-hist"
+model_type = "greedy-t"
 
 problem = "e-obm"
 graph_family = "gmission"
@@ -15,9 +14,9 @@ graph_family_parameters = "-1"
 
 u_size = 10
 v_size = 30
-dataset_size = 2
-val_size = 2
-eval_size = 2
+dataset_size = 20000
+val_size = 1
+eval_size = 1
 
 
 extention = "/{}_{}_{}_{}_{}by{}".format(
@@ -35,21 +34,24 @@ val_dataset = "dataset/val" + extention
 
 eval_dataset = "dataset/eval" + extention
 
+save_eval_data = True
 # model flags
 
-batch_size = 2
-eval_batch_size = 100
+batch_size = 200
+eval_batch_size = 200
 
 embedding_dim = 30  # 60
 n_heads = 1  # 3
-n_epochs = 10
+n_epochs = 300
 checkpoint_epochs = 0
-eval_baselines = "greedy"  # ******
-lr_model = 0.001
+eval_baselines = "greedy"
+if problem == "e-obm":
+    eval_baselines += " greedy-rt greedy-t"
+lr_model = 0.01
 lr_decay = 0.99
-beta_decay = 0.7
-ent_rate = 0
-n_encode_layers = 2
+beta_decay = 0.0
+ent_rate = 0.0
+n_encode_layers = 1
 
 baseline = "exponential"
 # directory io flags
@@ -57,8 +59,8 @@ output_dir = "saved_models"
 log_dir = "logs_dataset"
 
 # model evaluation flags
-eval_models = "inv-ff ff ff-hist inv-ff-hist"
-# TODO: ADD MODELS TO ABOVE
+eval_models = "ff-supervised ff ff-hist inv-ff inv-ff-hist gnn-hist"
+
 eval_output = "figures"
 # this is a single checkpoint. Example: outputs_dataset/e-obm_20/run_20201226T171156/epoch-4.pt
 load_path = None
@@ -81,9 +83,10 @@ def get_latest_model(
         return "None"
     m, v = w_dist_param.split(" ")
     models = ""
+    if graph_family == "gmission-perm":
+        graph_family = "gmission"
     for g_fam_param in g_fams.split(" "):
         dir = f"outputs/output_{problem}_{graph_family}_{u_size}by{v_size}_p={g_fam_param}_{graph_family}_m={m}_v={v}_a=3"
-
         list_of_files = sorted(
             os.listdir(dir + f"/{m_type}"), key=lambda s: int(s[8:12] + s[13:])
         )
@@ -246,6 +249,45 @@ def train_model():
         subprocess.run(train, shell=True)
 
 
+def tune_model():
+    for n in graph_family_parameters.split(" "):
+        # the naming convention here should not be changed!
+        train_dir = train_dataset + "/parameter_{}".format(n)
+        val_dir = val_dataset + "/parameter_{}".format(n)
+        save_dir = output_dir + extention + "/parameter_{}".format(n)
+        train = """python run.py --tune_baseline --graph_family {} --encoder mpnn --model {} --problem {} --batch_size {} --embedding_dim {} --n_heads {} --u_size {}  --v_size {} --n_epochs {} \
+                    --train_dataset {} --val_dataset {} --dataset_size {} --val_size {} --checkpoint_epochs {} --baseline {} \
+                    --lr_model {} --lr_decay {} --output_dir {} --log_dir {} --n_encode_layers {} --save_dir {} --graph_family_parameter {} --exp_beta {} --ent_rate {}""".format(
+            graph_family,
+            model_type,
+            problem,
+            batch_size,
+            embedding_dim,
+            n_heads,
+            u_size,
+            v_size,
+            n_epochs,
+            train_dir,
+            val_dir,
+            dataset_size,
+            val_size,
+            checkpoint_epochs,
+            baseline,
+            lr_model,
+            lr_decay,
+            output_dir,
+            log_dir,
+            n_encode_layers,
+            save_dir,
+            n,
+            beta_decay,
+            ent_rate,
+        )
+
+        # print(train)
+        subprocess.run(train, shell=True)
+
+
 def evaluate_model():
     evaluate = """python eval.py --problem {} --graph_family {} --embedding_dim {} --load_path {} --ff_models {} --attention_models {} --inv_ff_models {} --ff_hist_models {} \
         --inv_ff_hist_models {} --gnn_hist_models {} --gnn_models {} --gnn_simp_hist_models {} --ff_supervised_models {} --eval_baselines {} \
@@ -283,6 +325,8 @@ def evaluate_model():
     )
     if test_transfer:
         evaluate += " --test_transfer"
+    elif save_eval_data:
+        evaluate += " --save_eval_data"
     # print(evaluate)
     subprocess.run(evaluate, shell=True)
 
@@ -291,5 +335,6 @@ if __name__ == "__main__":
     # make the directories if they do not exist
     make_dir()
     # generate_data()
-    train_model()
+    # train_model()
+    tune_model()
     # evaluate_model()
