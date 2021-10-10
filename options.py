@@ -14,7 +14,7 @@ def get_options(args=None):
         "--problem",
         type=str,
         default="obm",
-        help="Problem: 'obm', 'e-obm', 'adwords' or 'displayads'",
+        help="Problem: 'obm', 'e-obm', 'adwords' or 'osbm'",
     )
     parser.add_argument(
         "--graph_size", type=int, default=20, help="The size of the problem graph"
@@ -49,6 +49,14 @@ def get_options(args=None):
     #        default=100,
     #        help="Number of instances per epoch during training",
     #    )
+
+    parser.add_argument(
+        "--capacity_params",
+        type=str,
+        default="0 1",
+        help="paramters of the Uniform distribution from which the capacities are selected from. Seperate by a space",
+    )
+
     parser.add_argument(
         "--val_size",
         type=int,

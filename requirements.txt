@@ -12,6 +12,7 @@ pylint>=2.5.3
 scipy>=1.4.0
 tensorboard>=2.2.2
 tensorboard-plugin-wit>=1.7.0
-torch==1.7.0
-torchvision==0.8.1
+torch>=1.7.0
+torchvision>=0.8.1
 tqdm>=4.47.0
+seaborn

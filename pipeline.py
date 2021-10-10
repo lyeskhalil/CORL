@@ -7,10 +7,10 @@ import subprocess
 model_type = "greedy-t"
 
 problem = "e-obm"
-graph_family = "gmission"
-weight_distribution = "gmission"
-weight_distribution_param = "-1 -1"  # seperate by a space
-graph_family_parameters = "-1"
+graph_family = "er"
+weight_distribution = "uniform"
+weight_distribution_param = "0 1"  # seperate by a space
+graph_family_parameters = "0.5"
 
 u_size = 10
 v_size = 30
@@ -18,6 +18,8 @@ dataset_size = 20000
 val_size = 1
 eval_size = 1
 
+# add this to the flags for adwords only.
+# capacity_params='0 1'
 
 extention = "/{}_{}_{}_{}_{}by{}".format(
     problem,
@@ -158,7 +160,7 @@ def generate_data():
 
         generate_train = """python data/generate_data.py --problem {} --dataset_size {} --dataset_folder {} \
                             --u_size {} --v_size {} --graph_family {} --weight_distribution {} \
-                            --weight_distribution_param {} --graph_family_parameter {}""".format(
+                            --weight_distribution_param {} --graph_family_parameter {} """.format(
             problem,
             dataset_size,
             train_dir,
