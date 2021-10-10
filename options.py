@@ -70,7 +70,10 @@ def get_options(args=None):
     )
 
     parser.add_argument(
-        "--dataset_size", type=int, default=1000, help="Dataset size for training",
+        "--dataset_size",
+        type=int,
+        default=1000,
+        help="Dataset size for training",
     )
 
     parser.add_argument(
@@ -101,7 +104,10 @@ def get_options(args=None):
         help="Dimension of hidden layers in Enc/Dec",
     )
     parser.add_argument(
-        "--n_heads", type=int, default=2, help="Number of heads in Enc",
+        "--n_heads",
+        type=int,
+        default=2,
+        help="Number of heads in Enc",
     )
     parser.add_argument(
         "--n_encode_layers",
@@ -122,7 +128,9 @@ def get_options(args=None):
         help="Normalization type, 'batch' (default) or 'instance'",
     )
     parser.add_argument(
-        "--n_step", action="store_true", help="Set to peform n-step training",
+        "--n_step",
+        action="store_true",
+        help="Set to peform n-step training",
     )
     parser.add_argument(
         "--max_steps",
@@ -165,7 +173,10 @@ def get_options(args=None):
         help="Exponential moving average baseline decay (default 0.8)",
     )
     parser.add_argument(
-        "--ent_rate", type=float, default=0.1, help="entropy regularization rate",
+        "--ent_rate",
+        type=float,
+        default=0.1,
+        help="entropy regularization rate",
     )
     parser.add_argument(
         "--baseline",
@@ -187,6 +198,9 @@ def get_options(args=None):
     )
     parser.add_argument(
         "--max_weight", type=int, default=100, help="Maximum edge weight in the graph"
+    )
+    parser.add_argument(
+        "--threshold", type=int, default=0.5, help="Threshold used by Greedy-t"
     )
     parser.add_argument(
         "--eval_batch_size",
@@ -228,12 +242,12 @@ def get_options(args=None):
     parser.add_argument(
         "--graph_family_parameter",
         type=float,
-        default=0.6,
+        default=5,
         help="parameter of the graph family distribution (p is the probablity of and edge for ER and average degree of a node for BA)",
     )
 
     # Evaluation
-    
+
     parser.add_argument(
         "--eval_num",
         type=int,
@@ -268,10 +282,14 @@ def get_options(args=None):
         help="Set this value to test transferability across different graph sizes",
     )
     parser.add_argument(
-        "--eval_plot", action="store_true", help="plot results on test data",
+        "--eval_plot",
+        action="store_true",
+        help="plot results on test data",
     )
     parser.add_argument(
-        "--eval_results_file", type=str, help="file that containes test results",
+        "--eval_results_file",
+        type=str,
+        help="file that containes test results",
     )
     parser.add_argument(
         "--eval_range",
@@ -282,12 +300,19 @@ def get_options(args=None):
     #     "--eval_model_paths", nargs="+", help="paths to trained models files",
     # )
     parser.add_argument(
+        "--save_eval_data",
+        action="store_true",
+        help="evaluate models and save data if true",
+    )
+    parser.add_argument(
         "--load_path",
         default=None,
         help="Path to load model parameters and optimizer state from",
     )
     parser.add_argument(
-        "--ff_models", nargs="+", help="list of trained ff models, seperated by space",
+        "--ff_models",
+        nargs="+",
+        help="list of trained ff models, seperated by space",
     )
     parser.add_argument(
         "--inv_ff_models",
@@ -330,10 +355,14 @@ def get_options(args=None):
         help="list of path to trained attention models, seperated by space",
     )
     parser.add_argument(
-        "--eval_models", nargs="+", help="type of models to evaluate",
+        "--eval_models",
+        nargs="+",
+        help="type of models to evaluate",
     )
     parser.add_argument(
-        "--eval_set", nargs="+", help="Set of family parameters to evaluate models on",
+        "--eval_set",
+        nargs="+",
+        help="Set of family parameters to evaluate models on",
     )
 
     parser.add_argument(
@@ -349,7 +378,10 @@ def get_options(args=None):
     #        help="Set this to true if you evaluating the model over a family of graphs",
     #    )
     parser.add_argument(
-        "--eval_output", type=str, default=".", help="path to output evaulation plots",
+        "--eval_output",
+        type=str,
+        default=".",
+        help="path to output evaulation plots",
     )
 
     # Misc
@@ -357,6 +389,11 @@ def get_options(args=None):
         "--tune",
         action="store_true",
         help="Set this to true if you want to tune the hyperparameters",
+    )
+    parser.add_argument(
+        "--tune_baseline",
+        action="store_true",
+        help="Set this to true if you want to tune the hyperparameters of a baseline",
     )
     parser.add_argument(
         "--tune_wandb",
@@ -400,7 +437,8 @@ def get_options(args=None):
     )
 
     parser.add_argument(
-        "--save_dir", help="Path to save the checkpoints",
+        "--save_dir",
+        help="Path to save the checkpoints",
     )
 
     parser.add_argument("--resume", help="Resume from previous checkpoint file")

@@ -6,7 +6,6 @@ import pprint as pp
 import torch
 import torch.optim as optim
 from itertools import product
-import torch.autograd.profiler as profiler
 import wandb
 
 # from tensorboard_logger import Logger as TbLogger
@@ -15,11 +14,10 @@ from torch_geometric.data import DataLoader as geoDataloader
 
 # from nets.critic_network import CriticNetwork
 from options import get_options
-from train import train_epoch, validate, get_inner_model, eval_model
+from train import train_epoch, validate, get_inner_model
 from utils.reinforce_baselines import (
     NoBaseline,
     ExponentialBaseline,
-    CriticBaseline,
     RolloutBaseline,
     WarmupBaseline,
     GreedyBaseline,
@@ -32,6 +30,7 @@ from policy.ff_model_hist import FeedForwardModelHist
 from policy.inv_ff_history import InvariantFFHist
 from policy.greedy import Greedy
 from policy.greedy_rt import GreedyRt
+from policy.greedy_theshold import GreedyThresh
 from policy.simple_greedy import SimpleGreedy
 from policy.supervised import SupervisedModel
 from policy.ff_supervised import SupervisedFFModel
@@ -56,7 +55,11 @@ def run(opts):
     tb_logger = None
     if not opts.no_tensorboard:
         tb_logger = SummaryWriter(
-            os.path.join(opts.log_dir, opts.model, opts.run_name,)
+            os.path.join(
+                opts.log_dir,
+                opts.model,
+                opts.run_name,
+            )
         )
     if not opts.eval_only and not os.path.exists(opts.save_dir):
         os.makedirs(opts.save_dir)
@@ -88,6 +91,7 @@ def run(opts):
         "ff": FeedForwardModel,
         "greedy": Greedy,
         "greedy-rt": GreedyRt,
+        "greedy-t": GreedyThresh,
         "simple-greedy": SimpleGreedy,
         "inv-ff": InvariantFF,
         "inv-ff-hist": InvariantFFHist,
@@ -220,14 +224,46 @@ def run(opts):
                     problem,
                     tb_logger,
                     opts,
-                    best_avg_cr
+                    best_avg_cr,
                 )
                 best_avg_cr = max(best_avg_cr, avg_cr)
             avg_reward, min_cr, avg_cr = avg_reward.item(), min_cr, avg_cr.item()
             with open(SCOREFILE, "a") as f:
                 f.write(f'{",".join(map(str, params + (avg_reward,min_cr,avg_cr)))}\n')
+    elif opts.tune_baseline:
+        PARAM_GRID = np.round(np.linspace(0, 1, 100).tolist(), decimals=2)
+        N_WORKERS = int(os.getenv("SLURM_ARRAY_TASK_COUNT", 1))
+
+        # this worker's array index. Assumes slurm array job is zero-indexed
+        # defaults to zero if not running under SLURM
+        this_worker = int(os.getenv("SLURM_ARRAY_TASK_ID", 0))
+        SCOREFILE = os.path.expanduser(
+            f"./val_rewards_{opts.model}_{opts.u_size}_{opts.v_size}_{opts.graph_family}_{opts.graph_family_parameter}.csv"
+        )
+        for param_ix in range(this_worker, len(PARAM_GRID), N_WORKERS):
+            torch.manual_seed(opts.seed)
+            params = PARAM_GRID[param_ix]
+            training_dataloader = geoDataloader(
+                baseline.wrap_dataset(training_dataset),
+                batch_size=opts.batch_size,
+                num_workers=0,
+                shuffle=True,
+            )
+
+            opts.threshold = params
+            (
+                model,
+                lr_schedulers,
+                optimizers,
+                val_dataloader,
+                baseline,
+            ) = setup_training_env(opts, model_class, problem, load_data, tb_logger)
+            avg_cost, *_ = validate(model, training_dataloader, opts)
+            with open(SCOREFILE, "a") as f:
+                f.write(f'{",".join(map(str, (params,) + (avg_cost.item(),)))}\n')
+
     else:
-        best_avg_cr = 0.
+        best_avg_cr = 0.0
         for epoch in range(opts.epoch_start, opts.epoch_start + opts.n_epochs):
             # with profiler.profile() as prof:
             #    with profiler.record_function("model_inference"):
@@ -249,11 +285,10 @@ def run(opts):
                 problem,
                 tb_logger,
                 opts,
-                best_avg_cr
+                best_avg_cr,
             )
             # print(prof.key_averages().table(sort_by="cpu_time_total", row_limit=20))
             best_avg_cr = max(best_avg_cr, avg_cr)
-
 
 
 def train_wandb(model_class, problem, tb_logger, opts, config=None):
@@ -275,13 +310,17 @@ def train_wandb(model_class, problem, tb_logger, opts, config=None):
             baseline,
         ) = setup_training_env(opts, model_class, problem, load_data, tb_logger)
         training_dataset = problem.make_dataset(
-            opts.train_dataset, opts.dataset_size, opts.problem, seed=None, opts=opts,
+            opts.train_dataset,
+            opts.dataset_size,
+            opts.problem,
+            seed=None,
+            opts=opts,
         )
 
         # training_dataloader = DataLoader(
         #    baseline.wrap_dataset(training_dataset), batch_size=opts.batch_size, num_workers=1, shuffle=True,
         # )
-        best_avg_cr = 0.
+        best_avg_cr = 0.0
         for epoch in range(opts.epoch_start, opts.epoch_start + opts.n_epochs):
             training_dataloader = geoDataloader(
                 baseline.wrap_dataset(training_dataset),
@@ -300,7 +339,7 @@ def train_wandb(model_class, problem, tb_logger, opts, config=None):
                 problem,
                 tb_logger,
                 opts,
-                best_avg_cr
+                best_avg_cr,
             )
             best_avg_cr = max(best_avg_cr, avg_cr)
             if "supervised" in opts.model:
