@@ -31,6 +31,7 @@ from policy.inv_ff_history import InvariantFFHist
 from policy.greedy import Greedy
 from policy.greedy_rt import GreedyRt
 from policy.greedy_theshold import GreedyThresh
+from policy.greedy_matching import GreedyMatching
 from policy.simple_greedy import SimpleGreedy
 from policy.supervised import SupervisedModel
 from policy.ff_supervised import SupervisedFFModel
@@ -92,6 +93,7 @@ def run(opts):
         "greedy": Greedy,
         "greedy-rt": GreedyRt,
         "greedy-t": GreedyThresh,
+        "greedy-m": GreedyMatching,
         "simple-greedy": SimpleGreedy,
         "inv-ff": InvariantFF,
         "inv-ff-hist": InvariantFFHist,

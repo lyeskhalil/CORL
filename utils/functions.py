@@ -9,6 +9,7 @@ from problem_state.edge_obm_dataset import EdgeBipartite
 from problem_state.osbm_dataset import OSBM
 from problem_state.adwords_dataset import AdwordsBipartite
 import torch.nn.functional as F
+import csv
 
 
 def load_problem(name):
@@ -63,68 +64,18 @@ def _load_model_file(load_path, model):
     return model, load_optimizer_state_dict
 
 
-# def load_args(filename):
-#     with open(filename, "r") as f:
-#         args = json.load(f)
-
-#     # Backwards compatibility
-#     if "data_distribution" not in args:
-#         args["data_distribution"] = None
-#         probl, *dist = args["problem"].split("_")
-#         if probl == "op":
-#             args["problem"] = probl
-#             args["data_distribution"] = dist[0]
-#     return args
-
-
-# def load_model(path, epoch=None):
-#     from nets.attention_model import AttentionModel
-#     from nets.pointer_network import PointerNetwork
-
-#     if os.path.isfile(path):
-#         model_filename = path
-#         path = os.path.dirname(model_filename)
-#     elif os.path.isdir(path):
-#         if epoch is None:
-#             epoch = max(
-#                 int(os.path.splitext(filename)[0].split("-")[1])
-#                 for filename in os.listdir(path)
-#                 if os.path.splitext(filename)[1] == ".pt"
-#             )
-#         model_filename = os.path.join(path, "epoch-{}.pt".format(epoch))
-#     else:
-#         assert False, "{} is not a valid directory or file".format(path)
-
-#     args = load_args(os.path.join(path, "args.json"))
-
-#     problem = load_problem(args["problem"])
-
-#     model_class = {"attention": AttentionModel, "pointer": PointerNetwork}.get(
-#         args.get("model", "attention"), None
-#     )
-#     assert model_class is not None, "Unknown model: {}".format(model_class)
-
-#     model = model_class(
-#         args["embedding_dim"],
-#         args["hidden_dim"],
-#         problem,
-#         n_encode_layers=args["n_encode_layers"],
-#         mask_inner=True,
-#         mask_logits=True,
-#         normalization=args["normalization"],
-#         tanh_clipping=args["tanh_clipping"],
-#         checkpoint_encoder=args.get("checkpoint_encoder", False),
-#         shrink_size=args.get("shrink_size", None),
-#     )
-#     # Overwrite model parameters by parameters to load
-#     load_data = torch_load_cpu(model_filename)
-#     model.load_state_dict({**model.state_dict(), **load_data.get("model", {})})
-
-#     model, *_ = _load_model_file(model_filename, model)
-
-#     model.eval()  # Put in eval mode
-
-#     return model, args
+def get_best_t(model, opts):
+    best_params = None
+    best_r = 0
+    with open(
+        f"val_rewards_{model}_{opts.u_size}_{opts.v_size}_{opts.graph_family}_{opts.graph_family_parameter}.csv"
+    ) as csv_file:
+        csv_reader = csv.reader(csv_file, delimiter=",")
+        for line in csv_reader:
+            if abs(float(line[-1])) > best_r:
+                best_params = float(line[0])
+                best_r = abs(float(line[-1]))
+    return best_params
 
 
 def parse_softmax_temperature(raw_temp):

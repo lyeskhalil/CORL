@@ -143,12 +143,12 @@ class SupervisedFFModel(nn.Module):
             sequences.append(selected)
 
             # do backprop if in training mode
-
-            none_node_w = torch.tensor(
-                [1.0 / (opts.v_size / opts.u_size)],
-                device=opts.device
-                # [0]
-            ).float()
+            if opts.problem != "adwords":
+                none_node_w = torch.tensor(
+                    [1.0 / (opts.v_size / opts.u_size)], device=opts.device
+                ).float()
+            else:
+                none_node_w = torch.tensor([1.0], device=opts.device).float()
             w = torch.cat(
                 [none_node_w, torch.ones(opts.u_size, device=opts.device).float()],
                 dim=0,

@@ -111,7 +111,7 @@ def rollout_eval(models, dataset, opts):
 
     def eval_model_bat(bat, optimal):
         bat = move_to(bat, opts.device)
-        if opts.problem == "osbm":
+        if opts.problem == "osbm" or opts.problem == "adwords":
             matchings = bat.y.reshape(opts.batch_size, opts.v_size + 1)[:, 1:]
             opt_size = bat.y.reshape(opts.batch_size, opts.v_size + 1)[:, 0]
         else:
@@ -142,6 +142,7 @@ def rollout_eval(models, dataset, opts):
         num_agree = ((a == a1).float()).sum(0)
         count = torch.bincount(a[:, :20].flatten(), minlength=opts.u_size + 1)
         count1 = torch.bincount(a1[:, :20].flatten(), minlength=opts.u_size + 1)
+
         if (cost == cost1).all().item():
             w, p = 0, 0
         else:
@@ -220,7 +221,7 @@ def rollout(model, dataset, opts):
     def eval_model_bat(bat, optimal):
         batch_loss = 0
         bat = move_to(bat, opts.device)
-        if opts.problem == "osbm":
+        if opts.problem == "osbm" or opts.problem == "adwords":
             matchings = bat.y.reshape(opts.batch_size, opts.v_size + 1)[:, 1:]
             opt_size = bat.y.reshape(opts.batch_size, opts.v_size + 1)[:, 0]
         else:

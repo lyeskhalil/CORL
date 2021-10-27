@@ -208,7 +208,7 @@ def get_options(args=None):
         "--max_weight", type=int, default=100, help="Maximum edge weight in the graph"
     )
     parser.add_argument(
-        "--threshold", type=int, default=0.5, help="Threshold used by Greedy-t"
+        "--threshold", type=int, default=0.367, help="Threshold used by Greedy-t"
     )
     parser.add_argument(
         "--eval_batch_size",

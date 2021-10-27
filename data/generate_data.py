@@ -312,7 +312,7 @@ def generate_er_graph(
     d = [dict(weight=float(i)) for i in list(w)]
     nx.set_edge_attributes(g1, dict(zip(list(g1.edges), d)))
 
-    if opts.problem == "adwords":
+    if capacity_param_1 is not None:
         capacities = np.random.uniform(capacity_param_1, capacity_param_2, u)
         return g1, weights, w, capacities
 
@@ -421,8 +421,9 @@ def generate_adwords_data_geometric(
     if graph_family == "er" or graph_family == "ba":
         g = generate_er_graph if graph_family == "er" else generate_ba_graph
         edges, tasks, workers = None, None, None
-        capacity_param_1 = opts.capacity_params.split()[0]
-        capacity_param_2 = opts.capacity_params.split()[1]
+        capacity_param_1, capacity_param_2 = (v_size / u_size) * 0.5 - 0.5, (
+            v_size / u_size
+        ) * 0.5 + 0.5
         for i in tqdm(range(dataset_size)):
             g1, weights, w, capacities = g(
                 u_size,
@@ -446,12 +447,19 @@ def generate_adwords_data_geometric(
             )
             data = from_networkx(g1)
             # uncomment to get the optimal from the ipsolver
-            # optimal_sol = solve_adwords(u_size, v_size, weights, capacities)
-            optimal_sol = 10, []
+            optimal_sol = solve_adwords(u_size, v_size, weights, capacities)
+            # optimal_sol = 10, []
             data.x = torch.tensor(capacities)
             data.y = torch.cat(
                 (torch.tensor([optimal_sol[0]]), torch.tensor(optimal_sol[1]))
             )
+            if save_data:
+                torch.save(
+                    data,
+                    "{}/data_{}.pt".format(dataset_folder, i),
+                )
+            else:
+                D.append(data)
 
     # make movieLens dataset
     elif "movielense-ads" in graph_family:
@@ -497,13 +505,13 @@ def generate_adwords_data_geometric(
                 (torch.tensor([optimal_sol[0]]), torch.tensor(optimal_sol[1]))
             )
 
-    if save_data:
-        torch.save(
-            data,
-            "{}/data_{}.pt".format(dataset_folder, i),
-        )
-    else:
-        D.append(data)
+            if save_data:
+                torch.save(
+                    data,
+                    "{}/data_{}.pt".format(dataset_folder, i),
+                )
+            else:
+                D.append(data)
         # ordered_m = np.take(np.take(m, order, axis=1), order, axis=0)
     return (list(D), torch.tensor(M), torch.tensor(S))
 
@@ -533,7 +541,8 @@ def generate_edge_obm_data_geometric(
         g = generate_ba_graph
     elif "gmission" in graph_family:
         edges, tasks, reduced_tasks, reduced_workers = parse_gmission_dataset()
-        max_w = max(np.array(list(edges.values()), dtype="float"))
+        w = np.array(list(edges.values()), dtype="float")
+        max_w = max(w)
         edges = {k: (float(v) / float(max_w)) for k, v in edges.items()}
         np.random.seed(100)
         rep = graph_family == "gmission" and u_size == 10
@@ -546,6 +555,7 @@ def generate_edge_obm_data_geometric(
         g = generate_gmission_graph
 
         vary_fixed = "var" in graph_family
+    min_weight = 10 ** 7
     for i in tqdm(range(dataset_size)):
         g1, weights, w = g(
             u_size,
@@ -559,8 +569,8 @@ def generate_edge_obm_data_geometric(
             weight_param,
             vary_fixed,
         )
+        min_weight = min(min_weight, min(w))
         # d_old = np.array(sorted(g1.degree))[u_size:, 1]
-
         g1.add_node(
             -1, bipartite=0
         )  # add extra node in U that represents not matching the current node to anything
@@ -589,6 +599,7 @@ def generate_edge_obm_data_geometric(
             D.append(data)
             M.append(optimal)
         # ordered_m = np.take(np.take(m, order, axis=1), order, axis=0)
+    print(min_weight)
     return (list(D), torch.tensor(M), torch.tensor(S))
 
 

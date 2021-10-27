@@ -19,7 +19,7 @@ def get_data_adwords(u_size, v_size, adjacency_matrix):
     adj_dic = {}
 
     for v, u in itertools.product(range(v_size), range(u_size)):
-        adj_dic[(v, u)] = adjacency_matrix[v, u]
+        adj_dic[(v, u)] = adjacency_matrix[u, v]
 
     return gp.multidict(adj_dic)
 
@@ -46,7 +46,8 @@ def get_data_osbm(u_size, v_size, adjacency_matrix, prefrences):
 def solve_adwords(u_size, v_size, adjacency_matrix, budgets):
     try:
         m = gp.Model("adwords")
-        m.Params.LogToConsole = 0
+        # m.Params.LogToConsole = 0
+        m.Params.timeLimit = 30
 
         _, dic = get_data_adwords(u_size, v_size, adjacency_matrix)
 
