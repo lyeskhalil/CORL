@@ -421,9 +421,13 @@ def generate_adwords_data_geometric(
     if graph_family == "er" or graph_family == "ba":
         g = generate_er_graph if graph_family == "er" else generate_ba_graph
         edges, tasks, workers = None, None, None
-        capacity_param_1, capacity_param_2 = (v_size / u_size) * 0.5 - 0.5, (
+        capacity_param_1, capacity_param_2 = int(graph_family_parameter) * (
             v_size / u_size
-        ) * 0.5 + 0.5
+        ) * 0.5 - int(graph_family_parameter), int(graph_family_parameter) * (
+            (v_size / u_size)
+        ) * 0.5 + int(
+            graph_family_parameter
+        )
         for i in tqdm(range(dataset_size)):
             g1, weights, w, capacities = g(
                 u_size,
