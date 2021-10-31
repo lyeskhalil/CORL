@@ -25,7 +25,7 @@ class InvariantFF(nn.Module):
 
         self.embedding_dim = embedding_dim
         self.decode_type = None
-        self.num_actions = 3 if opts.problem != "adwords" else 4
+        self.num_actions = 3 if opts.problem != "adwords" else 5
         self.is_bipartite = problem.NAME == "bipartite"
         self.problem = problem
         self.shrink_size = None

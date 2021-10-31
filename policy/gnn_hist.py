@@ -219,7 +219,7 @@ class GNNHist(nn.Module):
                     s,
                     idx.repeat(1, state.u_size + 1, 1),
                     state.size.unsqueeze(2).repeat(1, state.u_size + 1, 1)
-                    / state.u_size,
+                    / state.orig_budget.sum(-1)[:, None, None],
                     fixed_node_identity,
                     mask.unsqueeze(2),
                     incoming_node_embeddings.repeat(1, state.u_size + 1, 1),
@@ -228,7 +228,7 @@ class GNNHist(nn.Module):
                     u_embeddings.mean(1).unsqueeze(1).repeat(1, state.u_size + 1, 1),
                 ),
                 dim=2,
-            )
+            ).float()
             pi = self.ff(s).reshape(state.batch_size, state.u_size + 1)
             # Select the indices of the next nodes in the sequences, result (batch_size) long
             selected, p = self._select_node(

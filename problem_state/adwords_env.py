@@ -166,13 +166,13 @@ class StateAdwordsBipartite(NamedTuple):
         w = self.adj[:, 0, :].float().clone()
         s = None
         if model == "ff":
-            s = torch.cat((w, self.curr_budget, mask.float()), dim=1)
+            s = torch.cat((w, self.curr_budget, mask.float()), dim=1).float()
         elif model == "inv-ff":
             deg = (w != 0).float().sum(1)
             deg[deg == 0.0] = 1.0
             mean_w = w.sum(1) / deg
-            mean_budget = self.curr_budget.sum(2) / self.u_size
-            mean_budget = mean_budget[:, None, :].repeat(1, self.u_size + 1, 1)
+            mean_budget = self.curr_budget.sum(1) / self.u_size
+            mean_budget = mean_budget[:, None, None].repeat(1, self.u_size + 1, 1)
             mean_w = mean_w[:, None, None].repeat(1, self.u_size + 1, 1)
             fixed_node_identity = torch.zeros(
                 self.batch_size, self.u_size + 1, 1, device=opts.device
@@ -188,7 +188,7 @@ class StateAdwordsBipartite(NamedTuple):
                     mean_budget,
                 ),
                 dim=2,
-            )
+            ).float()
 
         elif model == "ff-hist" or model == "ff-supervised":
             (
@@ -210,7 +210,7 @@ class StateAdwordsBipartite(NamedTuple):
                     h_mean.squeeze(1),
                     h_var.squeeze(1),
                     h_mean_degree.squeeze(1),
-                    self.size / self.orig_budget.sum(-1),
+                    self.size / self.orig_budget.sum(-1).unsqueeze(1),
                     ind.float(),
                     mean_sol,
                     var_sol,
@@ -226,9 +226,9 @@ class StateAdwordsBipartite(NamedTuple):
             deg = (w != 0).float().sum(1)
             deg[deg == 0.0] = 1.0
             mean_w = w.sum(1) / deg
-            mean_budget = self.curr_budget.sum(2) / self.u_size
+            mean_budget = self.curr_budget.sum(1) / self.u_size
             mean_w = mean_w[:, None, None].repeat(1, self.u_size + 1, 1)
-            mean_budget = mean_budget[:, None, :].repeat(1, self.u_size + 1, 1)
+            mean_budget = mean_budget[:, None, None].repeat(1, self.u_size + 1, 1)
             s = w.reshape(self.batch_size, self.u_size + 1, 1)
             (
                 h_mean,
@@ -258,7 +258,7 @@ class StateAdwordsBipartite(NamedTuple):
                     h_mean_degree.transpose(1, 2),
                     ind.unsqueeze(2).repeat(1, self.u_size + 1, 1),
                     self.size.unsqueeze(2).repeat(1, self.u_size + 1, 1)
-                    / self.orig_budget.sum(-1),
+                    / self.orig_budget.sum(-1)[:, None, None],
                     mean_sol.unsqueeze(2).repeat(1, self.u_size + 1, 1),
                     var_sol.unsqueeze(2).repeat(1, self.u_size + 1, 1),
                     n_skip.unsqueeze(2).repeat(1, self.u_size + 1, 1),
@@ -293,7 +293,7 @@ class StateAdwordsBipartite(NamedTuple):
             (future_node_feature, fixed_node_feature, incoming_node_features), dim=1
         ).reshape(batch_size, step_size)
 
-        return node_features
+        return node_features.float()
 
     def get_hist_features(self):
         i = self.i - (self.u_size + 1)

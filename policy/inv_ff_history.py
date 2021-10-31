@@ -24,7 +24,7 @@ class InvariantFFHist(nn.Module):
 
         self.embedding_dim = embedding_dim
         self.decode_type = None
-        self.num_actions = 16 if opts.problem != "adwords" else 18
+        self.num_actions = 16 if opts.problem != "adwords" else 19
         self.problem = problem
         self.model_name = "inv-ff-hist"
         self.ff = nn.Sequential(
