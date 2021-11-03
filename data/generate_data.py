@@ -147,9 +147,9 @@ def generate_movie_lense_graph(
 
 
 def generate_capacity(u_size, v_size, max_num_users, popularity, movie):
-    if u_size == 10 and v_size == 50:
+    if u_size == 10 and v_size == 30:
         m, v = 1, 0.5
-    elif u_size == 10 and v_size == 150:
+    elif u_size == 10 and v_size == 60:
         m, v = 3, 0.5
     return ((max_num_users - popularity[movie]) / max_num_users) * 100 + abs(
         np.random.normal(m, v)
@@ -421,12 +421,8 @@ def generate_adwords_data_geometric(
     if graph_family == "er" or graph_family == "ba":
         g = generate_er_graph if graph_family == "er" else generate_ba_graph
         edges, tasks, workers = None, None, None
-        capacity_param_1, capacity_param_2 = int(graph_family_parameter) * (
-            v_size / u_size
-        ) * 0.5 - int(graph_family_parameter), int(graph_family_parameter) * (
-            (v_size / u_size)
-        ) * 0.5 + int(
-            graph_family_parameter
+        capacity_param_1, capacity_param_2 = 0.01, max(
+            float(v_size / u_size) * float(graph_family_parameter) * 0.5, 1.0
         )
         for i in tqdm(range(dataset_size)):
             g1, weights, w, capacities = g(
@@ -451,8 +447,8 @@ def generate_adwords_data_geometric(
             )
             data = from_networkx(g1)
             # uncomment to get the optimal from the ipsolver
-            optimal_sol = solve_adwords(u_size, v_size, weights, capacities)
-            # optimal_sol = 10, []
+            # optimal_sol = solve_adwords(u_size, v_size, weights, capacities)
+            optimal_sol = 10, []
             data.x = torch.tensor(capacities)
             data.y = torch.cat(
                 (torch.tensor([optimal_sol[0]]), torch.tensor(optimal_sol[1]))
@@ -503,8 +499,7 @@ def generate_adwords_data_geometric(
             )
             data = from_networkx(g1)
             data.x = torch.tensor(capacities)
-            optimal_sol = solve_adwords(u_size, v_size, adjacency_matrix, capacities)
-            print(data.x, optimal_sol)
+            optimal_sol = solve_adwords(u_size, v_size, adjacency_matrix.T, capacities)
             data.y = torch.cat(
                 (torch.tensor([optimal_sol[0]]), torch.tensor(optimal_sol[1]))
             )
