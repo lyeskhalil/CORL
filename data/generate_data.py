@@ -64,7 +64,119 @@ def generate_ba_graph(
     nx.set_edge_attributes(G, dict(zip(list(G.edges), d)))
 
     if opts.problem == "adwords":
+        assert capacity_param_1 is not None
         capacities = np.random.uniform(capacity_param_1, capacity_param_2, u)
+        return G, weights, w, capacities
+
+    return G, weights, w
+
+
+def generate_triangular_graph(
+    u,
+    v,
+    tasks,
+    edges,
+    workers,
+    graph_family_parameter,
+    seed,
+    weight_distribution,
+    weight_param,
+    vary_fixed=False,
+    capacity_param_1=None,
+    capacity_param_2=None,
+):
+    """
+    Genrates a randomly permuted uppper triangular graph. 
+    Note: the weights are generated independet of the options (flags) specified
+    """
+    np.random.seed(seed)
+
+    G = nx.Graph()
+    G = add_nodes_with_bipartite_label(G, u, v)
+
+    G.name = f"triangular_graph({u},{v},{graph_family_parameter})"
+
+    # make a complete bipartite graph
+    G = nx.bipartite.random_graph(u, v, 1)
+
+    # generate weights
+    a = np.ones((u_size, v_size))    
+    weights = nx.bipartite.biadjacency_matrix(
+        G, range(0, u_size), range(u_size, u_size + v_size)
+    ).toarray() * np.tril(a)
+    weights = np.random.permutation(weights)
+    w = torch.cat(
+        (torch.zeros(v_size, 1).float(), torch.tensor(weights).T.float()), 1
+    )
+    w = np.delete(weights.flatten(), weights.flatten() == 0)
+
+    d = [dict(weight=float(i)) for i in list(w)]
+    nx.set_edge_attributes(G, dict(zip(list(G.edges), d)))
+
+    if opts.problem == "adwords":
+        # assert capacity_param_1 is not None
+        capacities = (v/u) *np.ones(u)
+        return G, weights, w, capacities
+
+    return G, weights, w
+
+
+
+def generate_thick_z_graph(
+    u,
+    v,
+    thick_z_graph,
+    edges,
+    workers,
+    graph_family_parameter,
+    seed,
+    weight_distribution,
+    weight_param,
+    vary_fixed=False,
+    capacity_param_1=None,
+    capacity_param_2=None,
+):
+    """
+    Genrates a randomly permuted thick_z graph. 
+    Note1: the weights are generated independet of the options (flags) specified
+    Note2: we pass in the thick_z graph as the third input to the function 
+    """
+    np.random.seed(seed)
+
+    G = nx.Graph()
+    G = add_nodes_with_bipartite_label(G, u, v)
+
+    G.name = f"tick_z_graph({u},{v},{graph_family_parameter})"
+
+    # make a complete bipartite graph
+    G = nx.bipartite.random_graph(u, v, 1)
+
+    # generate graph
+    a = np.zeros((u_size, v_size))
+    B = v_size//u_size   
+    for i in range(u_size):
+        for j in range(0, B+1):
+            a[i, min(i*B + j, v_size-1)] = 1
+        if u_size/2 <= i:
+            for j in range(0, v_size//2):
+                a[i, j] = 1
+
+    weights = nx.bipartite.biadjacency_matrix(
+        G, range(0, u_size), range(u_size, u_size + v_size)
+    ).toarray() * a
+    
+    weights = np.random.permutation(weights)
+    w = torch.cat(
+        (torch.zeros(v_size, 1).float(), torch.tensor(weights).T.float()), 1
+    )
+    w = np.delete(weights.flatten(), weights.flatten() == 0)
+
+    d = [dict(weight=float(i)) for i in list(w)]
+    nx.set_edge_attributes(G, dict(zip(list(G.edges), d)))
+
+    if opts.problem == "adwords":
+        # assert capacity_param_1 is not None
+        capacities = (v/u) *np.ones(u)
         return G, weights, w, capacities
 
     return G, weights, w
@@ -312,7 +424,8 @@ def generate_er_graph(
     d = [dict(weight=float(i)) for i in list(w)]
     nx.set_edge_attributes(g1, dict(zip(list(g1.edges), d)))
 
-    if capacity_param_1 is not None:
+    if opts.problem == "adwords":
+        assert capacity_param_1 is not None
         capacities = np.random.uniform(capacity_param_1, capacity_param_2, u)
         return g1, weights, w, capacities
 
@@ -416,14 +529,29 @@ def generate_adwords_data_geometric(
     D, M, S = [], [], []
     vary_fixed = False
     edges, users, movies = None, None, None
-
     # make er or ba dataset
-    if graph_family == "er" or graph_family == "ba":
+    if graph_family in ['er', 'ba', 'triangular', 'thick_z']:
+        tasks, workers = None, None
         g = generate_er_graph if graph_family == "er" else generate_ba_graph
-        edges, tasks, workers = None, None, None
-        capacity_param_1, capacity_param_2 = 0.01, max(
+        if graph_family == 'er':
+            g = generate_er_graph
+            capacity_param_1, capacity_param_2 = 0.01, max(
             float(v_size / u_size) * float(graph_family_parameter) * 0.5, 1.0
-        )
+            )   
+        elif graph_family == 'ba':
+            g = generate_ba_graph
+            capacity_param_1, capacity_param_2 = 0.01, max(
+            float(v_size / u_size) * float(graph_family_parameter) * 0.5, 1.0
+            )
+        elif graph_family == 'triangular':
+            g = generate_triangular_graph
+            B, n = 10, 10
+            u_size, v_size = n, B*n
+        elif graph_family == 'thick_z':
+            g = generate_thick_z_graph
+            B, n = 10, 10
+            u_size, v_size =  n, B*n
+        
         for i in tqdm(range(dataset_size)):
             g1, weights, w, capacities = g(
                 u_size,
@@ -446,10 +574,14 @@ def generate_adwords_data_geometric(
                 list(zip([-1] * v_size, range(u_size, u_size + v_size))), weight=0
             )
             data = from_networkx(g1)
-            # uncomment to get the optimal from the ipsolver
-            # optimal_sol = solve_adwords(u_size, v_size, weights, capacities)
-            optimal_sol = 10, []
+            
             data.x = torch.tensor(capacities)
+            if graph_famliy in ['ba', 'er']:
+                # uncomment to get the optimal from the ipsolver
+                # optimal_sol = solve_adwords(u_size, v_size, weights, capacities)
+                optimal_sol = 10, []
+            else:
+                optimal_sol = B*n, []
             data.y = torch.cat(
                 (torch.tensor([optimal_sol[0]]), torch.tensor(optimal_sol[1]))
             )
