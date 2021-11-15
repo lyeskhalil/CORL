@@ -447,8 +447,8 @@ def generate_adwords_data_geometric(
             )
             data = from_networkx(g1)
             # uncomment to get the optimal from the ipsolver
-            # optimal_sol = solve_adwords(u_size, v_size, weights, capacities)
-            optimal_sol = 10, []
+            optimal_sol = solve_adwords(u_size, v_size, weights, capacities)
+            # optimal_sol = 10, []
             data.x = torch.tensor(capacities)
             data.y = torch.cat(
                 (torch.tensor([optimal_sol[0]]), torch.tensor(optimal_sol[1]))
