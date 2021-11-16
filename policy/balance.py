@@ -31,8 +31,9 @@ class Balance(nn.Module):
         sequences = []
         while not (state.all_finished()):
             mask = state.get_mask()
-            frac_budget = state.get_current_weights(mask).clone() / state.curr_budget()
-            frac_budget[mask.bool()] = -1.0
+            frac_budget = state.curr_budget / state.orig_budget
+            frac_budget[mask.bool()] = 1e6
+            frac_budget[:, 0] = 1e5
             selected = torch.argmin(frac_budget, dim=1)
 
             state = state.update(selected[:, None])

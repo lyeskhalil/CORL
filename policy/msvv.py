@@ -23,7 +23,7 @@ class MSVV(nn.Module):
         super(MSVV, self).__init__()
         self.decode_type = None
         self.problem = problem
-        self.model_name = "MSVV"
+        self.model_name = "msvv"
 
     def forward(self, x, opts, optimizer, baseline, return_pi=False):
         assert opts.problem == "adwords"
@@ -32,8 +32,9 @@ class MSVV(nn.Module):
         while not (state.all_finished()):
             mask = state.get_mask()
             w = state.get_current_weights(mask).clone()
-            scaled_w = w * (1- torch.exp((w / state.curr_budget())-1))
-            scaled_w[mask.bool()] = -1.0
+            scaled_w = w * (1 - torch.exp((state.curr_budget / state.orig_budget) - 1))
+            scaled_w[mask.bool()] = -1e6
+            scaled_w[:, 0] = -1e5
             selected = torch.argmax(scaled_w, dim=1)
 
             state = state.update(selected[:, None])
