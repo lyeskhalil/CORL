@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+from utils.functions import random_max
 
 
 class Greedy(nn.Module):
@@ -32,10 +33,9 @@ class Greedy(nn.Module):
             mask = state.get_mask()
             w = state.get_current_weights(mask).clone()
             w[mask.bool()] = -1.0
-            selected = torch.argmax(w, dim=1)
-
-            state = state.update(selected[:, None])
-            sequences.append(selected)
+            selected = random_max(w)
+            state = state.update(selected)
+            sequences.append(selected.squeeze(1))
         if return_pi:
             return -state.size, None, torch.stack(sequences, 1), None
         return -state.size, torch.stack(sequences, 1), None

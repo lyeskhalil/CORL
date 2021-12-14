@@ -99,8 +99,10 @@ def generate_triangular_graph(
         for u_node in range(u):
             if v_node + 1 <= (u_node + 1) * B:
                 G.add_edge(u_node, u + v_node, weight=1.0)
-    perm = (np.random.permutation(v) + u).tolist()
-    G = nx.relabel_nodes(G, mapping=dict(zip(list(range(u, u + v)), perm)))
+    # perm = (np.random.permutation(v) + u).tolist()
+    # G = nx.relabel_nodes(G, mapping=dict(zip(list(range(u, u + v)), perm)))
+    perm_u = (np.random.permutation(u)).tolist()
+    G = nx.relabel_nodes(G, mapping=dict(zip(list(range(u)), perm_u)))
     # generate weights
     weights = nx.bipartite.biadjacency_matrix(G, range(0, u), range(u, u + v)).toarray()
     capacities = (v / u) * np.ones(u)

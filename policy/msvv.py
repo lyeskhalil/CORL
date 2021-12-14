@@ -1,6 +1,8 @@
 import torch
 from torch import nn
 
+from utils.functions import random_max
+
 
 class MSVV(nn.Module):
     def __init__(
@@ -32,13 +34,13 @@ class MSVV(nn.Module):
         while not (state.all_finished()):
             mask = state.get_mask()
             w = state.get_current_weights(mask).clone()
-            scaled_w = w * (1 - torch.exp((state.curr_budget / state.orig_budget) - 1))
+            scaled_w = w * (1 - torch.exp(-(state.curr_budget / state.orig_budget)))
             scaled_w[mask.bool()] = -1e6
             scaled_w[:, 0] = -1e5
-            selected = torch.argmax(scaled_w, dim=1)
+            selected = random_max(scaled_w)
 
-            state = state.update(selected[:, None])
-            sequences.append(selected)
+            state = state.update(selected)
+            sequences.append(selected.squeeze(1))
         if return_pi:
             return -state.size, None, torch.stack(sequences, 1), None
         return -state.size, torch.stack(sequences, 1), None

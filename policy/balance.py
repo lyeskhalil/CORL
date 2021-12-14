@@ -1,6 +1,8 @@
 import torch
 from torch import nn
 
+from utils.functions import random_max
+
 
 class Balance(nn.Module):
     def __init__(
@@ -32,12 +34,12 @@ class Balance(nn.Module):
         while not (state.all_finished()):
             mask = state.get_mask()
             frac_budget = state.curr_budget / state.orig_budget
-            frac_budget[mask.bool()] = 1e6
-            frac_budget[:, 0] = 1e5
-            selected = torch.argmin(frac_budget, dim=1)
+            frac_budget[mask.bool()] = -1e6
+            frac_budget[:, 0] = -1e5
+            selected = random_max(frac_budget)
 
-            state = state.update(selected[:, None])
-            sequences.append(selected)
+            state = state.update(selected)
+            sequences.append(selected.squeeze(1))
         if return_pi:
             return -state.size, None, torch.stack(sequences, 1), None
         return -state.size, torch.stack(sequences, 1), None
