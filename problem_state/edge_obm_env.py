@@ -169,7 +169,6 @@ class StateEdgeBipartite(NamedTuple):
         elif model == "inv-ff":
             deg = (w != 0).float().sum(1)
             deg[deg == 0.0] = 1.0
-            print(deg)
             mean_w = w.sum(1) / deg
             mean_w = mean_w[:, None, None].repeat(1, self.u_size + 1, 1)
             fixed_node_identity = torch.zeros(
@@ -283,8 +282,10 @@ class StateEdgeBipartite(NamedTuple):
     def get_hist_features(self):
         i = self.i - (self.u_size + 1)
         if i != 0:
-            h_mean = self.hist_sum / i
-            h_var = (self.hist_sum_sq - ((self.hist_sum ** 2) / i)) / i
+            deg = self.hist_deg.clone()
+            deg[deg == 0] = 1.0
+            h_mean = self.hist_sum / deg
+            h_var = (self.hist_sum_sq - ((self.hist_sum ** 2) / deg)) / deg
             h_mean_degree = self.hist_deg / i
             ind = (
                 torch.ones(self.batch_size, 1, device=self.opts.device)
