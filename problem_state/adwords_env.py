@@ -46,6 +46,7 @@ class StateAdwordsBipartite(NamedTuple):
         budgets = torch.cat(
             (torch.zeros(batch_size, 1), input.x.reshape(batch_size, -1)), dim=1
         )
+        # print(adj)
         # permute the nodes for data
         idx = torch.arange(adj.shape[1], device=opts.device)
         # if "supervised" not in opts.model and not opts.eval_only:
@@ -59,8 +60,8 @@ class StateAdwordsBipartite(NamedTuple):
             v_size=v_size,
             batch_size=batch_size,
             # Keep visited with depot so we can scatter efficiently (if there is an action for depot)
-            orig_budget=budgets,
-            curr_budget=budgets.clone(),
+            orig_budget=budgets.float(),
+            curr_budget=budgets.clone().float(),
             hist_sum=(
                 torch.zeros(
                     batch_size,
