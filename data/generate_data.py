@@ -98,14 +98,16 @@ def generate_triangular_graph(
     for v_node in range(v):
         for u_node in range(u):
             if v_node + 1 <= (u_node + 1) * B:
-                G.add_edge(u_node, u + v_node, weight=1.0)
+                G.add_edge(u_node, u + v_node, weight=0.1)
     # perm = (np.random.permutation(v) + u).tolist()
     # G = nx.relabel_nodes(G, mapping=dict(zip(list(range(u, u + v)), perm)))
     perm_u = (np.random.permutation(u)).tolist()
     G = nx.relabel_nodes(G, mapping=dict(zip(list(range(u)), perm_u)))
     # generate weights
-    weights = nx.bipartite.biadjacency_matrix(G, range(0, u), range(u, u + v)).toarray()
-    capacities = (v / u) * np.ones(u)
+    weights = (
+        nx.bipartite.biadjacency_matrix(G, range(0, u), range(u, u + v)).toarray() * 0.1
+    )
+    capacities = (v / u) * np.ones(u) * 0.1
     return G, weights, None, capacities
 
 
@@ -135,29 +137,25 @@ def generate_thick_z_graph(
 
     G.name = f"tick-z_graph({u},{v},{graph_family_parameter})"
 
-    # make a complete bipartite graph
-    G = nx.bipartite.random_graph(u, v, 1)
-
     # generate graph
     a = np.zeros((u, v))
     B = v // u
     for i in range(u):
-        for j in range(B + 1):
+        for j in range(B):
             a[i, min(i * B + j, v - 1)] = 1
-        if u / 2 <= i:
-            for j in range(0, v // 2):
+            G.add_edge(i, i + i * B + j, weight=1.0)
+        if i >= u / 2:
+            for j in range(v // 2):
                 a[i, j] = 1
+                G.add_edge(i, i + j, weight=1.0)
 
-    weights = (
-        nx.bipartite.biadjacency_matrix(G, range(0, u), range(u, u + v)).toarray() * a
-    )
+    weights = nx.bipartite.biadjacency_matrix(G, range(0, u), range(u, u + v)).toarray()
 
     weights = np.random.permutation(weights)
+    perm_u = (np.random.permutation(u)).tolist()
+    G = nx.relabel_nodes(G, mapping=dict(zip(list(range(u)), perm_u)))
     w = torch.cat((torch.zeros(v, 1).float(), torch.tensor(weights).T.float()), 1)
     w = np.delete(weights.flatten(), weights.flatten() == 0)
-
-    d = [dict(weight=float(i)) for i in list(w)]
-    nx.set_edge_attributes(G, dict(zip(list(G.edges), d)))
 
     # assert capacity_param_1 is not None
     capacities = (v / u) * np.ones(u)
@@ -525,7 +523,7 @@ def generate_adwords_data_geometric(
             )
         elif graph_family == "triangular":
             g = generate_triangular_graph
-            B = v_size // u_size
+            B = (v_size // u_size) * 0.1
         elif graph_family == "thick-z":
             g = generate_thick_z_graph
             B = v_size // u_size
@@ -549,7 +547,7 @@ def generate_adwords_data_geometric(
                 -1, bipartite=0
             )  # add extra node in U that represents not matching the current node to anything
             g1.add_edges_from(
-                list(zip([-1] * v_size, range(u_size, u_size + v_size))), weight=0
+                list(zip([-1] * v_size, range(u_size, u_size + v_size))), weight=0.0
             )
             data = from_networkx(g1)
             # optimal_sol = 10, []
