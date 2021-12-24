@@ -153,7 +153,7 @@ class StateOSBM(NamedTuple):
             self.batch_size * self.num_users, -1
         ).index_select(0, users_idx)
         s = ((selected_movie_genre + users_covered_genre) > 0).float()
-        curr_weights = self.adj[:, v, :].float().clone()
+        curr_weights = self.adj[:, v, :].clone()
         selected_weights = curr_weights.gather(1, selected)
         skip = (selected == 0).float()
         num_skip = self.num_skip + skip
@@ -385,6 +385,8 @@ class StateOSBM(NamedTuple):
     def get_hist_features(self):
         i = self.i - (self.u_size + 1)
         if i != 0:
+            deg = self.hist_deg.clone()
+            deg[deg == 0] = 1.0
             h_mean = self.hist_sum / i
             h_var = (self.hist_sum_sq - ((self.hist_sum ** 2) / i)) / i
             h_mean_degree = self.hist_deg / i
@@ -446,5 +448,5 @@ class StateOSBM(NamedTuple):
             :, 0
         ] = 0  # node that represents not being matched to anything can be matched to more than once
         return (
-            self.matched_nodes + mask > 0
+            self.matched_nodes.float() + mask > 0
         ).long()  # Hacky way to return bool or uint8 depending on pytorch version
