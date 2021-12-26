@@ -124,6 +124,7 @@ class StateAdwordsBipartite(NamedTuple):
             * selected_weights
         )
         curr_budget = self.curr_budget - one_hot_w
+        curr_budget[curr_budget < 0.0] = 0.0
         skip = (selected == 0).float()
         num_skip = self.num_skip + skip
         if self.i == self.u_size + 1:
