@@ -40,13 +40,16 @@ class StateAdwordsBipartite(NamedTuple):
         batch_size = int(input.batch.size(0) / graph_size)
         # print(batch_size, input.batch.size(0), graph_size)
         adj = to_dense_adj(
-            input.edge_index, input.batch, input.weight.unsqueeze(1)
+            input.edge_index,
+            input.batch,
+            input.weight.unsqueeze(1),
         ).squeeze(-1)
         adj = adj[:, u_size + 1 :, : u_size + 1]
         budgets = torch.cat(
             (torch.zeros(batch_size, 1), input.x.reshape(batch_size, -1)), dim=1
-        )
+        ).float()
         # print(adj)
+        # print(budgets)
         # permute the nodes for data
         idx = torch.arange(adj.shape[1], device=opts.device)
         # if "supervised" not in opts.model and not opts.eval_only:
@@ -55,13 +58,13 @@ class StateAdwordsBipartite(NamedTuple):
 
         return StateAdwordsBipartite(
             graphs=input,
-            adj=adj,
+            adj=adj.float(),
             u_size=u_size,
             v_size=v_size,
             batch_size=batch_size,
             # Keep visited with depot so we can scatter efficiently (if there is an action for depot)
-            orig_budget=budgets.float(),
-            curr_budget=budgets.clone().float(),
+            orig_budget=budgets,
+            curr_budget=budgets.clone(),
             hist_sum=(
                 torch.zeros(
                     batch_size,
@@ -117,6 +120,7 @@ class StateAdwordsBipartite(NamedTuple):
             F.one_hot(selected, num_classes=self.u_size + 1)
             .to(self.adj.device)
             .squeeze(1)
+            .float()
             * selected_weights
         )
         curr_budget = self.curr_budget - one_hot_w
@@ -356,9 +360,9 @@ class StateAdwordsBipartite(NamedTuple):
         That is, neighbors of the incoming node that have not been matched already.
         """
 
-        mask = (self.adj[:, 0, :] == 0).float()
-        mask[:, 0] = 0
-        budget_mask = (self.adj[:, 0, :] > self.curr_budget).float()
+        mask = (self.adj[:, 0, :] == 0.0).float()
+        mask[:, 0] = 0.0
+        budget_mask = ((self.adj[:, 0, :] - self.curr_budget) > 1e-5).float()
         return (
-            budget_mask + mask > 0
+            budget_mask + mask > 0.0
         ).long()  # Hacky way to return bool or uint8 depending on pytorch version

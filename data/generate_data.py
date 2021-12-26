@@ -15,6 +15,9 @@ from scipy.optimize import linear_sum_assignment
 import torch
 from tqdm import tqdm
 
+# torch.set_printoptions(precision=9)
+# np.set_printoptions(precision=9)
+
 gmission_fixed_workers = [229, 521, 527, 80, 54, 281, 508, 317, 94, 351]
 
 
@@ -94,20 +97,22 @@ def generate_triangular_graph(
     G = add_nodes_with_bipartite_label(G, u, v)
 
     G.name = f"triangular_graph({u},{v},{graph_family_parameter})"
+    weight = np.random.uniform(float(weight_param[0]), float(weight_param[1]))
     B = v // u
     for v_node in range(v):
         for u_node in range(u):
             if v_node + 1 <= (u_node + 1) * B:
-                G.add_edge(u_node, u + v_node, weight=0.1)
+                G.add_edge(u_node, u + v_node, weight=weight)
     # perm = (np.random.permutation(v) + u).tolist()
     # G = nx.relabel_nodes(G, mapping=dict(zip(list(range(u, u + v)), perm)))
     perm_u = (np.random.permutation(u)).tolist()
     G = nx.relabel_nodes(G, mapping=dict(zip(list(range(u)), perm_u)))
     # generate weights
     weights = (
-        nx.bipartite.biadjacency_matrix(G, range(0, u), range(u, u + v)).toarray() * 0.1
+        nx.bipartite.biadjacency_matrix(G, range(0, u), range(u, u + v)).toarray()
+        * weight
     )
-    capacities = (v / u) * np.ones(u) * 0.1
+    capacities = (v / u) * np.ones(u, dtype=np.float32) * weight
     return G, weights, None, capacities
 
 
@@ -138,18 +143,22 @@ def generate_thick_z_graph(
     G.name = f"tick-z_graph({u},{v},{graph_family_parameter})"
 
     # generate graph
+    weight = np.random.uniform(float(weight_param[0]), float(weight_param[1]))
     a = np.zeros((u, v))
     B = v // u
     for i in range(u):
         for j in range(B):
             a[i, min(i * B + j, v - 1)] = 1
-            G.add_edge(i, i + i * B + j, weight=1.0)
+            G.add_edge(i, u + i * B + j, weight=weight)
         if i >= u / 2:
             for j in range(v // 2):
                 a[i, j] = 1
-                G.add_edge(i, i + j, weight=1.0)
+                G.add_edge(i, u + j, weight=weight)
 
-    weights = nx.bipartite.biadjacency_matrix(G, range(0, u), range(u, u + v)).toarray()
+    weights = (
+        nx.bipartite.biadjacency_matrix(G, range(0, u), range(u, u + v)).toarray()
+        * weight
+    )
 
     weights = np.random.permutation(weights)
     perm_u = (np.random.permutation(u)).tolist()
@@ -158,7 +167,7 @@ def generate_thick_z_graph(
     w = np.delete(weights.flatten(), weights.flatten() == 0)
 
     # assert capacity_param_1 is not None
-    capacities = (v / u) * np.ones(u)
+    capacities = (v / u) * np.ones(u, dtype=np.float32) * weight
     return G, weights, w, capacities
 
 
@@ -523,10 +532,8 @@ def generate_adwords_data_geometric(
             )
         elif graph_family == "triangular":
             g = generate_triangular_graph
-            B = (v_size // u_size) * 0.1
         elif graph_family == "thick-z":
             g = generate_thick_z_graph
-            B = v_size // u_size
 
         for i in tqdm(range(dataset_size)):
             g1, weights, w, capacities = g(
@@ -550,14 +557,17 @@ def generate_adwords_data_geometric(
                 list(zip([-1] * v_size, range(u_size, u_size + v_size))), weight=0.0
             )
             data = from_networkx(g1)
+            # print(data.weight)
+            # data.weight = torch.tensor(np.around(data.weight.numpy().astype(np.float32), decimals=4))
             # optimal_sol = 10, []
-            data.x = torch.tensor(capacities)
+            # print(data.weight)
+            data.x = torch.from_numpy(capacities)
             if graph_family in ["ba", "er"]:
                 # uncomment to get the optimal from the ipsolver
                 optimal_sol = solve_adwords(u_size, v_size, weights, capacities)
                 # optimal_sol = 10, [0] * v_size
             else:
-                optimal_sol = B * u_size, [0] * v_size
+                optimal_sol = sum(capacities), [0] * v_size
             data.y = torch.cat(
                 (torch.tensor([optimal_sol[0]]), torch.tensor(optimal_sol[1]))
             )
