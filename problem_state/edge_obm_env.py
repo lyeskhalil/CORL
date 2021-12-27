@@ -248,7 +248,7 @@ class StateEdgeBipartite(NamedTuple):
                     self.size.unsqueeze(2).repeat(1, self.u_size + 1, 1) / self.u_size,
                     mean_sol.unsqueeze(2).repeat(1, self.u_size + 1, 1),
                     var_sol.unsqueeze(2).repeat(1, self.u_size + 1, 1),
-                    n_skip.unsqueeze(2).repeat(1, self.u_size + 1, 1) * 0.0,
+                    n_skip.unsqueeze(2).repeat(1, self.u_size + 1, 1),
                     self.max_sol.unsqueeze(2).repeat(1, self.u_size + 1, 1),
                     self.min_sol.unsqueeze(2).repeat(1, self.u_size + 1, 1),
                     matched_ratio.unsqueeze(2).repeat(1, self.u_size + 1, 1),
