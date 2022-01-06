@@ -46,8 +46,8 @@ class StateAdwordsBipartite(NamedTuple):
         ).squeeze(-1)
         adj = adj[:, u_size + 1 :, : u_size + 1]
         budgets = torch.cat(
-            (torch.zeros(batch_size, 1), input.x.reshape(batch_size, -1)), dim=1
-        ).float()
+            (torch.zeros(batch_size, 1).to(opts.device), input.x.reshape(batch_size, -1)), dim=1
+        )
         # print(adj)
         # print(budgets)
         # permute the nodes for data

@@ -2,7 +2,7 @@
 #SBATCH --gres=gpu:v100l:1       # Request GPU "generic resources"
 #SBATCH --cpus-per-task=6  # Cores proportional to GPUs: 6 on Cedar, 16 on Graham.
 #SBATCH --mem=32000M       # Memory proportional to GPUs: 32000 Cedar, 64000 Graham.
-#SBATCH --time=10:00:00
+#SBATCH --time=40:00:00
 #SBATCH --output=%N-%j.out
 
 U_SIZE=$1
@@ -24,15 +24,9 @@ MODEL=$8
 
 module load python/3.7
 module load scipy-stack
-module load gurobi
-
 
 virtualenv --no-download $SLURM_TMPDIR/env
 source $SLURM_TMPDIR/env/bin/activate
-cd $EBROOTGUROBI
-python setup.py build --build-base /tmp/${USER} install
-
-cd ~/scratch/corl/
 pip install --no-index --upgrade pip
 
 pip install --no-index -r requirements.txt

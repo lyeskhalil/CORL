@@ -662,7 +662,7 @@ def generate_edge_obm_data_geometric(
         max_w = max(w)
         edges = {k: (float(v) / float(max_w)) for k, v in edges.items()}
         np.random.seed(100)
-        rep = graph_family == "gmission" and u_size == 10
+        rep = (graph_family == "gmission") and (u_size == 10)
         workers = list(np.random.choice(np.arange(1, 533), size=u_size, replace=rep))
         if graph_family == "gmission-perm":
             np.random.shuffle(workers)  # TODO: REMOVE

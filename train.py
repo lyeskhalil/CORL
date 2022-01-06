@@ -417,7 +417,7 @@ def train_epoch(
     if not opts.no_tensorboard:
         tb_logger.add_scalar("val_avg_reward", -avg_reward, step)
         tb_logger.add_scalar("min_competitive_ratio", min_cr, step)
-
+        tb_logger.add_scalar("avg_cr", avg_cr, step)
     baseline.epoch_callback(model, epoch)
 
     # lr_scheduler should be called at end of epoch

@@ -165,7 +165,7 @@ class GNNHist(nn.Module):
                 weights.float(),
                 torch.tensor(i),
                 self.dummy,
-                # opts,
+                opts,
             ).reshape(batch_size, step_size, -1)
             pos = torch.argsort(state.idx[:i])[-1]
             incoming_node_embeddings = embeddings[

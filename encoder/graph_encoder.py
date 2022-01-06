@@ -40,17 +40,17 @@ class MPNN(nn.Module):
         self.node_dim_v = node_dim_v
         self.batch_size = opts.batch_size
 
-    def forward(self, x, edge_index, edge_attribute, i, dummy):
+    def forward(self, x, edge_index, edge_attribute, i, dummy, opts):
         i = i.item()
-        graph_size = self.u_size + 1 + i
+        graph_size = opts.u_size + 1 + i
         if i < self.n_layers:
             n_encode_layers = i + 1
         else:
             n_encode_layers = self.n_layers
-        x_u = x[:, : self.node_dim_u * (self.u_size + 1)].reshape(
-            self.batch_size, self.u_size + 1, self.node_dim_u
+        x_u = x[:, : self.node_dim_u * (opts.u_size + 1)].reshape(
+            self.batch_size, opts.u_size + 1, self.node_dim_u
         )
-        x_v = x[:, self.node_dim_u * (self.u_size + 1) :].reshape(
+        x_v = x[:, self.node_dim_u * (opts.u_size + 1) :].reshape(
             self.batch_size, i, self.node_dim_v
         )
         x_u = self.node_embed_u(x_u)

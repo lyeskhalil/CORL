@@ -10,7 +10,7 @@ import wandb
 
 # from tensorboard_logger import Logger as TbLogger
 from torch.utils.tensorboard import SummaryWriter
-from torch_geometric.data import DataLoader as geoDataloader
+from torch_geometric.loader import DataLoader as geoDataloader
 
 # from nets.critic_network import CriticNetwork
 from options import get_options
@@ -233,7 +233,7 @@ def run(opts):
             with open(SCOREFILE, "a") as f:
                 f.write(f'{",".join(map(str, params + (avg_reward,min_cr,avg_cr)))}\n')
     elif opts.tune_baseline:
-        PARAM_GRID = np.round(np.linspace(0, 1, 100).tolist(), decimals=2)
+        PARAM_GRID = np.round(np.linspace(0, 1, 100).tolist(), decimals=2) # Threshold for greedy-t
         N_WORKERS = int(os.getenv("SLURM_ARRAY_TASK_COUNT", 1))
 
         # this worker's array index. Assumes slurm array job is zero-indexed
