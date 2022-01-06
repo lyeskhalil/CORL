@@ -1,6 +1,6 @@
 #!/bin/bash
 #SBATCH --mem=32000M       # Memory proportional to GPUs: 32000 Cedar, 64000 Graham.
-#SBATCH --time=05:00:00
+#SBATCH --time=10:00:00
 #SBATCH --output=%N-%j.out
 
 U_SIZE=$1
