@@ -214,12 +214,16 @@ class GNNHist(nn.Module):
                 state.batch_size, state.u_size + 1, 1, device=opts.device
             )
             fixed_node_identity[:, 0, :] = 1.0
+            norm_size = (
+                state.orig_budget.sum(-1)[:, None, None]
+                if opts.problem == "adwords"
+                else state.u_size
+            )
             s = torch.cat(
                 (
                     s,
                     idx.repeat(1, state.u_size + 1, 1),
-                    state.size.unsqueeze(2).repeat(1, state.u_size + 1, 1)
-                    / state.orig_budget.sum(-1)[:, None, None],
+                    state.size.unsqueeze(2).repeat(1, state.u_size + 1, 1) / norm_size,
                     fixed_node_identity,
                     mask.unsqueeze(2),
                     incoming_node_embeddings.repeat(1, state.u_size + 1, 1),
