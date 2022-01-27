@@ -57,8 +57,11 @@ def random_min(input):
 def get_best_t(model, opts):
     best_params = None
     best_r = 0
+    graph_family = (
+        opts.graph_family if opts.graph_family != "gmission-perm" else "gmission"
+    )
     with open(
-        f"val_rewards_{model}_{opts.u_size}_{opts.v_size}_{opts.graph_family}_{opts.graph_family_parameter}.csv"
+        f"val_rewards_{model}_{opts.u_size}_{opts.v_size}_{graph_family}_{opts.graph_family_parameter}.csv"
     ) as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=",")
         for line in csv_reader:

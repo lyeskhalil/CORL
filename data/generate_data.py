@@ -31,6 +31,7 @@ def generate_ba_graph(
     seed,
     weight_distribution,
     weight_param,
+    graph_family=None,
     vary_fixed=False,
     capacity_param_1=None,
     capacity_param_2=None,
@@ -159,7 +160,6 @@ def generate_thick_z_graph(
         nx.bipartite.biadjacency_matrix(G, range(0, u), range(u, u + v)).toarray()
         * weight
     )
-
     weights = np.random.permutation(weights)
     perm_u = (np.random.permutation(u)).tolist()
     G = nx.relabel_nodes(G, mapping=dict(zip(list(range(u)), perm_u)))
@@ -347,7 +347,17 @@ def generate_movie_lense_adwords_graph(
 
 
 def generate_gmission_graph(
-    u, v, tasks, edges, workers, p, seed, weight_dist, weight_param, vary_fixed=False
+    u,
+    v,
+    tasks,
+    edges,
+    workers,
+    p,
+    seed,
+    weight_dist,
+    weight_param,
+    graph_family=None,
+    vary_fixed=False,
 ):
     np.random.seed(seed)
 
@@ -358,6 +368,8 @@ def generate_gmission_graph(
     if vary_fixed:
         workers = list(np.random.choice(np.arange(1, 533), size=u, replace=False))
     availableWorkers = workers.copy()
+    if graph_family == "gmission-perm":
+        np.random.shuffle(availableWorkers)
     weights = []
     for i in range(v):
         j = 0
@@ -392,6 +404,7 @@ def generate_er_graph(
     seed,
     weight_distribution,
     weight_param,
+    graph_family=None,
     vary_fixed=False,
     capacity_param_1=None,
     capacity_param_2=None,
@@ -527,9 +540,7 @@ def generate_adwords_data_geometric(
             )
         elif graph_family == "ba":
             g = generate_ba_graph
-            capacity_param_1, capacity_param_2 = 0.01, max(
-                float(v_size / u_size) * 0.5, 1.0
-            )
+            capacity_param_1, capacity_param_2 = 0.01, max(0.01, 1.0)
         elif graph_family == "triangular":
             g = generate_triangular_graph
         elif graph_family == "thick-z":
@@ -546,9 +557,9 @@ def generate_adwords_data_geometric(
                 seed + i,
                 weight_distribution,
                 weight_param,
-                False,
-                capacity_param_1,
-                capacity_param_2,
+                vary_fixed=False,
+                capacity_param_1=capacity_param_1,
+                capacity_param_2=capacity_param_2,
             )
             g1.add_node(
                 -1, bipartite=0
@@ -664,8 +675,6 @@ def generate_edge_obm_data_geometric(
         np.random.seed(100)
         rep = (graph_family == "gmission") and (u_size == 10)
         workers = list(np.random.choice(np.arange(1, 533), size=u_size, replace=rep))
-        if graph_family == "gmission-perm":
-            np.random.shuffle(workers)  # TODO: REMOVE
         if graph_family == "gmission-max":
             tasks = reduced_tasks
             workers = np.random.choice(reduced_workers, size=u_size, replace=False)
@@ -684,7 +693,8 @@ def generate_edge_obm_data_geometric(
             seed + i,
             weight_distribution,
             weight_param,
-            vary_fixed,
+            vary_fixed=vary_fixed,
+            graph_family=graph_family,
         )
         min_weight = min(min_weight, min(w))
         # d_old = np.array(sorted(g1.degree))[u_size:, 1]

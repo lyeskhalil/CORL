@@ -26,8 +26,8 @@ class GreedyRt(nn.Module):
         self.problem = problem
         self.model_name = "greedy-rt"
         max_weight_dict = {
-            "gmission-var": 18.8736 * 10,
-            "gmission": 18.8736 * 10,
+            "gmission-var": 18.8736,
+            "gmission": 18.8736,
             "er": 10 ** 8,
             "ba": float(
                 opts.graph_family_parameter
@@ -35,8 +35,8 @@ class GreedyRt(nn.Module):
             + float(opts.weight_distribution_param[1]),
         }
         norm_weight = {
-            "gmission-var": 18.8736 * 10,
-            "gmission": 18.8736 * 10,
+            "gmission-var": 18.8736,
+            "gmission": 18.8736,
             "er": 10 ** 8,
             "ba": 100.0,
         }
