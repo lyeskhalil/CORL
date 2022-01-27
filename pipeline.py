@@ -4,19 +4,19 @@ import subprocess
 # Refer to opts.py for details about the flags
 # graph/dataset flags
 
-model_type = "greedy-t"
+model_type = "inv-ff-hist"
 
-problem = "e-obm"
-graph_family = "er"
-weight_distribution = "uniform"
-weight_distribution_param = "0 1"  # seperate by a space
-graph_family_parameters = "0.5"
+problem = "adwords"
+graph_family = "triangular"
+weight_distribution = "triangular"
+weight_distribution_param = "0.1 0.4"  # seperate by a space
+graph_family_parameters = "-1"
 
 u_size = 10
-v_size = 30
-dataset_size = 20000
+v_size = 100
+dataset_size = 1
 val_size = 1
-eval_size = 1
+eval_size = 2000
 
 # add this to the flags for adwords only.
 # capacity_params='0 1'
@@ -39,20 +39,22 @@ eval_dataset = "dataset/eval" + extention
 save_eval_data = True
 # model flags
 
-batch_size = 200
-eval_batch_size = 200
+batch_size = 100
+eval_batch_size = 100
 
 embedding_dim = 30  # 60
 n_heads = 1  # 3
-n_epochs = 300
+n_epochs = 20
 checkpoint_epochs = 0
 eval_baselines = "greedy"
 if problem == "e-obm":
     eval_baselines += " greedy-rt greedy-t"
-lr_model = 0.01
-lr_decay = 0.99
-beta_decay = 0.0
-ent_rate = 0.0
+if problem == "adwords":
+    eval_baselines += " msvv"
+lr_model = 0.006
+lr_decay = 0.97
+beta_decay = 0.8
+ent_rate = 0.0006
 n_encode_layers = 1
 
 baseline = "exponential"
@@ -61,7 +63,7 @@ output_dir = "saved_models"
 log_dir = "logs_dataset"
 
 # model evaluation flags
-eval_models = "ff-supervised ff ff-hist inv-ff inv-ff-hist gnn-hist"
+eval_models = "ff ff-hist inv-ff inv-ff-hist"
 
 eval_output = "figures"
 # this is a single checkpoint. Example: outputs_dataset/e-obm_20/run_20201226T171156/epoch-4.pt
@@ -90,7 +92,7 @@ def get_latest_model(
     for g_fam_param in g_fams.split(" "):
         dir = f"outputs/output_{problem}_{graph_family}_{u_size}by{v_size}_p={g_fam_param}_{graph_family}_m={m}_v={v}_a=3"
         list_of_files = sorted(
-            os.listdir(dir + f"/{m_type}"), key=lambda s: int(s[8:12] + s[13:])
+            os.listdir(dir + f"/{m_type}"), key=lambda s: int(s[4:12] + s[13:])
         )
         if models != "":
             models += " " + dir + f"/{m_type}/{list_of_files[-1]}/best-model.pt"
@@ -110,6 +112,8 @@ arg = [
     graph_family_parameters,
     eval_models.split(" "),
 ]
+
+
 attention_models = get_latest_model("attention", *arg)
 
 ff_supervised_models = get_latest_model("ff-supervised", *arg)
@@ -338,5 +342,5 @@ if __name__ == "__main__":
     make_dir()
     # generate_data()
     # train_model()
-    tune_model()
-    # evaluate_model()
+    # tune_model()
+    evaluate_model()
