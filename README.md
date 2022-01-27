@@ -16,7 +16,7 @@ Clone the repo and create a new python environment for you to run this project.
 
 Running the Code
 ------------
-run the file pipeline.py to do the following:
+run the `python pipeline.py` to do the following:
 - generate a dataset (see generate_data())
 - train a list of model on the dataset (see train_model())
 - evaluate the models (see evaluate_model())
