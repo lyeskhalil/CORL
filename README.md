@@ -31,7 +31,7 @@ Code
 --------
 **Data Generation**: The dir "data" contains the base graph for gMission and MovieLens datasets in raw .txt format. data/generate_data.py produces datasets of bipartite graphs from these base graphs as well as from synthetic BA and ER graph generation schemes. 
 
-**Environments**: The environment is implemented under the dir "problem_state" for  4 problems, namely obme, e-obm, adwords, and osbm.
+**Environments**: The environment is implemented under the dir `problem_state` for  4 problems, namely obme, e-obm, adwords, and osbm.
 
-**Models**: The models and the greedy baseline can be found under dir "policy"
+**Models**: The models and the greedy baseline can be found under dir `policy`
 
