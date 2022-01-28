@@ -294,7 +294,7 @@ def generate_weights_geometric(distribution, u_size, v_size, parameters, g1, see
                 float(parameters[0]), float(parameters[1]), (u_size, v_size)
             )
         )
-        weights = np.where(graph, (graph + noise) / u_size, graph)
+        weights = np.where(graph, (graph + noise) / v_size, graph)
         w = torch.cat(
             (torch.zeros(v_size, 1).float(), torch.tensor(weights).T.float()), 1
         )
