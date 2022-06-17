@@ -3,6 +3,7 @@ Deep RL for Online Combinatorial Optimization
 
 Deep Policies for Online Bipartite Matching: A Reinforcement Learning Approach
 
+https://arxiv.org/abs/2109.10380
 
 Setting up
 ------------
